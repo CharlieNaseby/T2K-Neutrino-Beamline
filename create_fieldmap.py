@@ -1,0 +1,107 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+def interpolate_point(df, val, incol, outcol):
+    points = df.iloc[(df[incol]-val).abs().argsort()[:2]] 
+    return(points.iloc[0][outcol] + (points.iloc[1][outcol]-points.iloc[0][outcol])/(points.iloc[1][incol] - points.iloc[0][incol]) * (val - points.iloc[0][incol]))
+   
+
+
+def interpolate(df, val, incol, outcol):
+    return [interpolate_point(df, v, incol, outcol) for v in val]
+
+
+def read_bi(filename):
+    bi = pd.ExcelFile(filename)
+
+    bi = bi.parse(0).dropna(axis=0, how='all').dropna(axis=1, how='all')
+
+    matching_indices = np.argwhere(bi.values == '電流[A]')
+    row = matching_indices[0][0]
+    col = matching_indices[0][1]
+
+    response = bi.iloc[row:,col:].dropna(axis=0, how='all')
+    response.replace({r'[^\x00-\x7F]+':''}, regex=True, inplace=True) #remove japanese characters
+
+    response.columns = response.iloc[0]
+    response = response.drop(response.index[0])
+
+    
+
+    response['Bmag'] = (response['Bx[Gauss]']**2 + response['By[Gauss]']**2 + response['Bz[Gauss]']**2)**0.5
+    return response
+
+
+def read_xyz(infile, colname):
+    z = pd.ExcelFile(infile)
+
+    z = z.parse(0)
+    z.replace({r'[^\x00-\x7F]+':''}, regex=True, inplace=True) #remove japanese characters
+    z.columns = z.iloc[0]
+    z = z.drop(z.index[0])
+    z1500 = z.iloc[:, 0:2]
+    z1300 = z.iloc[:, 2:4]
+    z1100 = z.iloc[:, 4:6]
+
+    ratio = z1500[colname] / z1100[colname]
+    error = ((0.5/z1500[colname])**2 + (0.5/z1100[colname])**2)**0.5
+#    plt.errorbar(z1500['Z[mm]'], ratio, yerr=error, lw=0, elinewidth=2)
+#    plt.scatter(z1500['Z[mm]'], ratio)
+#    plt.show()
+    return z1100
+
+x = read_xyz("magnet_responses/PQ4_X.xls", 'By[Gauss]')
+y = read_xyz("magnet_responses/PQ4_Y.xls", 'Bx[Gauss]')
+z = read_xyz("magnet_responses/PQ4_Z.xls", 'By[Gauss]')
+bi = read_bi("magnet_responses/PQ4_BI.xls")
+
+fieldmap_current = 1100
+real_current = 354
+
+
+
+#get the field strength scaling to apply to the x, y, z fieldmaps
+field_scale = interpolate_point(bi, real_current, '[A]', 'By[Gauss]')/interpolate_point(bi, fieldmap_current, '[A]', 'By[Gauss]')
+
+x['By[Gauss]'] = field_scale*x['By[Gauss]']
+y['Bx[Gauss]'] = field_scale*y['Bx[Gauss]']
+z['By[Gauss]'] = field_scale*z['By[Gauss]']
+
+#print(x)
+
+polelen = 3000 #the length of the pole of the magnet in mm
+fringelen = 300 #length of the fringe field to include outside of the magnet face in mm
+nzpoints = 10 #how many z positions to include in the half magnet
+zref = 1370 #z position at which the x and y scans were made
+
+
+zfield = pd.DataFrame({'z': np.linspace(-fringelen, polelen/2., nzpoints)})
+zfield['By[Gauss]'] = interpolate(z, zfield['z'], 'Z[mm]', 'By[Gauss]')
+zfieldmirror = pd.DataFrame({'z': polelen-zfield['z'], 'By[Gauss]':  zfield['By[Gauss]']})
+zfield = zfield.merge(zfieldmirror, how='outer')
+
+zscaling = zfield
+zscaling['scale'] = zscaling['By[Gauss]']/interpolate_point(z, zref, 'Z[mm]', 'By[Gauss]')
+zscaling.drop(['By[Gauss]'], axis=1)
+
+y['Fz'] = 0
+
+xy = y.assign(key=1).merge(x.assign(key=1), how='outer', on='key')
+
+
+outf = open("magnet_responses/PQ4.dat", "w")
+
+for indx, zslice in zscaling.iterrows():
+    tmp = xy
+    tmp['Fx'] = tmp['Bx[Gauss]']*zslice['scale']/10000.
+    tmp['Fy'] = tmp['By[Gauss]']*zslice['scale']/10000.
+    tmp['Fz'] = tmp['Fz']*zslice['scale']/10000.
+    tmp['z'] = zslice['z']
+    for ind, row in tmp.iterrows():
+        outf.write(str(row['X[mm]'])+ ","+ str(row['Y[mm]'])+","+str(row['z'])+","+str(row['Fx'])+","+str(row['Fy'])+","+str(row['Fz'])+"\n")
+outf.close()
+    
+
+   
