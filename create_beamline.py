@@ -84,7 +84,17 @@ class BeamlinePrinter:
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(kvals[row.element]))
         self.print_aperture(row)
         self.file.write(';\n')
-    
+    def print_fieldmapgeom(self, row):
+        self.line.append(row.element)
+        self.file.write(row.element+'field: field, type="bmap3d", bScaling=1.0, magneticFile="bdsim3d:../magnet_responses/'+row.element+'.dat";\n')
+        self.file.write(row.element+': element, geometryFile="gdml:../'+row.element+'.gdml", fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
+
+#QPQ4field: field, type="bmap3d",
+#                    bScaling = 1.0, 
+#                    magneticFile = "bdsim3d:../magnet_responses/PQ4_dipole.dat";
+#
+#QPQ4: element, geometryFile="gdml:../PQ4_full.gdml",fieldAll="QPQ4field",l=3622*mm;
+
     def print_ssem(self, row, thickness):
         first_driftlen = row.mark
         name = row.element + "_udrift"
@@ -130,10 +140,13 @@ tunnelSoilThickness = 2*m;\n\n''')
                     self.print_bend_magnet(row)
                 self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.))
                 self.file.write('\n') #give some breathing room
+
+            elif(row.type == 'fieldmapgeom'):
+                self.print_fieldmapgeom(row)
             elif(row.type == 'ssem'):
                 self.print_ssem(row, 15e-3)
             elif(row.type == 'wsem'):
-                self.print_ssem(row, 1e-6)
+                self.print_ssem(row, 1e-4)
             elif(row.type == 'dump'):
                 self.print_dump(row)
             else:

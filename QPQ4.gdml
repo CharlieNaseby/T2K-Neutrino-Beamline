@@ -1,0 +1,350 @@
+<?xml version="1.0" ?>
+<gdml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd">
+	<define>
+		<position name="yolk_f0_v0" x="-250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f0_v1" x="-250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f0_v2" x="-250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f1_v0" x="-250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f1_v1" x="-250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f1_v2" x="-250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f2_v0" x="250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f2_v1" x="-250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f2_v2" x="-250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f3_v0" x="250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f3_v1" x="-250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f3_v2" x="250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f4_v0" x="250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f4_v1" x="250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f4_v2" x="250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f5_v0" x="250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f5_v1" x="250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f5_v2" x="250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f6_v0" x="-250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f6_v1" x="250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f6_v2" x="250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f7_v0" x="-250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f7_v1" x="250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f7_v2" x="-250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f8_v0" x="-107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f8_v1" x="-107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f8_v2" x="-107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f9_v0" x="-107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f9_v1" x="-107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f9_v2" x="-107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f10_v0" x="-107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f10_v1" x="-107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f10_v2" x="107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f11_v0" x="-107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f11_v1" x="107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f11_v2" x="107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f12_v0" x="107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f12_v1" x="107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f12_v2" x="107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f13_v0" x="107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f13_v1" x="107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f13_v2" x="107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f14_v0" x="107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f14_v1" x="107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f14_v2" x="-107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f15_v0" x="107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f15_v1" x="-107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f15_v2" x="-107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f16_v0" x="-107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f16_v1" x="-250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f16_v2" x="-107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f17_v0" x="-250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f17_v1" x="-250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f17_v2" x="-107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f18_v0" x="-250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f18_v1" x="107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f18_v2" x="250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f19_v0" x="-107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f19_v1" x="107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f19_v2" x="-250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f20_v0" x="-107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f20_v1" x="250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f20_v2" x="107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f21_v0" x="107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f21_v1" x="250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f21_v2" x="107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f22_v0" x="107.500000000000000" y="-65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f22_v1" x="250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f22_v2" x="250.000000000000000" y="-250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f23_v0" x="-250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f23_v1" x="250.000000000000000" y="250.000000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f23_v2" x="-107.500000000000000" y="65.500000000000000" z="-1500.000000000000000" unit="mm"/>
+		<position name="yolk_f24_v0" x="-250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f24_v1" x="-107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f24_v2" x="-107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f25_v0" x="-250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f25_v1" x="-250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f25_v2" x="-107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f26_v0" x="107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f26_v1" x="-250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f26_v2" x="250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f27_v0" x="107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f27_v1" x="-107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f27_v2" x="-250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f28_v0" x="250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f28_v1" x="-107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f28_v2" x="107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f29_v0" x="250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f29_v1" x="107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f29_v2" x="107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f30_v0" x="250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f30_v1" x="107.500000000000000" y="-65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f30_v2" x="250.000000000000000" y="-250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f31_v0" x="250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f31_v1" x="-250.000000000000000" y="250.000000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="yolk_f31_v2" x="-107.500000000000000" y="65.500000000000000" z="1500.000000000000000" unit="mm"/>
+		<position name="beampipe_f0_v0" x="-105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f0_v1" x="-105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f0_v2" x="-105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f1_v0" x="-105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f1_v1" x="-105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f1_v2" x="-105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f2_v0" x="105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f2_v1" x="-105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f2_v2" x="-105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f3_v0" x="105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f3_v1" x="-105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f3_v2" x="105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f4_v0" x="105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f4_v1" x="105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f4_v2" x="105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f5_v0" x="105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f5_v1" x="105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f5_v2" x="105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f6_v0" x="-105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f6_v1" x="105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f6_v2" x="105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f7_v0" x="-105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f7_v1" x="105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f7_v2" x="-105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f8_v0" x="-102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f8_v1" x="-102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f8_v2" x="-102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f9_v0" x="-102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f9_v1" x="-102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f9_v2" x="-102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f10_v0" x="-102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f10_v1" x="102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f10_v2" x="-102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f11_v0" x="-102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f11_v1" x="102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f11_v2" x="102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f12_v0" x="102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f12_v1" x="102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f12_v2" x="102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f13_v0" x="102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f13_v1" x="102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f13_v2" x="102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f14_v0" x="102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f14_v1" x="-102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f14_v2" x="102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f15_v0" x="102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f15_v1" x="-102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f15_v2" x="-102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f16_v0" x="-105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f16_v1" x="-102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f16_v2" x="-105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f17_v0" x="-105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f17_v1" x="-102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f17_v2" x="-102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f18_v0" x="102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f18_v1" x="105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f18_v2" x="-102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f19_v0" x="-102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f19_v1" x="105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f19_v2" x="-105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f20_v0" x="102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f20_v1" x="105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f20_v2" x="102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f21_v0" x="102.000000000000000" y="-60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f21_v1" x="105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f21_v2" x="105.000000000000000" y="-63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f22_v0" x="-105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f22_v1" x="105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f22_v2" x="-102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f23_v0" x="-102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f23_v1" x="105.000000000000000" y="63.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f23_v2" x="102.000000000000000" y="60.000000000000000" z="-1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f24_v0" x="-102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f24_v1" x="-105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f24_v2" x="-105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f25_v0" x="-102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f25_v1" x="-105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f25_v2" x="-102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f26_v0" x="105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f26_v1" x="102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f26_v2" x="-102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f27_v0" x="105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f27_v1" x="-102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f27_v2" x="-105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f28_v0" x="105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f28_v1" x="102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f28_v2" x="102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f29_v0" x="105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f29_v1" x="102.000000000000000" y="-60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f29_v2" x="105.000000000000000" y="-63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f30_v0" x="105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f30_v1" x="-105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f30_v2" x="-102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f31_v0" x="105.000000000000000" y="63.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f31_v1" x="-102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="beampipe_f31_v2" x="102.000000000000000" y="60.000000000000000" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f0_v0" x="-101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f0_v1" x="-101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f0_v2" x="-101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f1_v0" x="-101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f1_v1" x="-101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f1_v2" x="-101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f2_v0" x="101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f2_v1" x="-101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f2_v2" x="-101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f3_v0" x="101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f3_v1" x="-101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f3_v2" x="101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f4_v0" x="101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f4_v1" x="101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f4_v2" x="101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f5_v0" x="101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f5_v1" x="101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f5_v2" x="101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f6_v0" x="-101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f6_v1" x="101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f6_v2" x="101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f7_v0" x="-101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f7_v1" x="101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f7_v2" x="-101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f8_v0" x="-101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f8_v1" x="101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f8_v2" x="-101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f9_v0" x="-101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f9_v1" x="101.999496459960938" y="59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f9_v2" x="101.999496459960938" y="-59.999500274658203" z="-1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f10_v0" x="101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f10_v1" x="-101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f10_v2" x="-101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f11_v0" x="101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f11_v1" x="-101.999496459960938" y="59.999500274658203" z="1811.000000000000000" unit="mm"/>
+		<position name="vacuum_f11_v2" x="101.999496459960938" y="-59.999500274658203" z="1811.000000000000000" unit="mm"/>
+	</define>
+	<materials/>
+	<solids>
+		<box name="worldsolid" x="550" y="550" z="3622" lunit="mm"/>
+		<tessellated name="yolk">
+			<triangular vertex1="yolk_f0_v0" vertex2="yolk_f0_v1" vertex3="yolk_f0_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f1_v0" vertex2="yolk_f1_v1" vertex3="yolk_f1_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f2_v0" vertex2="yolk_f2_v1" vertex3="yolk_f2_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f3_v0" vertex2="yolk_f3_v1" vertex3="yolk_f3_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f4_v0" vertex2="yolk_f4_v1" vertex3="yolk_f4_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f5_v0" vertex2="yolk_f5_v1" vertex3="yolk_f5_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f6_v0" vertex2="yolk_f6_v1" vertex3="yolk_f6_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f7_v0" vertex2="yolk_f7_v1" vertex3="yolk_f7_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f8_v0" vertex2="yolk_f8_v1" vertex3="yolk_f8_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f9_v0" vertex2="yolk_f9_v1" vertex3="yolk_f9_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f10_v0" vertex2="yolk_f10_v1" vertex3="yolk_f10_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f11_v0" vertex2="yolk_f11_v1" vertex3="yolk_f11_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f12_v0" vertex2="yolk_f12_v1" vertex3="yolk_f12_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f13_v0" vertex2="yolk_f13_v1" vertex3="yolk_f13_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f14_v0" vertex2="yolk_f14_v1" vertex3="yolk_f14_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f15_v0" vertex2="yolk_f15_v1" vertex3="yolk_f15_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f16_v0" vertex2="yolk_f16_v1" vertex3="yolk_f16_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f17_v0" vertex2="yolk_f17_v1" vertex3="yolk_f17_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f18_v0" vertex2="yolk_f18_v1" vertex3="yolk_f18_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f19_v0" vertex2="yolk_f19_v1" vertex3="yolk_f19_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f20_v0" vertex2="yolk_f20_v1" vertex3="yolk_f20_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f21_v0" vertex2="yolk_f21_v1" vertex3="yolk_f21_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f22_v0" vertex2="yolk_f22_v1" vertex3="yolk_f22_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f23_v0" vertex2="yolk_f23_v1" vertex3="yolk_f23_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f24_v0" vertex2="yolk_f24_v1" vertex3="yolk_f24_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f25_v0" vertex2="yolk_f25_v1" vertex3="yolk_f25_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f26_v0" vertex2="yolk_f26_v1" vertex3="yolk_f26_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f27_v0" vertex2="yolk_f27_v1" vertex3="yolk_f27_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f28_v0" vertex2="yolk_f28_v1" vertex3="yolk_f28_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f29_v0" vertex2="yolk_f29_v1" vertex3="yolk_f29_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f30_v0" vertex2="yolk_f30_v1" vertex3="yolk_f30_v2" type="ABSOLUTE"/>
+			<triangular vertex1="yolk_f31_v0" vertex2="yolk_f31_v1" vertex3="yolk_f31_v2" type="ABSOLUTE"/>
+		</tessellated>
+		<tessellated name="beampipe">
+			<triangular vertex1="beampipe_f0_v0" vertex2="beampipe_f0_v1" vertex3="beampipe_f0_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f1_v0" vertex2="beampipe_f1_v1" vertex3="beampipe_f1_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f2_v0" vertex2="beampipe_f2_v1" vertex3="beampipe_f2_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f3_v0" vertex2="beampipe_f3_v1" vertex3="beampipe_f3_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f4_v0" vertex2="beampipe_f4_v1" vertex3="beampipe_f4_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f5_v0" vertex2="beampipe_f5_v1" vertex3="beampipe_f5_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f6_v0" vertex2="beampipe_f6_v1" vertex3="beampipe_f6_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f7_v0" vertex2="beampipe_f7_v1" vertex3="beampipe_f7_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f8_v0" vertex2="beampipe_f8_v1" vertex3="beampipe_f8_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f9_v0" vertex2="beampipe_f9_v1" vertex3="beampipe_f9_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f10_v0" vertex2="beampipe_f10_v1" vertex3="beampipe_f10_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f11_v0" vertex2="beampipe_f11_v1" vertex3="beampipe_f11_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f12_v0" vertex2="beampipe_f12_v1" vertex3="beampipe_f12_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f13_v0" vertex2="beampipe_f13_v1" vertex3="beampipe_f13_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f14_v0" vertex2="beampipe_f14_v1" vertex3="beampipe_f14_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f15_v0" vertex2="beampipe_f15_v1" vertex3="beampipe_f15_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f16_v0" vertex2="beampipe_f16_v1" vertex3="beampipe_f16_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f17_v0" vertex2="beampipe_f17_v1" vertex3="beampipe_f17_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f18_v0" vertex2="beampipe_f18_v1" vertex3="beampipe_f18_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f19_v0" vertex2="beampipe_f19_v1" vertex3="beampipe_f19_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f20_v0" vertex2="beampipe_f20_v1" vertex3="beampipe_f20_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f21_v0" vertex2="beampipe_f21_v1" vertex3="beampipe_f21_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f22_v0" vertex2="beampipe_f22_v1" vertex3="beampipe_f22_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f23_v0" vertex2="beampipe_f23_v1" vertex3="beampipe_f23_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f24_v0" vertex2="beampipe_f24_v1" vertex3="beampipe_f24_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f25_v0" vertex2="beampipe_f25_v1" vertex3="beampipe_f25_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f26_v0" vertex2="beampipe_f26_v1" vertex3="beampipe_f26_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f27_v0" vertex2="beampipe_f27_v1" vertex3="beampipe_f27_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f28_v0" vertex2="beampipe_f28_v1" vertex3="beampipe_f28_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f29_v0" vertex2="beampipe_f29_v1" vertex3="beampipe_f29_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f30_v0" vertex2="beampipe_f30_v1" vertex3="beampipe_f30_v2" type="ABSOLUTE"/>
+			<triangular vertex1="beampipe_f31_v0" vertex2="beampipe_f31_v1" vertex3="beampipe_f31_v2" type="ABSOLUTE"/>
+		</tessellated>
+		<tessellated name="vacuum">
+			<triangular vertex1="vacuum_f0_v0" vertex2="vacuum_f0_v1" vertex3="vacuum_f0_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f1_v0" vertex2="vacuum_f1_v1" vertex3="vacuum_f1_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f2_v0" vertex2="vacuum_f2_v1" vertex3="vacuum_f2_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f3_v0" vertex2="vacuum_f3_v1" vertex3="vacuum_f3_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f4_v0" vertex2="vacuum_f4_v1" vertex3="vacuum_f4_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f5_v0" vertex2="vacuum_f5_v1" vertex3="vacuum_f5_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f6_v0" vertex2="vacuum_f6_v1" vertex3="vacuum_f6_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f7_v0" vertex2="vacuum_f7_v1" vertex3="vacuum_f7_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f8_v0" vertex2="vacuum_f8_v1" vertex3="vacuum_f8_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f9_v0" vertex2="vacuum_f9_v1" vertex3="vacuum_f9_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f10_v0" vertex2="vacuum_f10_v1" vertex3="vacuum_f10_v2" type="ABSOLUTE"/>
+			<triangular vertex1="vacuum_f11_v0" vertex2="vacuum_f11_v1" vertex3="vacuum_f11_v2" type="ABSOLUTE"/>
+		</tessellated>
+	</solids>
+	<structure>
+		<volume name="yolk_lv">
+			<materialref ref="G4_Fe"/>
+			<solidref ref="yolk"/>
+		</volume>
+		<volume name="beampipe_lv">
+			<materialref ref="G4_Fe"/>
+			<solidref ref="beampipe"/>
+		</volume>
+		<volume name="vacuum_lv">
+			<materialref ref="G4_Galactic"/>
+			<solidref ref="vacuum"/>
+		</volume>
+		<volume name="worldlogical">
+			<materialref ref="G4_AIR"/>
+			<solidref ref="worldsolid"/>
+			<physvol name="yolk_pv">
+				<volumeref ref="yolk_lv"/>
+				<position name="yolk_pv_pos" x="0.000000000000000" y="0.000000000000000" z="-29.000000000000000" unit="mm"/>
+			</physvol>
+			<physvol name="beampipe_pv">
+				<volumeref ref="beampipe_lv"/>
+			</physvol>
+			<physvol name="vacuum_pv">
+				<volumeref ref="vacuum_lv"/>
+			</physvol>
+		</volume>
+	</structure>
+	<setup name="Default" version="1.0">
+		<world ref="worldlogical"/>
+	</setup>
+</gdml>

@@ -5,7 +5,11 @@ import matplotlib.pyplot as plt
 
 def interpolate_point(df, val, incol, outcol):
     points = df.iloc[(df[incol]-val).abs().argsort()[:2]] 
-    return(points.iloc[0][outcol] + (points.iloc[1][outcol]-points.iloc[0][outcol])/(points.iloc[1][incol] - points.iloc[0][incol]) * (val - points.iloc[0][incol]))
+    x=np.array(points.iloc[:][incol])
+    if(val > x.max() or val < x.min()):
+        return points.iloc[0][outcol]
+    else:
+        return(points.iloc[0][outcol] + (points.iloc[1][outcol]-points.iloc[0][outcol])/(points.iloc[1][incol] - points.iloc[0][incol]) * (val - points.iloc[0][incol]))
    
 
 
@@ -69,13 +73,12 @@ x['By[Gauss]'] = field_scale*x['By[Gauss]']
 y['Bx[Gauss]'] = field_scale*y['Bx[Gauss]']
 z['By[Gauss]'] = field_scale*z['By[Gauss]']
 
-#print(x)
-
+#all hardcoded for PQ4
 polelen = 3000 #the length of the pole of the magnet in mm
-fringelen = 300 #length of the fringe field to include outside of the magnet face in mm
-nzpoints = 10 #how many z positions to include in the half magnet
+fringelen = 300. #length of the fringe field to include outside of the magnet face in mm
+nzpoints = 50 #how many z positions to include in the half magnet
 zref = 1370 #z position at which the x and y scans were made
-
+zoffset =  1782 - 3622/2.
 
 zfield = pd.DataFrame({'z': np.linspace(-fringelen, polelen/2., nzpoints)})
 zfield['By[Gauss]'] = interpolate(z, zfield['z'], 'Z[mm]', 'By[Gauss]')
@@ -86,21 +89,45 @@ zscaling = zfield
 zscaling['scale'] = zscaling['By[Gauss]']/interpolate_point(z, zref, 'Z[mm]', 'By[Gauss]')
 zscaling.drop(['By[Gauss]'], axis=1)
 
+
 y['Fz'] = 0
+
+#fieldmap is in cm
+x['X[cm]'] = x['X[mm]']/10.
+y['Y[cm]'] = y['Y[mm]']/10.
+zscaling['z'] = (zscaling['z'] - polelen/2. + zoffset)/10.
+
+
 
 xy = y.assign(key=1).merge(x.assign(key=1), how='outer', on='key')
 
+outf = open("magnet_responses/QPQ4.dat", "w")
 
-outf = open("magnet_responses/PQ4.dat", "w")
+outf.write('xmin> '+ str(x['X[cm]'].min())+'\n')
+outf.write('xmax> '+ str(x['X[cm]'].max())+'\n')
+outf.write('nx> '+ str(x.shape[0])+'\n')
+
+
+outf.write('ymin> '+ str(y['Y[cm]'].min())+'\n')
+outf.write('ymax> '+ str(y['Y[cm]'].max())+'\n')
+outf.write('ny> '+ str(y.shape[0])+'\n')
+
+outf.write('zmin> '+ str(zscaling['z'].min())+'\n')
+outf.write('zmax> '+ str(zscaling['z'].max())+'\n')
+outf.write('nz> '+ str(zscaling.shape[0])+'\n')
+
+outf.write('! X \t Y \t Z \t Fx \t Fy \t Fz'+'\n')
+
+
 
 for indx, zslice in zscaling.iterrows():
     tmp = xy
-    tmp['Fx'] = tmp['Bx[Gauss]']*zslice['scale']/10000.
+    tmp['Fx'] = tmp['Bx[Gauss]']*zslice['scale']/10000. 
     tmp['Fy'] = tmp['By[Gauss]']*zslice['scale']/10000.
     tmp['Fz'] = tmp['Fz']*zslice['scale']/10000.
     tmp['z'] = zslice['z']
     for ind, row in tmp.iterrows():
-        outf.write(str(row['X[mm]'])+ ","+ str(row['Y[mm]'])+","+str(row['z'])+","+str(row['Fx'])+","+str(row['Fy'])+","+str(row['Fz'])+"\n")
+        outf.write(str(row['X[cm]'])+ " "+ str(row['Y[cm]'])+" "+str(row['z'])+" "+str(row['Fx'])+" "+str(row['Fy'])+" "+str(row['Fz'])+"\n")
 outf.close()
     
 
