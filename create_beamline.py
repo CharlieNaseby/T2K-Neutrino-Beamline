@@ -89,11 +89,9 @@ class BeamlinePrinter:
         self.file.write(row.element+'field: field, type="bmap3d", bScaling=1.0, magneticFile="bdsim3d:../magnet_responses/'+row.element+'.dat";\n')
         self.file.write(row.element+': element, geometryFile="gdml:../'+row.element+'.gdml", fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
 
-#QPQ4field: field, type="bmap3d",
-#                    bScaling = 1.0, 
-#                    magneticFile = "bdsim3d:../magnet_responses/PQ4_dipole.dat";
-#
-#QPQ4: element, geometryFile="gdml:../PQ4_full.gdml",fieldAll="QPQ4field",l=3622*mm;
+    def print_blm(self, row):
+        self.file.write('blm_'+row.element+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
+        self.file.write('referenceElement="'+row.element+'", x='+str(row.blm_offset_x)+', y='+str(row.blm_offset_y)+'*mm, theta=1.570796, psi=1.570796;\n')
 
     def print_ssem(self, row, thickness):
         first_driftlen = row.mark
@@ -129,6 +127,8 @@ tunnelSoilThickness = 2*m;\n\n''')
 
 
     def print(self):
+        self.file.write('chrg: scorer, type="cellcharge";\n')
+        self.file.write('eDep: scorer, type="depositeddose";\n')
         for row in self.beamline.itertuples():
 
             if(row.type in ['rbend', 'sbend', 'quadrupole']):
@@ -152,6 +152,8 @@ tunnelSoilThickness = 2*m;\n\n''')
             else:
                 self.print_drift(row, row.element, row.length)
             self.s += row.length
+            if(row.blm):
+                self.print_blm(row)
             self.file.write("! s=" + str(self.s) + "\n")
 
         #print the beamline elements in a line
