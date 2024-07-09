@@ -7,12 +7,19 @@ def strip_whitespace(df):
     df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
     return df
 
+def string_to_list(s):
+    s = s.strip('[]').strip()
+    elements = s.split()
+    return elements
+
+
 
 class BeamlinePrinter:
     def __init__(self, line, filename):
         self.beamline = line
         self.file = open(filename, "w")
         self.s = 0
+        self.blmID = 0
         self.line = []
 
     def print_beam_sad(self):
@@ -59,6 +66,31 @@ class BeamlinePrinter:
 
       kineticEnergy=30*GeV;\n\n''')
 
+    def print_halo(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="halo",
+
+      X0=-0.0004542861867420988*m,
+      Xp0=2.5505774863429934e-05,
+      emitx=0.084015*mm*mrad,
+      betx=39.8775555502868*m,
+      alfx=-0.568424785315,
+
+      Y0=-0.00023643145922826628*m,
+      Yp0=7.751587096049882e-05,
+      emity=0.0695782*mm*mrad,
+      bety=6.4519061397745*m,
+      alfy=0.35934594606,
+      haloNSigmaXInner=2.0,
+      haloNSigmaYInner=2.0,                       
+      haloNSigmaXOuter=5.0,
+      haloNSigmaYOuter=5.0,
+      haloPSWeightFunction="flat",
+
+      kineticEnergy=30*GeV;\n\n
+        ''')
+
+
 
     def print_aperture(self, row):
         self.file.write(', apertureType="'+str(row.aperture_type)+'"')
@@ -89,9 +121,27 @@ class BeamlinePrinter:
         self.file.write(row.element+'field: field, type="bmap3d", bScaling=1.0, magneticFile="bdsim3d:../magnet_responses/'+row.element+'.dat";\n')
         self.file.write(row.element+': element, geometryFile="gdml:../'+row.element+'.gdml", fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
 
-    def print_blm(self, row):
-        self.file.write('blm_'+row.element+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
-        self.file.write('referenceElement="'+row.element+'", x='+str(row.blm_offset_x)+', y='+str(row.blm_offset_y)+'*mm, theta=1.570796, psi=1.570796;\n')
+    def print_blm(self, reference, dx, dy, ds, orientation):
+        print(str(self.blmID))
+        self.file.write('blm_'+reference+'_'+str(self.blmID)+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
+        self.file.write('referenceElement="'+reference+'", x='+str(dx)+'*mm, y='+str(dy)+'*mm, s='+str(ds)+'*mm')
+        if(orientation=='perp'):
+            self.file.write(', theta=1.570796, psi=1.570796;\n')
+        else:
+            self.file.write(';\n')
+        self.blmID+=1
+
+
+    def print_blms(self, row):
+        dx = string_to_list(row.blm_offset_x)
+        dy = string_to_list(row.blm_offset_y)
+        dz = string_to_list(row.blm_offset_s)
+        orientation = string_to_list(row.blm_orientation)
+        for i in range(len(dx)):
+            self.print_blm(row.element, dx[i], dy[i], dz[i], orientation[i])
+
+#        self.file.write('blm_'+row.element+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
+#        self.file.write('referenceElement="'+row.element+'", x='+str(row.blm_offset_x)+', y='+str(row.blm_offset_y)+'*mm, theta=1.570796, psi=1.570796;\n')
 
     def print_ssem(self, row, thickness):
         first_driftlen = row.mark
@@ -125,7 +175,6 @@ tunnelSoilThickness = 2*m;\n\n''')
     def print_physics(self, physics_list):
         self.file.write('option, physicsList =' + '"' + physics_list + '";\n')
 
-
     def print(self):
         self.file.write('chrg: scorer, type="cellcharge";\n')
         self.file.write('eDep: scorer, type="depositeddose";\n')
@@ -153,7 +202,7 @@ tunnelSoilThickness = 2*m;\n\n''')
                 self.print_drift(row, row.element, row.length)
             self.s += row.length
             if(row.blm):
-                self.print_blm(row)
+                self.print_blms(row)
             self.file.write("! s=" + str(self.s) + "\n")
 
         #print the beamline elements in a line
@@ -165,8 +214,9 @@ tunnelSoilThickness = 2*m;\n\n''')
                 self.file.write(element +',\n')
 
         self.file.write('\nuse, period=l0;\n')
-        self.print_beam()
-        self.print_tunnel()
+        #self.print_beam()
+        self.print_halo()
+#        self.print_tunnel()
         self.print_physics('g4FTFP_BERT')
         self.file.write('option, nturns=1;')
         self.file.write('sample, all;\n')
