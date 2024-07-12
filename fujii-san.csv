@@ -3,7 +3,7 @@ entry           ,-1        ,   0.001 ,NA   ,drift      ,circular      ,       13
 QFP_side_duct   ,0         ,1099     ,NA   ,drift      ,circular      ,       130 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 CT1_pipe        ,1         , 300     ,NA   ,drift      ,circular      ,       200 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 CT1             ,2         , 200     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
-SSEM1           ,3         , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-0               ,0                 ,0
+SSEM1           ,3         , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0               ,0                 ,0
 ESM1            ,4         , 126     ,NA   ,drift      ,circular      ,       180 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 bellows_PV1u    ,5         , 205     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 BPV1            ,6         ,1600     ,750  ,rbend      ,rectangular   ,       134 ,       200 ,0           ,      1000 ,1.5707963 ,  2 ,[-105 -63]   ,[-295 -295]      ,[-1348 1142]      ,[perp perp]
@@ -20,14 +20,14 @@ SSEM2           ,16        , 170     ,85   ,ssem       ,circular      ,       20
 bellows_PQ1u    ,17        , 213     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 QPQ1            ,18        ,3850     ,1850 ,quadrupole ,rectangular   ,       248 ,       180 ,0           ,      3000 ,0         ,  0 ,0            ,0                ,0                 ,0
 bellows_PQ1d    ,19        , 550     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
-QPQ2            ,20        ,3600     ,1750 ,quadrupole ,rectangular   ,       204 ,       120 ,0           ,      3000 ,0         ,  3 ,[648 651 30] ,[-687 -688 -259] ,[-680 -725 1875]  ,[para para perp]
+QPQ2            ,20        ,3600     ,1750 ,quadrupole ,rectangular   ,       204 ,       120 ,0           ,      3000 ,0         ,  3 ,[648 -651 30] ,[-687 -688 -295] ,[-680 -725 1875]  ,[para para perp]
 ESM3            ,21        , 127     ,NA   ,drift      ,circular      ,       178 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 SSEM3           ,22        , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0
 bellows_PD1u    ,23        , 203     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 BPD1            ,24        ,3770     ,1800 ,sbend      ,rectangular   ,       186 ,       144 ,-0.03354700 ,      3000 ,0         ,  1 ,[-20]        ,[-150]           ,[2140]            ,[perp]
 ESM4            ,25        , 126     ,NA   ,drift      ,circular      ,       178 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 bellows_PD2u    ,26        , 304     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
-BPD2            ,27        ,3770     ,1798 ,sbend      ,rectangular   ,       186 ,       114 ,-0.03316548 ,      3000 ,0         ,  2 ,[160 -386]   ,[416 412]        ,[2465 2457]       ,[para para]
+BPD2            ,27        ,3770     ,1798 ,sbend      ,rectangular   ,       186 ,       114 ,-0.03316548 ,      3000 ,0         ,  2 ,[160 -386]   ,[-416 -412]        ,[2465 2457]       ,[para para]
 bellows_PD2d    ,28        , 235     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 ESM5            ,29        , 126     ,NA   ,drift      ,circular      ,       178 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 SSEM4           ,30        , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0
@@ -39,7 +39,7 @@ SSEM5           ,35        , 170     ,85   ,ssem       ,circular      ,       20
 bellows_PC2u    ,36        , 310     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 PPS_CT1         ,37        , 200     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 WSEM_duct       ,38        , 152     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
-WSEM1           ,39        , 170     ,85   ,wsem       ,circular      ,       170 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0
+WSEM1           ,39        , 170     ,85   ,wsem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0
 PC2             ,40        , 980     ,490  ,drift      ,circular      ,       190 ,         0 ,0           ,       980 ,0         ,  0 ,0            ,0                ,0                 ,0
 bellows_PC2d    ,41        , 248     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 PPS_CT2         ,42        , 202     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
@@ -54,7 +54,7 @@ BPV2            ,50        ,1530     ,740  ,rbend      ,rectangular   ,       10
 ESM7            ,51        , 127     ,NA   ,drift      ,circular      ,       178 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 SSEM7           ,52        , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0
 bellows_PQ4u    ,53        , 221     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
-QPQ4            ,54        ,3622     ,1782 ,quadrupole ,rectangular   ,       204 ,       120 ,0           ,      3000 ,0         ,  2 ,[-93 45]     ,[-300 -300]      ,[-1908 2105]      ,[perp perp]
+QPQ4            ,54        ,3622     ,1782 ,fieldmapgeom ,rectangular   ,       204 ,       120 ,0           ,      3000 ,0         ,  2 ,[-93 45]     ,[-300 -300]      ,[-1908 2105]      ,[perp perp]
 bellows_PQ4d    ,55        , 235     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 ESM8            ,56        , 126     ,NA   ,drift      ,circular      ,       178 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 SSEM8           ,57        , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0
@@ -74,4 +74,4 @@ FCV2            ,70        , 250     ,NA   ,drift      ,circular      ,       14
 duct_prep_FCV2d ,71        ,  82     ,NA   ,drift      ,circular      ,       146 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 GV2             ,72        ,  98     ,NA   ,drift      ,circular      ,       146 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 bellows_super   ,73        , 187     ,NA   ,drift      ,circular      ,       146 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
-d1              ,74        ,   1     ,NA   ,dump       ,circular      ,       300 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
+d1              ,74        ,   1000  ,NA   ,dump       ,circular      ,       300 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0

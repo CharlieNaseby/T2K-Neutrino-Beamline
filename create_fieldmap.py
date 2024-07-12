@@ -2,6 +2,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+def include_sign(df, x, b, sign):
+    zeroval = df[df[x] == 0]
+    df[b] = df[b]*sign*np.sign(df[x])
+    dftmp = df
+    dftmp['mag'] = abs(dftmp[x])
+    closest = dftmp.sort_values(by='mag').head(3)
+    neg = closest[closest[x] < 0.]
+    pos = closest[closest[x] > 0.]
+    #average these points to get exp value at 0
+    zero_sign = np.sign(neg[b].iloc[0] + pos[b].iloc[0])
+    df.loc[df[x] == 0, b] = zeroval[b].iloc[0]*zero_sign
+    return df
+
+
 
 def interpolate_point(df, val, incol, outcol):
     points = df.iloc[(df[incol]-val).abs().argsort()[:2]] 
@@ -61,6 +75,13 @@ y = read_xyz("magnet_responses/PQ4_Y.xls", 'Bx[Gauss]')
 z = read_xyz("magnet_responses/PQ4_Z.xls", 'By[Gauss]')
 bi = read_bi("magnet_responses/PQ4_BI.xls")
 
+
+#all hardcoded for PQ4
+polelen = 3000 #the length of the pole of the magnet in mm
+fringelen = 300. #length of the fringe field to include outside of the magnet face in mm
+nzpoints = 50 #how many z positions to include in the half magnet
+zref = 1370 #z position at which the x and y scans were made
+zoffset =  1782 - 3622/2.
 fieldmap_current = 1100
 real_current = 354
 
@@ -73,12 +94,12 @@ x['By[Gauss]'] = field_scale*x['By[Gauss]']
 y['Bx[Gauss]'] = field_scale*y['Bx[Gauss]']
 z['By[Gauss]'] = field_scale*z['By[Gauss]']
 
-#all hardcoded for PQ4
-polelen = 3000 #the length of the pole of the magnet in mm
-fringelen = 300. #length of the fringe field to include outside of the magnet face in mm
-nzpoints = 50 #how many z positions to include in the half magnet
-zref = 1370 #z position at which the x and y scans were made
-zoffset =  1782 - 3622/2.
+
+x['By[Gauss]'] = x['By[Gauss]']*np.sign(x['X[mm]'])
+
+x = include_sign(x, 'X[mm]', 'By[Gauss]', 1.)
+y = include_sign(y, 'Y[mm]', 'Bx[Gauss]', 1.)
+
 
 zfield = pd.DataFrame({'z': np.linspace(-fringelen, polelen/2., nzpoints)})
 zfield['By[Gauss]'] = interpolate(z, zfield['z'], 'Z[mm]', 'By[Gauss]')
@@ -100,6 +121,9 @@ zscaling['z'] = (zscaling['z'] - polelen/2. + zoffset)/10.
 
 
 xy = y.assign(key=1).merge(x.assign(key=1), how='outer', on='key')
+
+pd.set_option('display.max_rows', 500)
+#print(zscaling)
 
 outf = open("magnet_responses/QPQ4.dat", "w")
 

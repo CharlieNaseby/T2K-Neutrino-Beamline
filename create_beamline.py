@@ -15,11 +15,12 @@ def string_to_list(s):
 
 
 class BeamlinePrinter:
-    def __init__(self, line, filename):
+    def __init__(self, line, filename, primaries_only=False):
         self.beamline = line
         self.file = open(filename, "w")
         self.s = 0
-        self.blmID = 0
+        self.blmID = 1
+        self.primaries_only=primaries_only
         self.line = []
 
     def print_beam_sad(self):
@@ -65,6 +66,11 @@ class BeamlinePrinter:
       dispyp=0.,
 
       kineticEnergy=30*GeV;\n\n''')
+    def print_beam_from_file(self, filename):
+        self.file.write('''beam, particle="proton",
+      kineticEnergy=30*GeV,
+      distrType="bdsimsampler:entry",''')
+        self.file.write('distrFile="'+filename+'";\n')
 
     def print_halo(self):
         self.file.write('''\n\nbeam, particle="proton",
@@ -81,10 +87,10 @@ class BeamlinePrinter:
       emity=0.0695782*mm*mrad,
       bety=6.4519061397745*m,
       alfy=0.35934594606,
-      haloNSigmaXInner=2.0,
-      haloNSigmaYInner=2.0,                       
-      haloNSigmaXOuter=5.0,
-      haloNSigmaYOuter=5.0,
+      haloNSigmaXInner=4.0,
+      haloNSigmaYInner=4.0,                       
+      haloNSigmaXOuter=8.0,
+      haloNSigmaYOuter=8.0,
       haloPSWeightFunction="flat",
 
       kineticEnergy=30*GeV;\n\n
@@ -122,7 +128,6 @@ class BeamlinePrinter:
         self.file.write(row.element+': element, geometryFile="gdml:../'+row.element+'.gdml", fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
 
     def print_blm(self, reference, dx, dy, ds, orientation):
-        print(str(self.blmID))
         self.file.write('blm_'+reference+'_'+str(self.blmID)+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
         self.file.write('referenceElement="'+reference+'", x='+str(dx)+'*mm, y='+str(dy)+'*mm, s='+str(ds)+'*mm')
         if(orientation=='perp'):
@@ -131,17 +136,13 @@ class BeamlinePrinter:
             self.file.write(';\n')
         self.blmID+=1
 
-
     def print_blms(self, row):
         dx = string_to_list(row.blm_offset_x)
         dy = string_to_list(row.blm_offset_y)
-        dz = string_to_list(row.blm_offset_s)
+        ds = [str(float(entry)+row.polelength/2.0) for entry in string_to_list(row.blm_offset_s)]  #TODO THIS ONLY WORKS FOR PURE QUAD/DIPOLE FIELDMAP WILL BREAK THIS
         orientation = string_to_list(row.blm_orientation)
         for i in range(len(dx)):
-            self.print_blm(row.element, dx[i], dy[i], dz[i], orientation[i])
-
-#        self.file.write('blm_'+row.element+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
-#        self.file.write('referenceElement="'+row.element+'", x='+str(row.blm_offset_x)+', y='+str(row.blm_offset_y)+'*mm, theta=1.570796, psi=1.570796;\n')
+            self.print_blm(row.element, dx[i], dy[i], ds[i], orientation[i])
 
     def print_ssem(self, row, thickness):
         first_driftlen = row.mark
@@ -157,7 +158,7 @@ class BeamlinePrinter:
 
     def print_dump(self, row):
         self.line.append(row.element)
-        self.file.write(row.element+': dump, horizontalWidth='+str(row.aperture_x)+'*mm')
+        self.file.write(row.element+': dump, horizontalWidth='+str(row.aperture_x)+'*mm, l='+str(row.length)+'*mm')
         self.file.write(';\n')
 
     def print_tunnel(self):
@@ -165,7 +166,7 @@ class BeamlinePrinter:
 option, buildTunnel = 1,
 tunnelType="rectangular",
 tunnelOffsetX = 100*cm,
-tunnelOffsetY = 100*cm,
+tunnelOffsetY = 50*cm,
 tunnelAper1 = 150*cm,
 tunnelAper2 = 150*cm,
 tunnelThickness = 30*cm,
@@ -207,6 +208,8 @@ tunnelSoilThickness = 2*m;\n\n''')
 
         #print the beamline elements in a line
         self.file.write('\nl0: line = (')
+        if(self.primaries_only):
+            self.line = [self.line[0]]
         for idx, element in enumerate(self.line):
             if idx == len(self.line)-1:
                 self.file.write(element +');\n')
@@ -215,11 +218,13 @@ tunnelSoilThickness = 2*m;\n\n''')
 
         self.file.write('\nuse, period=l0;\n')
         #self.print_beam()
-        self.print_halo()
-#        self.print_tunnel()
-        self.print_physics('g4FTFP_BERT')
-        self.file.write('option, nturns=1;')
+        self.print_beam_from_file("../gaus_twiss_1k.root")
+        #self.print_halo()
+        self.print_tunnel()
+        #self.print_physics('g4FTFP_BERT')
+        self.file.write('option, nturns=1;\n')
         self.file.write('sample, all;\n')
+        self.file.write('sample, range=entry;\n')
 
 
 #bfield = {'BPV1': 0.0001,
@@ -284,6 +289,7 @@ for magnet in magset:
 
 kvals['BPD1'] = -1.15329
 kvals['BPD2'] = -1.14018
+#kvals['QPQ4'] = -0.0518735 #TODO set the QPQ4 val to that in the fake fieldmap
 
 print(kvals)
 mag_df = magnet_response[magnet_response['element'] == 'BPH3']
@@ -294,5 +300,5 @@ mag_df = magnet_response[magnet_response['element'] == 'BPH3']
 #df_tmp = magnet_response[magnet_response['element'] == row.element]
 
 
-prnt = BeamlinePrinter(beamline, "gmad/test.gmad")
+prnt = BeamlinePrinter(beamline, "gmad/test.gmad", primaries_only=False)
 prnt.print()
