@@ -13,7 +13,6 @@ def string_to_list(s):
     return elements
 
 
-
 class BeamlinePrinter:
     def __init__(self, line, filename, primaries_only=False):
         self.beamline = line
@@ -66,6 +65,30 @@ class BeamlinePrinter:
       dispyp=0.,
 
       kineticEnergy=30*GeV;\n\n''')
+
+    def print_beam_0910580(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=0.0*m,
+      Xp0=0.0,
+      emitx=0.19*mm*mrad,
+      betx=35.835*m,
+      alfx=-2.3704,
+      dispx=0.443*m,
+      dispxp=0.074,
+
+      Y0=0.0*m,
+      Yp0=0.0,
+      emity=0.157*mm*mrad,
+      bety=7.369*m,
+      alfy=0.064,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;\n\n''')
+
+
     def print_beam_from_file(self, filename):
         self.file.write('''beam, particle="proton",
       kineticEnergy=30*GeV,
@@ -96,8 +119,6 @@ class BeamlinePrinter:
       kineticEnergy=30*GeV;\n\n
         ''')
 
-
-
     def print_aperture(self, row):
         self.file.write(', apertureType="'+str(row.aperture_type)+'"')
         if(row.aperture_type == 'circular'): 
@@ -122,10 +143,19 @@ class BeamlinePrinter:
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(kvals[row.element]))
         self.print_aperture(row)
         self.file.write(';\n')
+
+    def print_field(self, row):
+         self.file.write(row.element+'field: field, type="bmap3d", bScaling=1.0, magneticFile="bdsim3d:../magnet_responses/'+row.element+'.dat";\n')
+       
     def print_fieldmapgeom(self, row):
         self.line.append(row.element)
-        self.file.write(row.element+'field: field, type="bmap3d", bScaling=1.0, magneticFile="bdsim3d:../magnet_responses/'+row.element+'.dat";\n')
+        self.print_field(row)
         self.file.write(row.element+': element, geometryFile="gdml:../'+row.element+'.gdml", fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
+
+    def print_fieldmap(self, row, magtype):
+        self.line.append(row.element)
+        self.print_field(row)
+        self.file.write(row.element+': '+magtype+', fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
 
     def print_blm(self, reference, dx, dy, ds, orientation):
         self.file.write('blm_'+reference+'_'+str(self.blmID)+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
@@ -193,6 +223,12 @@ tunnelSoilThickness = 2*m;\n\n''')
 
             elif(row.type == 'fieldmapgeom'):
                 self.print_fieldmapgeom(row)
+            elif(row.type == 'fieldmapquad'):
+                self.print_fieldmap(row, 'drift') #TODO left these three here in case we want to add geometry dependant on magtype
+            elif(row.type == 'fieldmaprbend'):
+                self.print_fieldmap(row, 'drift')
+            elif(row.type == 'fieldmapsbend'):
+                self.print_fieldmap(row, 'drift')
             elif(row.type == 'ssem'):
                 self.print_ssem(row, 15e-3)
             elif(row.type == 'wsem'):
@@ -218,10 +254,11 @@ tunnelSoilThickness = 2*m;\n\n''')
 
         self.file.write('\nuse, period=l0;\n')
         #self.print_beam()
-        self.print_beam_from_file("../gaus_twiss_1k.root")
+        self.print_beam_0910580()
+#        self.print_beam_from_file("../gaus_twiss_1k.root")
         #self.print_halo()
         self.print_tunnel()
-        #self.print_physics('g4FTFP_BERT')
+        self.print_physics('g4FTFP_BERT')
         self.file.write('option, nturns=1;\n')
         self.file.write('sample, all;\n')
         self.file.write('sample, range=entry;\n')
@@ -242,18 +279,35 @@ tunnelSoilThickness = 2*m;\n\n''')
 
 proton_momentum = 30.924 # momentum for a 30GeV KE proton 
 
+#vec_magset = [0 ,
+#-15 ,
+#520 ,
+#0 ,
+#485 ,
+#1140 ,
+#1191 ,
+#408 ,
+#15 ,
+#354 ,
+#8 ,
+#423]
+
+#run 910580
 vec_magset = [0 ,
 -15 ,
 520 ,
 0 ,
 485 ,
-1140 ,
-1191 ,
+1139 ,
+1190 ,
 408 ,
 15 ,
 354 ,
-8 ,
-423]
+-13 ,
+423 ]
+  
+
+
 
 
 beamline = strip_whitespace(pd.read_csv("fujii-san.csv", header=0, skipinitialspace=True))
@@ -289,7 +343,7 @@ for magnet in magset:
 
 kvals['BPD1'] = -1.15329
 kvals['BPD2'] = -1.14018
-#kvals['QPQ4'] = -0.0518735 #TODO set the QPQ4 val to that in the fake fieldmap
+#kvals['QPQ4'] = -0.0518735 #set the QPQ4 val to that in the fake fieldmap
 
 print(kvals)
 mag_df = magnet_response[magnet_response['element'] == 'BPH3']

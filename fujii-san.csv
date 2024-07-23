@@ -54,7 +54,7 @@ BPV2            ,50        ,1530     ,740  ,rbend      ,rectangular   ,       10
 ESM7            ,51        , 127     ,NA   ,drift      ,circular      ,       178 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 SSEM7           ,52        , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0
 bellows_PQ4u    ,53        , 221     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
-QPQ4            ,54        ,3622     ,1782 ,fieldmapgeom ,rectangular   ,       204 ,       120 ,0           ,      3000 ,0         ,  2 ,[-93 45]     ,[-300 -300]      ,[-1908 2105]      ,[perp perp]
+QPQ4            ,54        ,3622     ,1782 ,fieldmapquad ,rectangular   ,       204 ,       120 ,0           ,      3000 ,0         ,  2 ,[-93 45]     ,[-300 -300]      ,[-1908 2105]      ,[perp perp]
 bellows_PQ4d    ,55        , 235     ,NA   ,drift      ,circular      ,       190 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 ESM8            ,56        , 126     ,NA   ,drift      ,circular      ,       178 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,0                ,0                 ,0
 SSEM8           ,57        , 170     ,85   ,ssem       ,circular      ,       205 ,         0 ,0           ,         0 ,0         ,  0 ,0            ,-350             ,0                 ,0

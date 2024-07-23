@@ -46,8 +46,6 @@ def read_bi(filename):
     response.columns = response.iloc[0]
     response = response.drop(response.index[0])
 
-    
-
     response['Bmag'] = (response['Bx[Gauss]']**2 + response['By[Gauss]']**2 + response['Bz[Gauss]']**2)**0.5
     return response
 
@@ -69,6 +67,7 @@ def read_xyz(infile, colname):
 #    plt.scatter(z1500['Z[mm]'], ratio)
 #    plt.show()
     return z1100
+
 
 x = read_xyz("magnet_responses/PQ4_X.xls", 'By[Gauss]')
 y = read_xyz("magnet_responses/PQ4_Y.xls", 'Bx[Gauss]')
@@ -110,14 +109,12 @@ zscaling = zfield
 zscaling['scale'] = zscaling['By[Gauss]']/interpolate_point(z, zref, 'Z[mm]', 'By[Gauss]')
 zscaling.drop(['By[Gauss]'], axis=1)
 
-
 y['Fz'] = 0
 
 #fieldmap is in cm
 x['X[cm]'] = x['X[mm]']/10.
 y['Y[cm]'] = y['Y[mm]']/10.
 zscaling['z'] = (zscaling['z'] - polelen/2. + zoffset)/10.
-
 
 
 xy = y.assign(key=1).merge(x.assign(key=1), how='outer', on='key')
@@ -153,6 +150,3 @@ for indx, zslice in zscaling.iterrows():
     for ind, row in tmp.iterrows():
         outf.write(str(row['X[cm]'])+ " "+ str(row['Y[cm]'])+" "+str(row['z'])+" "+str(row['Fx'])+" "+str(row['Fy'])+" "+str(row['Fz'])+"\n")
 outf.close()
-    
-
-   

@@ -7,7 +7,7 @@ data = []
 
 pd.set_option('display.max_rows', 50000)
 
-with open('QPQ4.dat', newline='') as csvfile:
+with open('QPQ4_no_fringe.dat', newline='') as csvfile:
     field = csv.reader(csvfile, delimiter=' ')
     for row in field:
         if(len(row) > 2 and row[0]!='!'):
