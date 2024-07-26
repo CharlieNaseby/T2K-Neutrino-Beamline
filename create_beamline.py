@@ -155,7 +155,9 @@ class BeamlinePrinter:
     def print_fieldmap(self, row, magtype):
         self.line.append(row.element)
         self.print_field(row)
-        self.file.write(row.element+': '+magtype+', fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
+        self.file.write(row.element+': '+magtype+', fieldAll="'+row.element+'field", l='+str(row.length)+'*mm')
+        self.print_aperture(row)
+        self.file.write(';\n')
 
     def print_blm(self, reference, dx, dy, ds, orientation):
         self.file.write('blm_'+reference+'_'+str(self.blmID)+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
