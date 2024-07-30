@@ -1,0 +1,374 @@
+chrg: scorer, type="cellcharge";
+eDep: scorer, type="depositeddose";
+entry: drift, l=0.001*mm, apertureType="circular", aper1=65.0*mm;
+! s=0.001
+QFP_side_duct: drift, l=1099.0*mm, apertureType="circular", aper1=65.0*mm;
+! s=1099.001
+CT1_pipe: drift, l=300.0*mm, apertureType="circular", aper1=100.0*mm;
+! s=1399.001
+CT1: drift, l=200.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=1599.001
+SSEM1_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM1: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM1_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=1769.001
+ESM1: drift, l=126.0*mm, apertureType="circular", aper1=90.0*mm;
+! s=1895.001
+bellows_PV1u: drift, l=205.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=2100.001
+
+BPV1_driftu: drift, l=250.0*mm, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
+BPV1: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.0*T, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
+BPV1_driftd: drift, l=350.0*mm, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
+
+blm_BPV1_1: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPV1", x=-105*mm, y=-295*mm, s=-848.0*mm, theta=1.570796, psi=1.570796;
+blm_BPV1_2: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPV1", x=-63*mm, y=-295*mm, s=1642.0*mm, theta=1.570796, psi=1.570796;
+! s=3700.001
+bellows_PV1d: drift, l=350.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=4050.001
+FCV1: drift, l=250.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=4300.001
+duct_prep_FCV1d: drift, l=200.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=4500.001
+ion_pump_2: drift, l=400.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=4900.001
+bellows_PLGu: drift, l=350.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=5250.001
+PLUG: drift, l=1100.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=6350.001
+bellows_PLGd: drift, l=590.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=6940.001
+
+BPH2_driftu: drift, l=260.0*mm, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
+BPH2: rbend, l=600*mm, angle=0.0, tilt=0.0, B=0.00938302203802535*T, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
+BPH2_driftd: drift, l=290.0*mm, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
+
+blm_BPH2_3: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH2", x=-180*mm, y=-300*mm, s=1015.0*mm, theta=1.570796, psi=1.570796;
+! s=8090.001
+ESM2: drift, l=127.0*mm, apertureType="circular", aper1=90.0*mm;
+! s=8217.001
+SSEM2_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM2: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM2_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=8387.001
+bellows_PQ1u: drift, l=213.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=8600.001
+
+QPQ1_driftu: drift, l=350.0*mm, apertureType="rectangular", aper1=124.0*mm, aper2=90.0*mm;
+QPQ1: quadrupole, l=3000*mm, tilt=0.0, k1=0.05588721666666666, apertureType="rectangular", aper1=124.0*mm, aper2=90.0*mm;
+QPQ1_driftd: drift, l=500.0*mm, apertureType="rectangular", aper1=124.0*mm, aper2=90.0*mm;
+
+! s=12450.001
+bellows_PQ1d: drift, l=550.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=13000.001
+
+QPQ2_driftu: drift, l=250.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ2: quadrupole, l=3000*mm, tilt=0.0, k1=-0.06283414633333333, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ2_driftd: drift, l=350.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+
+blm_QPQ2_4: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ2", x=648*mm, y=-687*mm, s=820.0*mm;
+blm_QPQ2_5: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ2", x=-651*mm, y=-688*mm, s=775.0*mm;
+blm_QPQ2_6: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ2", x=30*mm, y=-295*mm, s=3375.0*mm, theta=1.570796, psi=1.570796;
+! s=16600.001
+ESM3: drift, l=127.0*mm, apertureType="circular", aper1=89.0*mm;
+! s=16727.001
+SSEM3_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM3: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM3_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=16897.001
+bellows_PD1u: drift, l=203.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=17100.001
+BPD1field: field, type="bmap1d", bScaling=0.957, magneticFile="bdsim1d:../magnet_responses/BPD1.dat";
+BPD1: sbend, fieldVacuum="BPD1field", l=3770.0*mm, angle=-0.033547, apertureType="rectangular", aper1=93.0*mm, aper2=72.0*mm;
+blm_BPD1_7: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPD1", x=-20*mm, y=-150*mm, s=3640.0*mm, theta=1.570796, psi=1.570796;
+! s=20870.001
+ESM4: drift, l=126.0*mm, apertureType="circular", aper1=89.0*mm;
+! s=20996.001
+bellows_PD2u: drift, l=304.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=21300.001
+BPD2field: field, type="bmap1d", bScaling=1.0, magneticFile="bdsim1d:../magnet_responses/BPD2.dat";
+BPD2: sbend, fieldVacuum="BPD2field", l=3770.0*mm, angle=-0.03316548, apertureType="rectangular", aper1=93.0*mm, aper2=57.0*mm;
+blm_BPD2_8: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPD2", x=160*mm, y=-416*mm, s=3965.0*mm;
+blm_BPD2_9: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPD2", x=-386*mm, y=-412*mm, s=3957.0*mm;
+! s=25070.001
+bellows_PD2d: drift, l=235.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=25305.001
+ESM5: drift, l=126.0*mm, apertureType="circular", aper1=89.0*mm;
+! s=25431.001
+SSEM4_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM4: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM4_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=25601.001
+CT2: drift, l=201.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=25802.001
+bellows_PC1u: drift, l=398.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=26200.001
+PC1: drift, l=3200.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=29400.001
+bellows_PC1d: drift, l=310.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=29710.001
+SSEM5_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM5: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM5_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=29880.001
+bellows_PC2u: drift, l=310.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=30190.001
+PPS_CT1: drift, l=200.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=30390.001
+WSEM_duct: drift, l=152.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=30542.001
+WSEM1_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+WSEM1: target, l=0.0001*mm, material="G4_Ti", horizontalWidth=205*mm;
+WSEM1_ddrift: drift, l=84.9999*mm, apertureType="circular", aper1=102.5*mm;
+! s=30712.001
+PC2: drift, l=980.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=31692.001
+bellows_PC2d: drift, l=248.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=31940.001
+PPS_CT2: drift, l=202.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=32142.001
+SSEM6_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM6: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM6_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=32312.001
+ESM6: drift, l=126.0*mm, apertureType="circular", aper1=89.0*mm;
+! s=32438.001
+bellows_PQ3u: drift, l=235.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=32673.001
+
+QPQ3_driftu: drift, l=277.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ3: quadrupole, l=1500*mm, tilt=0.0, k1=0.06738467666666667, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ3_driftd: drift, l=323.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+
+blm_QPQ3_10: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ3", x=18*mm, y=-399*mm, s=-3370.0*mm, theta=1.570796, psi=1.570796;
+blm_QPQ3_11: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ3", x=32*mm, y=-296*mm, s=-903.0*mm, theta=1.570796, psi=1.570796;
+blm_QPQ3_12: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ3", x=0*mm, y=-881*mm, s=1740.0*mm, theta=1.570796, psi=1.570796;
+! s=34773.001000000004
+ion_pump_3: drift, l=527.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=35300.001000000004
+PC3: drift, l=1700.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=37000.001000000004
+bellows_PV2u: drift, l=360.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=37360.001000000004
+
+BPV2_driftu: drift, l=240.0*mm, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
+BPV2: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.018046371698465645*T, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
+BPV2_driftd: drift, l=290.0*mm, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
+
+blm_BPV2_13: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPV2", x=3*mm, y=-444*mm, s=-346.0*mm, theta=1.570796, psi=1.570796;
+! s=38890.001000000004
+ESM7: drift, l=127.0*mm, apertureType="circular", aper1=89.0*mm;
+! s=39017.001000000004
+SSEM7_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM7: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM7_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=39187.001000000004
+bellows_PQ4u: drift, l=221.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=39408.001000000004
+
+QPQ4_driftu: drift, l=282.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ4: quadrupole, l=3000*mm, tilt=0.0, k1=-0.058475613333333336, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ4_driftd: drift, l=340.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+
+blm_QPQ4_14: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ4", x=-93*mm, y=-300*mm, s=-408.0*mm, theta=1.570796, psi=1.570796;
+blm_QPQ4_15: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ4", x=45*mm, y=-300*mm, s=3605.0*mm, theta=1.570796, psi=1.570796;
+! s=43030.001000000004
+bellows_PQ4d: drift, l=235.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=43265.001000000004
+ESM8: drift, l=126.0*mm, apertureType="circular", aper1=89.0*mm;
+! s=43391.001000000004
+SSEM8_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM8: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM8_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=43561.001000000004
+bellows_PC4u: drift, l=309.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=43870.001000000004
+PC4: drift, l=3200.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=47070.001000000004
+bellows_PC4d: drift, l=202.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=47272.001000000004
+SSEM9_udrift: drift, l=85*mm, apertureType="circular", aper1=102.5*mm;
+SSEM9: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205*mm;
+SSEM9_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
+! s=47442.001000000004
+ion_pump_4: drift, l=523.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=47965.001000000004
+
+BPH3_driftu: drift, l=285.0*mm, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
+BPH3: rbend, l=1000*mm, angle=-1e-07, tilt=0.0, B=0.014865248287525015*T, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
+BPH3_driftd: drift, l=335.0*mm, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
+
+blm_BPH3_16: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH3", x=250*mm, y=-132*mm, s=-900.0*mm;
+blm_BPH3_17: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH3", x=-310*mm, y=-897*mm, s=-900.0*mm;
+blm_BPH3_18: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH3", x=0*mm, y=-543*mm, s=1491.0*mm, theta=1.570796, psi=1.570796;
+! s=49585.001000000004
+bellows_PQ5u: drift, l=195.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=49780.001000000004
+
+QPQ5_driftu: drift, l=270.0*mm, apertureType="circular", aper1=45.0*mm;
+QPQ5: quadrupole, l=2000*mm, tilt=0.0, k1=0.08562432, apertureType="circular", aper1=45.0*mm;
+QPQ5_driftd: drift, l=300.0*mm, apertureType="circular", aper1=45.0*mm;
+
+blm_QPQ5_19: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ5", x=-10*mm, y=-210*mm, s=3037.0*mm, theta=1.570796, psi=1.570796;
+! s=52350.001000000004
+bellows_PQ5d: drift, l=140.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=52490.001000000004
+ESM9: drift, l=126.0*mm, apertureType="circular", aper1=89.0*mm;
+! s=52616.001000000004
+CT3: drift, l=161.0*mm, apertureType="circular", aper1=95.0*mm;
+! s=52777.001000000004
+duct_prep_FCV2u: drift, l=101.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=52878.001000000004
+FCV2: drift, l=250.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=53128.001000000004
+duct_prep_FCV2d: drift, l=82.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=53210.001000000004
+GV2: drift, l=98.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=53308.001000000004
+bellows_super: drift, l=187.0*mm, apertureType="circular", aper1=73.0*mm;
+! s=53495.001000000004
+d1: dump, horizontalWidth=300*mm, l=1000.0*mm;
+! s=54495.001000000004
+
+l0: line = (entry,
+QFP_side_duct,
+CT1_pipe,
+CT1,
+SSEM1_udrift,
+SSEM1,
+SSEM1_ddrift,
+ESM1,
+bellows_PV1u,
+BPV1_driftu,
+BPV1,
+BPV1_driftd,
+bellows_PV1d,
+FCV1,
+duct_prep_FCV1d,
+ion_pump_2,
+bellows_PLGu,
+PLUG,
+bellows_PLGd,
+BPH2_driftu,
+BPH2,
+BPH2_driftd,
+ESM2,
+SSEM2_udrift,
+SSEM2,
+SSEM2_ddrift,
+bellows_PQ1u,
+QPQ1_driftu,
+QPQ1,
+QPQ1_driftd,
+bellows_PQ1d,
+QPQ2_driftu,
+QPQ2,
+QPQ2_driftd,
+ESM3,
+SSEM3_udrift,
+SSEM3,
+SSEM3_ddrift,
+bellows_PD1u,
+BPD1,
+ESM4,
+bellows_PD2u,
+BPD2,
+bellows_PD2d,
+ESM5,
+SSEM4_udrift,
+SSEM4,
+SSEM4_ddrift,
+CT2,
+bellows_PC1u,
+PC1,
+bellows_PC1d,
+SSEM5_udrift,
+SSEM5,
+SSEM5_ddrift,
+bellows_PC2u,
+PPS_CT1,
+WSEM_duct,
+WSEM1_udrift,
+WSEM1,
+WSEM1_ddrift,
+PC2,
+bellows_PC2d,
+PPS_CT2,
+SSEM6_udrift,
+SSEM6,
+SSEM6_ddrift,
+ESM6,
+bellows_PQ3u,
+QPQ3_driftu,
+QPQ3,
+QPQ3_driftd,
+ion_pump_3,
+PC3,
+bellows_PV2u,
+BPV2_driftu,
+BPV2,
+BPV2_driftd,
+ESM7,
+SSEM7_udrift,
+SSEM7,
+SSEM7_ddrift,
+bellows_PQ4u,
+QPQ4_driftu,
+QPQ4,
+QPQ4_driftd,
+bellows_PQ4d,
+ESM8,
+SSEM8_udrift,
+SSEM8,
+SSEM8_ddrift,
+bellows_PC4u,
+PC4,
+bellows_PC4d,
+SSEM9_udrift,
+SSEM9,
+SSEM9_ddrift,
+ion_pump_4,
+BPH3_driftu,
+BPH3,
+BPH3_driftd,
+bellows_PQ5u,
+QPQ5_driftu,
+QPQ5,
+QPQ5_driftd,
+bellows_PQ5d,
+ESM9,
+CT3,
+duct_prep_FCV2u,
+FCV2,
+duct_prep_FCV2d,
+GV2,
+bellows_super,
+d1);
+
+use, period=l0;
+
+
+beam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=0.0*m,
+      Xp0=0.0,
+      emitx=0.19*mm*mrad,
+      betx=35.835*m,
+      alfx=-2.3704,
+      dispx=0.443*m,
+      dispxp=0.074,
+
+      Y0=0.0*m,
+      Yp0=0.0,
+      emity=0.157*mm*mrad,
+      bety=7.369*m,
+      alfy=0.064,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;
+
+option, nturns=1;
+sample, all;
+sample, range=entry;

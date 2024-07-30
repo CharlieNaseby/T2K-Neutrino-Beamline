@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
 
 def strip_whitespace(df):
     df.columns = df.columns.str.strip()
@@ -11,6 +12,18 @@ def string_to_list(s):
     s = s.strip('[]').strip()
     elements = s.split()
     return elements
+
+def extract_number(string):
+    # Define the regex pattern to match a string with a number in the middle
+    pattern = r'\D*(\d+)\D*'    
+    # Search for the pattern in the string
+    match = re.search(pattern, string)
+    # If a match is found, return the number, otherwise return None
+    if match:
+        return int(match.group(1))
+    else:
+        return None
+
 
 
 class BeamlinePrinter:
@@ -144,18 +157,18 @@ class BeamlinePrinter:
         self.print_aperture(row)
         self.file.write(';\n')
 
-    def print_field(self, row):
-         self.file.write(row.element+'field: field, type="bmap3d", bScaling=1.0, magneticFile="bdsim3d:../magnet_responses/'+row.element+'.dat";\n')
+    def print_field(self, row, ndim):
+         self.file.write(row.element+'field: field, type="bmap'+str(ndim)+'d", bScaling=1.0, magneticFile="bdsim'+str(ndim)+'d:../magnet_responses/'+row.element+'.dat";\n')
        
-    def print_fieldmapgeom(self, row):
+    def print_fieldmapgeom(self, row, ndim):
         self.line.append(row.element)
-        self.print_field(row)
+        self.print_field(row, ndim)
         self.file.write(row.element+': element, geometryFile="gdml:../'+row.element+'.gdml", fieldAll="'+row.element+'field", l='+str(row.length)+'*mm;\n')
 
-    def print_fieldmap(self, row, magtype):
+    def print_fieldmap(self, row, magtype, ndim):
         self.line.append(row.element)
-        self.print_field(row)
-        self.file.write(row.element+': '+magtype+', fieldAll="'+row.element+'field", l='+str(row.length)+'*mm')
+        self.print_field(row, ndim)
+        self.file.write(row.element+': '+magtype+', fieldVacuum="'+row.element+'field", l='+str(row.length)+'*mm, angle='+str(row.angle))
         self.print_aperture(row)
         self.file.write(';\n')
 
@@ -223,14 +236,23 @@ tunnelSoilThickness = 2*m;\n\n''')
                 self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.))
                 self.file.write('\n') #give some breathing room
 
-            elif(row.type == 'fieldmapgeom'):
-                self.print_fieldmapgeom(row)
-            elif(row.type == 'fieldmapquad'):
-                self.print_fieldmap(row, 'drift') #TODO left these three here in case we want to add geometry dependant on magtype
-            elif(row.type == 'fieldmaprbend'):
-                self.print_fieldmap(row, 'drift')
-            elif(row.type == 'fieldmapsbend'):
-                self.print_fieldmap(row, 'drift')
+            elif(re.match('fieldmap.*', row.type)):
+                ndim = extract_number(row.type)
+                if(re.match('.*geom', row.type)):
+                    self.print_fieldmapgeom(row, ndim)
+                else:
+                    magtypes = ['sbend', 'rbend', 'quad']
+                    for magtype in magtypes:
+                        if(re.match('.*'+magtype, row.type)):
+                            self.print_fieldmap(row, magtype, ndim)
+
+#            elif(row.type == 'fieldmap3dquad'):
+#                self.print_fieldmap(row, 'drift') #TODO left these three here in case we want to add geometry dependant on magtype
+#            elif(row.type == 'fieldmap3drbend'):
+#                self.print_fieldmap(row, 'drift')
+#            elif(row.type == 'fieldmap3dsbend'):
+#                self.print_fieldmap(row, 'drift')
+
             elif(row.type == 'ssem'):
                 self.print_ssem(row, 15e-3)
             elif(row.type == 'wsem'):
@@ -259,8 +281,8 @@ tunnelSoilThickness = 2*m;\n\n''')
         self.print_beam_0910580()
 #        self.print_beam_from_file("../gaus_twiss_1k.root")
         #self.print_halo()
-        self.print_tunnel()
-        self.print_physics('g4FTFP_BERT')
+#        self.print_tunnel()
+#        self.print_physics('g4FTFP_BERT')
         self.file.write('option, nturns=1;\n')
         self.file.write('sample, all;\n')
         self.file.write('sample, range=entry;\n')
@@ -343,8 +365,9 @@ for magnet in magset:
         kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*beamline.loc[beamline['element'] == magnet].iloc[0]['polelength'])
 
 
-kvals['BPD1'] = -1.15329
-kvals['BPD2'] = -1.14018
+print(kvals)
+#kvals['BPD1'] = -1.15329
+#kvals['BPD2'] = -1.14018
 #kvals['QPQ4'] = -0.0518735 #set the QPQ4 val to that in the fake fieldmap
 
 print(kvals)

@@ -71,46 +71,33 @@ def read_xyz(infile, colname):
 #    plt.show()
     return z1100
 
-def create_fieldmap(magnet, magset, magset_ref, sign):
+def create_fieldmap3d(magnet, magset, magset_ref, sign):
     print(magnet)
     x = read_xyz("magnet_responses/"+magnet+"/"+magnet+"_X.xls", 'By[Gauss]')
     y = read_xyz("magnet_responses/"+magnet+"/"+magnet+"_Y.xls", 'Bx[Gauss]')
     z = read_xyz("magnet_responses/"+magnet+"/"+magnet+"_Z.xls", 'By[Gauss]')
     bi = read_bi("magnet_responses/"+magnet+"/"+magnet+"_BI.xls")
-    print("BI response: ",bi)
     
-    
-    #all hardcoded for PQ4
-
     nzpoints = 20 #how many z positions to include in the half magnet
     length = float(beamline.loc[beamline['element'] == magnet, 'length'].item())
     polelen = float(beamline.loc[beamline['element'] == magnet, 'polelength'].item()) #the length of the pole of the magnet in mm
     mark = float(beamline.loc[beamline['element'] == magnet, 'mark'].item())
     zoffset = mark - 0.5*length
-    fringelen = min(length - (mark+polelen/2.), mark-polelen/2.)
-    #fringelen = 300. #length of the fringe field to include outside of the magnet face in mm
+    fringelen = min(length - (mark+polelen/2.), mark-polelen/2.) #length of the fringe field to include outside of the magnet face in mm
     zref = float(beamline.loc[beamline['element'] == magnet, 'zref'].item()) #z position at which the x and y scans were made
     fieldmap_current = magset_ref
     real_current = magset
-    print("zref ", zref)
-    print("zoffset ", zoffset)
-    print("fringelen ", fringelen)
-    print("polelen ",polelen)
     
     #get the field strength scaling to apply to the x, y, z fieldmaps
     field_scale = interpolate_point(bi, real_current, '[A]', 'By[Gauss]')/interpolate_point(bi, fieldmap_current, '[A]', 'By[Gauss]')
     x['By[Gauss]'] = field_scale*x['By[Gauss]']
     y['Bx[Gauss]'] = field_scale*y['Bx[Gauss]']
     z['By[Gauss]'] = field_scale*z['By[Gauss]']
-    
-    
-    #x['By[Gauss]'] = x['By[Gauss]']*np.sign(x['X[mm]'])
     x = include_sign(x, 'X[mm]', 'By[Gauss]')
     y = include_sign(y, 'Y[mm]', 'Bx[Gauss]')
     x['By[Gauss]'] = sign*x['By[Gauss]']
     y['Bx[Gauss]'] = sign*y['Bx[Gauss]']
    
-
     zfield = pd.DataFrame({'z': np.linspace(-fringelen, polelen/2., nzpoints)})
     zfield['By[Gauss]'] = interpolate(z, zfield['z'], 'Z[mm]', 'By[Gauss]')
     zfieldmirror = pd.DataFrame({'z': polelen-zfield['z'], 'By[Gauss]':  zfield['By[Gauss]']})
@@ -128,8 +115,6 @@ def create_fieldmap(magnet, magset, magset_ref, sign):
     
     xy = y.assign(key=1).merge(x.assign(key=1), how='outer', on='key')
     
-    pd.set_option('display.max_rows', 500000)
-    
     outf = open("magnet_responses/"+magnet+".dat", "w")
     
     outf.write('xmin> '+ str(x['X[cm]'].min())+'\n')
@@ -146,8 +131,6 @@ def create_fieldmap(magnet, magset, magset_ref, sign):
     
     outf.write('! X \t Y \t Z \t Fx \t Fy \t Fz'+'\n')
     
-    
-    
     for indx, zslice in zscaling.iterrows():
         tmp = xy
         tmp['Fx'] = tmp['Bx[Gauss]']*zslice['scale']/10000. 
@@ -159,6 +142,59 @@ def create_fieldmap(magnet, magset, magset_ref, sign):
     outf.close()
 
 
+def create_fieldmap1d(magnet, magset, magset_ref, sign):
+    print(magnet)
+    z = read_xyz("magnet_responses/"+magnet+"/"+magnet+"_Z.xls", 'By[Gauss]')
+    bi = read_bi("magnet_responses/"+magnet+"/"+magnet+"_BI.xls")
+
+    nzpoints = 20 #how many z positions to include in the half magnet
+    length = float(beamline.loc[beamline['element'] == magnet, 'length'].item())
+    polelen = float(beamline.loc[beamline['element'] == magnet, 'polelength'].item()) #the length of the pole of the magnet in mm
+    mark = float(beamline.loc[beamline['element'] == magnet, 'mark'].item())
+    zoffset = mark - 0.5*length
+    fringelen = min(length - (mark+polelen/2.), mark-polelen/2.) #length of the fringe field to include outside of the magnet face in mm
+    zref = float(beamline.loc[beamline['element'] == magnet, 'zref'].item()) #z position at which the x and y scans were made
+    fieldmap_current = magset_ref
+    real_current = magset
+
+    #get the field strength scaling to apply to the x, y, z fieldmaps
+    field_scale = interpolate_point(bi, real_current, '[A]', 'By[Gauss]')/interpolate_point(bi, fieldmap_current, '[A]', 'By[Gauss]')
+    z['By[Gauss]'] = field_scale*z['By[Gauss]']
+
+
+    zfield = pd.DataFrame({'z': np.linspace(-fringelen, polelen/2., nzpoints)})
+    zfield['By[Gauss]'] = interpolate(z, zfield['z'], 'Z[mm]', 'By[Gauss]')
+    zfieldmirror = pd.DataFrame({'z': polelen-zfield['z'], 'By[Gauss]':  zfield['By[Gauss]']})
+    zfield = zfield.merge(zfieldmirror, how='outer')
+    
+    zscaling = zfield
+    if(real_current == 0):
+        zscaling['scale'] = 0
+    else:
+        zscaling['scale'] = zscaling['By[Gauss]']/interpolate_point(z, zref, 'Z[mm]', 'By[Gauss]') #TODO deal with the case that By is zero in both df
+    
+    #fieldmap is in cm
+    zscaling['z'] = (zscaling['z'] - polelen/2. + zoffset)/10.
+    
+    outf = open("magnet_responses/"+magnet+".dat", "w")
+    
+    outf.write('zmin> '+ str(zscaling['z'].min())+'\n')
+    outf.write('zmax> '+ str(zscaling['z'].max())+'\n')
+    outf.write('nz> '+ str(zscaling.shape[0])+'\n')
+    
+    outf.write('! Z \t Fx \t Fy \t Fz'+'\n')
+    
+    for indx, zslice in zscaling.iterrows():
+        tmp = zslice
+        tmp['Fx'] = 0. #tmp['Bx[Gauss]']*zslice['scale']/10000. 
+        tmp['Fy'] = sign*tmp['By[Gauss]']*tmp['scale']/10000.
+        tmp['Fz'] = 0. #tmp['Fz']*zslice['scale']/10000.
+        tmp['z'] = zslice['z']
+        outf.write(str(tmp['z'])+" "+str(tmp['Fx'])+" "+str(tmp['Fy'])+" "+str(tmp['Fz'])+"\n")
+    outf.close()
+
+
+pd.set_option('display.max_rows', 500000)
 vec_magset = [0 ,
 -15 ,
 520 ,
@@ -189,7 +225,8 @@ beamline = strip_whitespace(pd.read_csv("fujii-san.csv", header=0, skipinitialsp
 
 beamline = beamline[beamline['polelength'] != 0] #get all magnets
 
-magnets = ['QPQ1', 'QPQ2', 'QPQ4', 'QPQ5']
+quads = ['QPQ1', 'QPQ2', 'QPQ4', 'QPQ5']
+dipoles = ['BPV1', 'BPD2', 'BPV2']
 
 fieldmap_current = {"BPV1": 1800,
                     "QPQ1": 1012.6,
@@ -204,7 +241,12 @@ signs = {"QPQ1": -1,
          "QPQ2": 1,
          "QPQ3": -1,
          "QPQ4": 1,
-         "QPQ5": -1}
+         "QPQ5": -1,
+         "BPV1": 1,
+         "BPD2": -1,
+         "BPV2": 1}
 
 
-[create_fieldmap(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in magnets] 
+#[create_fieldmap3d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in quads] 
+[create_fieldmap1d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in dipoles] 
+
