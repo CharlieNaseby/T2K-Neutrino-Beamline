@@ -1,7 +1,10 @@
 #include <iostream>
+#include <fstream>
+#include <iomanip>
 #include <set>
 #include <string>
 #include <vector>
+#include <array>
 
 #include "Beam.hh"
 #include "Config.hh"
@@ -28,9 +31,20 @@
 
 class Interface{
 public:
-  std::vector<double> dat;
-  Interface(double *data);
+  std::vector<std::array<double, 4> > dat;
+  std::vector<double> s;
+  std::vector<std::string> beamline;
+  int nPars;
+  std::vector<double> internalPars;
+  Interface(std::vector<std::array<double, 4> > data, std::string baseBeamlineFile);
   ~Interface();
-  double calc_chisq(const double *pars);
+  void SetNPars(int npars);
+  void SetInternalPars(const double *pars);
+  void ParamScan(int param, int npoints, double xlo, double xup);
+  double fcn(std::vector<double> pars);
+  double fcn(const double *pars);
+  void GenerateInputFile(const double *pars);
+  void ParseInputFile(std::string baseBeamlineFile);
+  double CalcChisq();
 
 };

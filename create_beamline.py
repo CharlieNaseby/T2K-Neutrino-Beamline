@@ -15,7 +15,7 @@ def string_to_list(s):
 
 def extract_number(string):
     # Define the regex pattern to match a string with a number in the middle
-    pattern = r'\D*(\d+)\D*'    
+    pattern = r'\D*(\d+)\D*'
     # Search for the pattern in the string
     match = re.search(pattern, string)
     # If a match is found, return the number, otherwise return None
@@ -220,6 +220,11 @@ tunnelSoilThickness = 2*m;\n\n''')
 
     def print_physics(self, physics_list):
         self.file.write('option, physicsList =' + '"' + physics_list + '";\n')
+    
+    def sample_ssems(self):
+        for element in self.line:
+            if(re.match('SSEM[0-9]$', element)):
+                self.file.write('sample, range='+element+';\n')
 
     def print(self):
         self.file.write('chrg: scorer, type="cellcharge";\n')
@@ -281,11 +286,17 @@ tunnelSoilThickness = 2*m;\n\n''')
         self.print_beam_0910580()
 #        self.print_beam_from_file("../gaus_twiss_1k.root")
         #self.print_halo()
-#        self.print_tunnel()
-#        self.print_physics('g4FTFP_BERT')
+        if(print_tunnel):
+            self.print_tunnel()
+        if(print_physics):
+            self.print_physics('g4FTFP_BERT')
         self.file.write('option, nturns=1;\n')
-        self.file.write('sample, all;\n')
-        self.file.write('sample, range=entry;\n')
+        if(sample_all):
+            self.file.write('sample, all;\n')
+        elif(sample_ssem):
+            self.sample_ssems()
+        if(sample_entry):
+            self.file.write('sample, range=entry;\n')
 
 
 #bfield = {'BPV1': 0.0001,
@@ -374,6 +385,16 @@ print(kvals)
 mag_df = magnet_response[magnet_response['element'] == 'BPH3']
 #plt.scatter(mag_df['current'], mag_df['kval'])
 #plt.show()
+
+
+
+print_tunnel=False
+print_physics=False
+sample_all=False
+sample_ssem=True
+sample_entry=False
+
+
 
 
 #df_tmp = magnet_response[magnet_response['element'] == row.element]
