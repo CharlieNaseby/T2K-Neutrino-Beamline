@@ -1,82 +1,6 @@
 #include "Interface.h"
 #include "Optics.h" 
 
-std::string reBdsimOptics(std::string inputFileName){
-
-  // emittance on the fly
-  bool emittanceOnFly = false;
-
-  std::string outputFileName = RBDS::DefaultOutputName(inputFileName, "_optics");
-
-  DataLoader* dl = nullptr;
-  try
-    {dl = new DataLoader(inputFileName, false, true);}
-  catch (const RBDSException& error)
-    {std::cerr << error.what() << std::endl; throw;}
-  catch (const std::exception& error)
-    {std::cerr << error.what() << std::endl; throw;}
-
-  // beam required to get the mass of the primary particle in EventAnalysis
-  Beam*   beam     = dl->GetBeam();
-  TChain* beamTree = dl->GetBeamTree();
-  BDSOutputROOTEventBeam* outputBeam = beam->beam;
-  beamTree->GetEntry(0);
-  const std::string& particleName = outputBeam->particle;
-  
-  TChain* modelTree = dl->GetModelTree();
-  if (modelTree->GetEntries() == 0)
-    {
-      std::cout << "Warning: data file written without Model tree that is required to know the sampler names" << std::endl;
-      std::cout << "         only the primary sampler will be analysed if available" << std::endl;
-    }
-
-  EventAnalysis* evtAnalysis;
-  try
-    {
-      evtAnalysis = new EventAnalysis(dl->GetEvent(), dl->GetEventTree(),
-                                      false, true, false, true, -1, emittanceOnFly, 0, -1, particleName);
-      evtAnalysis->Execute();
-    }
-  catch (const RBDSException& error)
-    {std::cerr << error.what() << std::endl; throw;}
-
-  TFile* outputFile = new TFile(outputFileName.c_str(), "RECREATE");
-
-  // add header for file type and version details
-  outputFile->cd();
-  BDSOutputROOTEventHeader* headerOut = new BDSOutputROOTEventHeader();
-  headerOut->Fill(dl->GetFileNames()); // updates time stamp
-  headerOut->SetFileType("REBDSIM");
-  TTree* headerTree = new TTree("Header", "REBDSIM Header");
-  headerTree->Branch("Header.", "BDSOutputROOTEventHeader", headerOut);
-  headerTree->Fill();
-  headerTree->Write("", TObject::kOverwrite);
-
-  // write merged histograms and optics
-  evtAnalysis->Write(outputFile);
-
-  // Don't clone the model tree if only primaries are generated - model not created in BDSIM
-  Options* options = dl->GetOptions();
-  TChain*  optionsTree = dl->GetOptionsTree();
-  BDSOutputROOTEventOptions* ob = options->options;
-  optionsTree->GetEntry(0);
-  if (!ob->generatePrimariesOnly)
-    {
-      // clone model tree for nice built in optics plotting
-      auto newTree = modelTree->CloneTree();
-      newTree->Write("", TObject::kOverwrite);
-    }
-  
-  outputFile->Close();
-  delete outputFile;
-  std::cout << "Result written to: " << outputFileName << std::endl;
-  delete dl;
-  delete evtAnalysis;
-
-  return outputFileName;
-
-}
-
 //constructor to set data and the gmad file we'll use as a base to our fit
 
 Interface::Interface(std::vector<std::array<double, 4> > data, std::string baseBeamlineFile){
@@ -85,7 +9,6 @@ Interface::Interface(std::vector<std::array<double, 4> > data, std::string baseB
     for(int j=0; j<4; j++) dat[i][j] = data[i][j];
   }
   ParseInputFile(baseBeamlineFile);
-
 };
 
 Interface::~Interface(){};
@@ -93,19 +16,28 @@ Interface::~Interface(){};
 void Interface::SetNPars(int npars){
   if(npars != beamline.size()-1){
     std::cerr<<"Number of parameters set is not equal to the number in the gmad file supplied FILE "<<__FILE__<<":"<<__LINE__<<std::endl;
-    throw;
+    throw  ;
   }
   internalPars.resize(npars);
   nPars = npars;
+}
+
+void Interface::ParamScan(int param, TH1D *hist){
+  double store = internalPars[param];
+  for(int i=1; i<=hist->GetNbinsX(); i++){
+    double xpoint = hist->GetBinCenter(i);
+    internalPars[param] = xpoint;
+    hist->SetBinContent(i, fcn(internalPars));
+  }
+  internalPars[param] = store;
 }
 
 void Interface::ParamScan(int param, int npoints, double xlo, double xup){
   double step = (xup-xlo)/(double)(npoints-1);
   double store = internalPars[param];
   internalPars[param] = xlo;
-  const double tmp[1] = {0.99};
-  for(int i=0; i<1; i++){
-    std::cout << "Param " << param << "=" << internalPars[param]<< " chisq = " << fcn(internalPars);
+  for(int i=0; i<npoints; i++){
+    std::cout << "Param " << param << "=" << internalPars[param]<< " chisq = " << fcn(internalPars)<<std::endl;;
     internalPars[param]+=step;
   }
   internalPars[param] = store;
@@ -120,7 +52,10 @@ void Interface::SetInternalPars(const double *pars){
 double Interface::fcn(std::vector<double> pars){
 
   const double *tmp = pars.data();
-  fcn(tmp);
+  return fcn(tmp);
+}
+double Interface::fcn_wrapper(const double *pars){
+  return fcn(pars);
 }
 
 double Interface::fcn(const double *pars){
@@ -173,36 +108,9 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
 }
 
 double Interface::CalcChisq(){
-  std::cout<<"Inside CalcChisq"<<std::endl;
-  char *argv[6];
-  char execname[256] = "bdsim";
-  char path[256] = "--file=../gmad/optimised.gmad";
-  char batch[256] = "--batch";
-  char ngen[256] = "--ngenerate=200";
-  char outfile[256] = "--outfile=/home/bdsim_output";
-  char seed[256] = "--seed=1989";
-  argv[0] = execname;
-  argv[1] = path;
-  argv[2] = batch;
-  argv[3] = ngen;
-  argv[4] = outfile;
-  argv[5] = seed;
 
-  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=200 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
+  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=50 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
   std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
-//  BDSIM *bds = new BDSIM();
-//  bds->Initialise(6, argv);
-//  std::cout<<"Called new BDSIM"<<std::endl;
-//  if (!bds->Initialised())
-//    {
-//      if (bds->InitialisationResult() == 1)
-//        {std::cout << "Intialisation failed" << std::endl; return 1;}
-//    }
-//  else
-//    {bds->BeamOn();}
-//  delete bds;
-
-//  std::string opticsFilename = reBdsimOptics("/home/bdsim_output.root");
 
   Optics beamOptics("/home/bdsim_output_optics.root");
 

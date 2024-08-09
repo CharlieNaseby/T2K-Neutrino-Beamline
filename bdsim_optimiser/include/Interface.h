@@ -40,8 +40,10 @@ public:
   ~Interface();
   void SetNPars(int npars);
   void SetInternalPars(const double *pars);
+  void ParamScan(int param, TH1D *hist);
   void ParamScan(int param, int npoints, double xlo, double xup);
   double fcn(std::vector<double> pars);
+  double fcn_wrapper(const double *pars);
   double fcn(const double *pars);
   void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);

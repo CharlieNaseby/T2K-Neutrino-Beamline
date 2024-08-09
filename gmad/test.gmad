@@ -78,11 +78,8 @@ SSEM3_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
 ! s=16897.001
 bellows_PD1u: drift, l=203.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=17100.001
-
-BPD1_driftu: drift, l=300.0*mm, apertureType="rectangular", aper1=93.0*mm, aper2=72.0*mm;
-BPD1: sbend, l=3000*mm, angle=-0.033547, tilt=0.0, B=-1.0946491548232156*T, apertureType="rectangular", aper1=93.0*mm, aper2=72.0*mm;
-BPD1_driftd: drift, l=470.0*mm, apertureType="rectangular", aper1=93.0*mm, aper2=72.0*mm;
-
+BPD1field: field, type="bmap1d", bScaling=1.0, magneticFile="bdsim1d:../magnet_responses/BPD1.dat";
+BPD1: sbend, fieldVacuum="BPD1field", l=3770.0*mm, angle=-0.033547, apertureType="rectangular", aper1=93.0*mm, aper2=72.0*mm;
 blm_BPD1_7: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPD1", x=-20*mm, y=-150*mm, s=3640.0*mm, theta=1.570796, psi=1.570796;
 ! s=20870.001
 ESM4: drift, l=126.0*mm, apertureType="circular", aper1=89.0*mm;
@@ -272,9 +269,7 @@ SSEM3_udrift,
 SSEM3,
 SSEM3_ddrift,
 bellows_PD1u,
-BPD1_driftu,
 BPD1,
-BPD1_driftd,
 ESM4,
 bellows_PD2u,
 BPD2,
@@ -351,29 +346,9 @@ bellows_super,
 d1);
 
 use, period=l0;
-
-
 beam, particle="proton",
-      distrType="gausstwiss",
-
-      X0=0.0*m,
-      Xp0=0.0,
-      emitx=0.19*mm*mrad,
-      betx=35.835*m,
-      alfx=-2.3704,
-      dispx=0.443*m,
-      dispxp=0.074,
-
-      Y0=0.0*m,
-      Yp0=0.0,
-      emity=0.157*mm*mrad,
-      bety=7.369*m,
-      alfy=0.064,
-      dispy=0.0*m,
-      dispyp=0.,
-
-      kineticEnergy=30*GeV;
-
+      kineticEnergy=30*GeV,
+      distrType="bdsimsampler:entry",distrFile="../run_0910580_100k.root";
 option, nturns=1;
 sample, range=SSEM1;
 sample, range=SSEM2;

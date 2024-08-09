@@ -267,7 +267,7 @@ tunnelSoilThickness = 2*m;\n\n''')
             else:
                 self.print_drift(row, row.element, row.length)
             self.s += row.length
-            if(row.blm):
+            if(row.blm and not self.primaries_only):
                 self.print_blms(row)
             self.file.write("! s=" + str(self.s) + "\n")
 
@@ -283,9 +283,13 @@ tunnelSoilThickness = 2*m;\n\n''')
 
         self.file.write('\nuse, period=l0;\n')
         #self.print_beam()
-        self.print_beam_0910580()
-#        self.print_beam_from_file("../gaus_twiss_1k.root")
-        #self.print_halo()
+        if(beam_from_file):
+            self.print_beam_from_file("../run_0910580_100k.root")
+        elif(beam_halo):
+            self.print_halo()
+        else:
+            self.print_beam_0910580()
+
         if(print_tunnel):
             self.print_tunnel()
         if(print_physics):
@@ -299,33 +303,7 @@ tunnelSoilThickness = 2*m;\n\n''')
             self.file.write('sample, range=entry;\n')
 
 
-#bfield = {'BPV1': 0.0001,
-#          'BPH2': 0.0001,
-#          'BPD1': 1.15329,
-#          'BPD2': 1.14018,
-#          'BPV2': 0.0001,
-#          'BPH3': 0.0001,}
-#
-#k1 = {'QPQ1': 0.0511454667,
-#      'QPQ2': -0.060356033,
-#      'QPQ3': 0.07795667,
-#      'QPQ4': -0.0132418,
-#      'QPQ5': 0.09191465}
-
 proton_momentum = 30.924 # momentum for a 30GeV KE proton 
-
-#vec_magset = [0 ,
-#-15 ,
-#520 ,
-#0 ,
-#485 ,
-#1140 ,
-#1191 ,
-#408 ,
-#15 ,
-#354 ,
-#8 ,
-#423]
 
 #run 910580
 vec_magset = [0 ,
@@ -341,9 +319,6 @@ vec_magset = [0 ,
 -13 ,
 423 ]
   
-
-
-
 
 beamline = strip_whitespace(pd.read_csv("fujii-san.csv", header=0, skipinitialspace=True))
 magnet_response = strip_whitespace(pd.read_csv("kicurve.csv", header=0, skipinitialspace=True))
@@ -393,12 +368,24 @@ print_physics=False
 sample_all=False
 sample_ssem=True
 sample_entry=False
+beam_from_file = True
+beam_halo = False
 
+generate_primaries=False
+
+if(generate_primaries):
+    sample_entry = True
+    sample_ssem = False
+    sample_all = False
+    print_physics = False
+    print_tunnel = False
+    beam_from_file = False
+    beam_halo = False
 
 
 
 #df_tmp = magnet_response[magnet_response['element'] == row.element]
 
 
-prnt = BeamlinePrinter(beamline, "gmad/test.gmad", primaries_only=False)
+prnt = BeamlinePrinter(beamline, "gmad/test.gmad", primaries_only=generate_primaries)
 prnt.print()
