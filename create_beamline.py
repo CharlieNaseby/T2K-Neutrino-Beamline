@@ -148,12 +148,16 @@ class BeamlinePrinter:
     def print_bend_magnet(self, row):
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(kvals[row.element])+'*T')
+        if(no_geom):
+            self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
         self.file.write(';\n')
 
     def print_quad_magnet(self, row):
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(kvals[row.element]))
+        if(no_geom):
+            self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
         self.file.write(';\n')
 
@@ -169,6 +173,8 @@ class BeamlinePrinter:
         self.line.append(row.element)
         self.print_field(row, ndim)
         self.file.write(row.element+': '+magtype+', fieldVacuum="'+row.element+'field", l='+str(row.length)+'*mm, angle='+str(row.angle))
+        if(no_geom):
+            self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
         self.file.write(';\n')
 
@@ -246,9 +252,11 @@ tunnelSoilThickness = 2*m;\n\n''')
                 if(re.match('.*geom', row.type)):
                     self.print_fieldmapgeom(row, ndim)
                 else:
-                    magtypes = ['sbend', 'rbend', 'quad']
+                    magtypes = ['sbend', 'rbend', 'quadrupole']
                     for magtype in magtypes:
+                        print(row.type)
                         if(re.match('.*'+magtype, row.type)):
+                            print("found match "+magtype)
                             self.print_fieldmap(row, magtype, ndim)
 
 #            elif(row.type == 'fieldmap3dquad'):
@@ -267,7 +275,7 @@ tunnelSoilThickness = 2*m;\n\n''')
             else:
                 self.print_drift(row, row.element, row.length)
             self.s += row.length
-            if(row.blm and not self.primaries_only):
+            if(row.blm and enable_blms):
                 self.print_blms(row)
             self.file.write("! s=" + str(self.s) + "\n")
 
@@ -370,6 +378,8 @@ sample_ssem=True
 sample_entry=False
 beam_from_file = True
 beam_halo = False
+enable_blms = False
+no_geom = True
 
 generate_primaries=False
 
@@ -381,6 +391,7 @@ if(generate_primaries):
     print_tunnel = False
     beam_from_file = False
     beam_halo = False
+    enable_blms = False
 
 
 

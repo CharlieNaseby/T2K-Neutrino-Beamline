@@ -21,6 +21,7 @@
 
 #include "TFile.h"
 #include "TChain.h"
+#include "TTree.h"
 
 #include "BDSIMClass.hh"
 #include "BDSException.hh"
@@ -29,6 +30,9 @@
 #include "Math/Functor.h"
 #include "Math/Factory.h"
 
+
+#define NSSEM 9
+
 class Interface{
 public:
   std::vector<std::array<double, 4> > dat;
@@ -36,7 +40,7 @@ public:
   std::vector<std::string> beamline;
   int nPars;
   std::vector<double> internalPars;
-  Interface(std::vector<std::array<double, 4> > data, std::string baseBeamlineFile);
+  Interface(std::string dataFile, std::string baseBeamlineFile);
   ~Interface();
   void SetNPars(int npars);
   void SetInternalPars(const double *pars);

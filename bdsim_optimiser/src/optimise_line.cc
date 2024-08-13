@@ -5,18 +5,16 @@
 #include "Math/Functor.h"
 #include "Math/Factory.h"
 
-#define NSSEM 9
 
-int main(){
+int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
-  std::vector<std::array<double, 4> >  data;
-  data.resize(NSSEM);
-  for(int i=0; i<NSSEM; i++) data[i] = {0, 0, 0, 0};
+
 
   std::string baseBeamlineFile="../gmad/test.gmad";
-  Interface inter(data, baseBeamlineFile);
-  const double pars[2] = {1, 1};
-  int nPars = 2;
+  std::string ssemDataFile="./ssem_data/run0910580_gen.root";
+  Interface inter(ssemDataFile, baseBeamlineFile);
+  const double pars[3] = {1, 1, 1};
+  int nPars = 3;
   inter.SetNPars(nPars);
   //scan a parameter
 
@@ -28,16 +26,16 @@ int main(){
   min->SetFunction(f);
   min->SetMaxFunctionCalls(10000);
 
-  min->SetVariable(0, "BPD1", 1.0, 0.1);
-  min->SetVariable(1, "BPD2", 1.0, 0.1);
-
-  min->FixVariable(0);
+  min->SetVariable(0, "BPD1", 0.839889, 0.1);
+  min->SetVariable(1, "BPD2", 0.830461, 0.1);
+  min->SetVariable(2, "QPQ4", 1.0, 0.1);
+//  min->FixVariable(0);
 
   min->Minimize();
   min->PrintResults();
  
 //  TFile *result = new TFile("result.root", "RECREATE");
-//  TH1D *scan = new TH1D("param_0", "param_0", 20, 0.75, 1.25);
+//  TH1D *scan = new TH1D("param_0", "param_0", 20, 0.5, 1.0);
 //
 //  inter.ParamScan(0, scan);
 //  result->cd();

@@ -18,11 +18,9 @@ bellows_PV1u: drift, l=205.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=2100.001
 
 BPV1_driftu: drift, l=250.0*mm, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
-BPV1: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.0*T, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
+BPV1: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.0*T, magnetGeometryType="none", apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
 BPV1_driftd: drift, l=350.0*mm, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
 
-blm_BPV1_1: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPV1", x=-105*mm, y=-295*mm, s=-848.0*mm, theta=1.570796, psi=1.570796;
-blm_BPV1_2: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPV1", x=-63*mm, y=-295*mm, s=1642.0*mm, theta=1.570796, psi=1.570796;
 ! s=3700.001
 bellows_PV1d: drift, l=350.0*mm, apertureType="circular", aper1=73.0*mm;
 ! s=4050.001
@@ -40,10 +38,9 @@ bellows_PLGd: drift, l=590.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=6940.001
 
 BPH2_driftu: drift, l=260.0*mm, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
-BPH2: rbend, l=600*mm, angle=0.0, tilt=0.0, B=0.00938302203802535*T, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
+BPH2: rbend, l=600*mm, angle=0.0, tilt=0.0, B=0.00938302203802535*T, magnetGeometryType="none", apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
 BPH2_driftd: drift, l=290.0*mm, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
 
-blm_BPH2_3: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH2", x=-180*mm, y=-300*mm, s=1015.0*mm, theta=1.570796, psi=1.570796;
 ! s=8090.001
 ESM2: drift, l=127.0*mm, apertureType="circular", aper1=90.0*mm;
 ! s=8217.001
@@ -55,7 +52,7 @@ bellows_PQ1u: drift, l=213.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=8600.001
 
 QPQ1_driftu: drift, l=350.0*mm, apertureType="rectangular", aper1=124.0*mm, aper2=90.0*mm;
-QPQ1: quadrupole, l=3000*mm, tilt=0.0, k1=0.05588721666666666, apertureType="rectangular", aper1=124.0*mm, aper2=90.0*mm;
+QPQ1: quadrupole, l=3000*mm, tilt=0.0, k1=0.05588721666666666, magnetGeometryType="none", apertureType="rectangular", aper1=124.0*mm, aper2=90.0*mm;
 QPQ1_driftd: drift, l=500.0*mm, apertureType="rectangular", aper1=124.0*mm, aper2=90.0*mm;
 
 ! s=12450.001
@@ -63,12 +60,9 @@ bellows_PQ1d: drift, l=550.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=13000.001
 
 QPQ2_driftu: drift, l=250.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
-QPQ2: quadrupole, l=3000*mm, tilt=0.0, k1=-0.06283414633333333, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ2: quadrupole, l=3000*mm, tilt=0.0, k1=-0.06283414633333333, magnetGeometryType="none", apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
 QPQ2_driftd: drift, l=350.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
 
-blm_QPQ2_4: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ2", x=648*mm, y=-687*mm, s=820.0*mm;
-blm_QPQ2_5: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ2", x=-651*mm, y=-688*mm, s=775.0*mm;
-blm_QPQ2_6: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ2", x=30*mm, y=-295*mm, s=3375.0*mm, theta=1.570796, psi=1.570796;
 ! s=16600.001
 ESM3: drift, l=127.0*mm, apertureType="circular", aper1=89.0*mm;
 ! s=16727.001
@@ -79,17 +73,14 @@ SSEM3_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
 bellows_PD1u: drift, l=203.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=17100.001
 BPD1field: field, type="bmap1d", bScaling=1.0, magneticFile="bdsim1d:../magnet_responses/BPD1.dat";
-BPD1: sbend, fieldVacuum="BPD1field", l=3770.0*mm, angle=-0.033547, apertureType="rectangular", aper1=93.0*mm, aper2=72.0*mm;
-blm_BPD1_7: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPD1", x=-20*mm, y=-150*mm, s=3640.0*mm, theta=1.570796, psi=1.570796;
+BPD1: sbend, fieldVacuum="BPD1field", l=3770.0*mm, angle=-0.033547, magnetGeometryType="none", apertureType="rectangular", aper1=93.0*mm, aper2=72.0*mm;
 ! s=20870.001
 ESM4: drift, l=126.0*mm, apertureType="circular", aper1=89.0*mm;
 ! s=20996.001
 bellows_PD2u: drift, l=304.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=21300.001
 BPD2field: field, type="bmap1d", bScaling=1.0, magneticFile="bdsim1d:../magnet_responses/BPD2.dat";
-BPD2: sbend, fieldVacuum="BPD2field", l=3770.0*mm, angle=-0.03316548, apertureType="rectangular", aper1=93.0*mm, aper2=57.0*mm;
-blm_BPD2_8: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPD2", x=160*mm, y=-416*mm, s=3965.0*mm;
-blm_BPD2_9: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPD2", x=-386*mm, y=-412*mm, s=3957.0*mm;
+BPD2: sbend, fieldVacuum="BPD2field", l=3770.0*mm, angle=-0.03316548, magnetGeometryType="none", apertureType="rectangular", aper1=93.0*mm, aper2=57.0*mm;
 ! s=25070.001
 bellows_PD2d: drift, l=235.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=25305.001
@@ -137,12 +128,9 @@ bellows_PQ3u: drift, l=235.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=32673.001
 
 QPQ3_driftu: drift, l=277.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
-QPQ3: quadrupole, l=1500*mm, tilt=0.0, k1=0.06738467666666667, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
+QPQ3: quadrupole, l=1500*mm, tilt=0.0, k1=0.06738467666666667, magnetGeometryType="none", apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
 QPQ3_driftd: drift, l=323.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
 
-blm_QPQ3_10: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ3", x=18*mm, y=-399*mm, s=-3370.0*mm, theta=1.570796, psi=1.570796;
-blm_QPQ3_11: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ3", x=32*mm, y=-296*mm, s=-903.0*mm, theta=1.570796, psi=1.570796;
-blm_QPQ3_12: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ3", x=0*mm, y=-881*mm, s=1740.0*mm, theta=1.570796, psi=1.570796;
 ! s=34773.001000000004
 ion_pump_3: drift, l=527.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=35300.001000000004
@@ -152,10 +140,9 @@ bellows_PV2u: drift, l=360.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=37360.001000000004
 
 BPV2_driftu: drift, l=240.0*mm, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
-BPV2: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.018046371698465645*T, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
+BPV2: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.018046371698465645*T, magnetGeometryType="none", apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
 BPV2_driftd: drift, l=290.0*mm, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
 
-blm_BPV2_13: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPV2", x=3*mm, y=-444*mm, s=-346.0*mm, theta=1.570796, psi=1.570796;
 ! s=38890.001000000004
 ESM7: drift, l=127.0*mm, apertureType="circular", aper1=89.0*mm;
 ! s=39017.001000000004
@@ -165,13 +152,8 @@ SSEM7_ddrift: drift, l=84.985*mm, apertureType="circular", aper1=102.5*mm;
 ! s=39187.001000000004
 bellows_PQ4u: drift, l=221.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=39408.001000000004
-
-QPQ4_driftu: drift, l=282.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
-QPQ4: quadrupole, l=3000*mm, tilt=0.0, k1=-0.058475613333333336, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
-QPQ4_driftd: drift, l=340.0*mm, apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
-
-blm_QPQ4_14: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ4", x=-93*mm, y=-300*mm, s=-408.0*mm, theta=1.570796, psi=1.570796;
-blm_QPQ4_15: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ4", x=45*mm, y=-300*mm, s=3605.0*mm, theta=1.570796, psi=1.570796;
+QPQ4field: field, type="bmap3d", bScaling=1.0, magneticFile="bdsim3d:../magnet_responses/QPQ4.dat";
+QPQ4: quadrupole, fieldVacuum="QPQ4field", l=3622.0*mm, angle=0.0, magnetGeometryType="none", apertureType="rectangular", aper1=102.0*mm, aper2=60.0*mm;
 ! s=43030.001000000004
 bellows_PQ4d: drift, l=235.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=43265.001000000004
@@ -195,21 +177,17 @@ ion_pump_4: drift, l=523.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=47965.001000000004
 
 BPH3_driftu: drift, l=285.0*mm, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
-BPH3: rbend, l=1000*mm, angle=-1e-07, tilt=0.0, B=0.014865248287525015*T, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
+BPH3: rbend, l=1000*mm, angle=-1e-07, tilt=0.0, B=0.014865248287525015*T, magnetGeometryType="none", apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
 BPH3_driftd: drift, l=335.0*mm, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
 
-blm_BPH3_16: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH3", x=250*mm, y=-132*mm, s=-900.0*mm;
-blm_BPH3_17: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH3", x=-310*mm, y=-897*mm, s=-900.0*mm;
-blm_BPH3_18: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="BPH3", x=0*mm, y=-543*mm, s=1491.0*mm, theta=1.570796, psi=1.570796;
 ! s=49585.001000000004
 bellows_PQ5u: drift, l=195.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=49780.001000000004
 
 QPQ5_driftu: drift, l=270.0*mm, apertureType="circular", aper1=45.0*mm;
-QPQ5: quadrupole, l=2000*mm, tilt=0.0, k1=0.08562432, apertureType="circular", aper1=45.0*mm;
+QPQ5: quadrupole, l=2000*mm, tilt=0.0, k1=0.08562432, magnetGeometryType="none", apertureType="circular", aper1=45.0*mm;
 QPQ5_driftd: drift, l=300.0*mm, apertureType="circular", aper1=45.0*mm;
 
-blm_QPQ5_19: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",referenceElement="QPQ5", x=-10*mm, y=-210*mm, s=3037.0*mm, theta=1.570796, psi=1.570796;
 ! s=52350.001000000004
 bellows_PQ5d: drift, l=140.0*mm, apertureType="circular", aper1=73.0*mm;
 ! s=52490.001000000004
@@ -313,9 +291,7 @@ SSEM7_udrift,
 SSEM7,
 SSEM7_ddrift,
 bellows_PQ4u,
-QPQ4_driftu,
 QPQ4,
-QPQ4_driftd,
 bellows_PQ4d,
 ESM8,
 SSEM8_udrift,

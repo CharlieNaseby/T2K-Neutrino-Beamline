@@ -3,10 +3,49 @@
 
 //constructor to set data and the gmad file we'll use as a base to our fit
 
-Interface::Interface(std::vector<std::array<double, 4> > data, std::string baseBeamlineFile){
-  dat.resize(data.size());
+Interface::Interface(std::string dataFile, std::string baseBeamlineFile){
+
+  TFile *ssemDataFile = new TFile(dataFile.c_str(), "READ");
+  TTree *ssemData = dynamic_cast<TTree*> (ssemDataFile->Get("anabeam"));
+  double ssemx[19], ssemy[19], ssemwx[19], ssemwy[19], ct[5];
+  ssemData->SetBranchAddress("ssemx", ssemx);
+  ssemData->SetBranchAddress("ssemy", ssemy);
+  ssemData->SetBranchAddress("ssemwx", ssemwx);
+  ssemData->SetBranchAddress("ssemwy", ssemwy);
+  ssemData->SetBranchAddress("ct", ct);
+  double ssemxMean[NSSEM], ssemyMean[NSSEM], ssemwxMean[NSSEM], ssemwyMean[NSSEM];
+  for(int i=0; i<NSSEM; i++){
+    ssemxMean[i] = 0;
+    ssemyMean[i] = 0;
+    ssemwxMean[i] = 0;
+    ssemwyMean[i] = 0;
+  }
+  int nShots=0;
+
+  for(int i=0; i<ssemData->GetEntries(); i++){
+    ssemData->GetEntry(i);
+    if(ct[4] < 100) continue;
+    for(int j=0; j<NSSEM; j++){
+      ssemxMean[j]+=ssemx[j];
+      ssemyMean[j]+=ssemy[j];
+      ssemwxMean[j]+=ssemwx[j];
+      ssemwyMean[j]+=ssemwy[j];
+    }
+    nShots++;    
+  }
+  for(int i=0; i<NSSEM; i++){
+    ssemxMean[i] /= (double)nShots;
+    ssemyMean[i] /= (double)nShots;
+    ssemwxMean[i] /= (double)nShots;
+    ssemwyMean[i] /= (double)nShots;
+  }
+
+  dat.resize(NSSEM);
   for(int i=0; i<dat.size(); i++){
-    for(int j=0; j<4; j++) dat[i][j] = data[i][j];
+    dat[i][0] = ssemxMean[i];
+    dat[i][1] = ssemyMean[i];
+    dat[i][2] = ssemwxMean[i];
+    dat[i][3] = ssemwyMean[i];
   }
   ParseInputFile(baseBeamlineFile);
 };
@@ -117,8 +156,14 @@ double Interface::CalcChisq(){
   double chisq=0;
   for(int i=0; i<dat.size(); i++){
     beamOptics.fChain->GetEntry(i+1);
-    std::array<double, 4> simulation = {beamOptics.Mean_x, beamOptics.Mean_y, beamOptics.Sigma_x, beamOptics.Sigma_y};
-    for(int j=0; j<2; j++) chisq += simulation[j]*simulation[j]/(0.2/1000.);  //CERN TODO, just position first
+    std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
+    std::cout<<"SSEM"<<i+1<<" beam sim postion = "<<simulation[0]<<", "<<simulation[1]<<" data "<<dat[i][0]<<", "<<dat[i][1]<<std::endl;
+    std::cout<<"SSEM"<<i+1<<" beam sim width   = "<<simulation[2]<<", "<<simulation[3]<<" data "<<dat[i][2]<<", "<<dat[i][3]<<std::endl;
+
+    for(int j=0; j<2; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN 0.2mm uncert on ssem position
+    for(int j=2; j<4; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN width with 0.2mm precision
+   
+
 //    std::cout<<"SSEM "<<i+1<<" position cumulative chisq contribution "<<chisq<<std::endl;
   }
   return chisq;

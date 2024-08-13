@@ -247,6 +247,6 @@ signs = {"QPQ1": -1,
          "BPV2": 1}
 
 
-#[create_fieldmap3d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in quads] 
-[create_fieldmap1d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in dipoles] 
+[create_fieldmap3d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in quads] 
+#[create_fieldmap1d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in dipoles] 
 
