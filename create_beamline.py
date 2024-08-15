@@ -172,7 +172,7 @@ class BeamlinePrinter:
     def print_fieldmap(self, row, magtype, ndim):
         self.line.append(row.element)
         self.print_field(row, ndim)
-        self.file.write(row.element+': '+magtype+', fieldVacuum="'+row.element+'field", l='+str(row.length)+'*mm, angle='+str(row.angle))
+        self.file.write(row.element+': '+magtype+', fieldVacuum="'+row.element+'field", l='+str(row.length)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt))
         if(no_geom):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)

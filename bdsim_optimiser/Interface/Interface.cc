@@ -58,6 +58,7 @@ void Interface::SetNPars(int npars){
     throw  ;
   }
   internalPars.resize(npars);
+  nominalPars.resize(npars);
   nPars = npars;
 }
 
@@ -86,6 +87,9 @@ void Interface::SetInternalPars(const double *pars){
   for(int i=0; i<nPars; i++) internalPars[i] = pars[i];
 }
 
+void Interface::SetNominalPars(const double *pars){
+  for(int i=0; i<nPars; i++) nominalPars[i] = pars[i];
+}
 //the cost function we'll minimise
 
 double Interface::fcn(std::vector<double> pars){
@@ -100,11 +104,18 @@ double Interface::fcn_wrapper(const double *pars){
 double Interface::fcn(const double *pars){
   SetInternalPars(pars);
   GenerateInputFile(pars);
-  return CalcChisq();
+  return CalcChisq(pars);
+}
+
+double Interface::CalcPrior(const double *pars){
+  double chisq = 0;
+  for(int i=0; i<nPars; i++){
+    chisq += (pars[i]-nominalPars[i])*(pars[i]-nominalPars[i])/(1e-10+(0.1*nominalPars[i])*(0.1*nominalPars[i]));
+  }
+  return chisq;
 }
 
 //I hate that this is the way to do this just as much as you do
-
 
 //first need to write a gmad input file with the magnet strengths implied by pars
 void Interface::GenerateInputFile(const double *pars){
@@ -146,7 +157,7 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
   }
 }
 
-double Interface::CalcChisq(){
+double Interface::CalcChisq(const double *pars){
 
   std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=50 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
   std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
@@ -158,14 +169,16 @@ double Interface::CalcChisq(){
     beamOptics.fChain->GetEntry(i+1);
     std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
     std::cout<<"SSEM"<<i+1<<" beam sim postion = "<<simulation[0]<<", "<<simulation[1]<<" data "<<dat[i][0]<<", "<<dat[i][1]<<std::endl;
-    std::cout<<"SSEM"<<i+1<<" beam sim width   = "<<simulation[2]<<", "<<simulation[3]<<" data "<<dat[i][2]<<", "<<dat[i][3]<<std::endl;
+//    std::cout<<"SSEM"<<i+1<<" beam sim width   = "<<simulation[2]<<", "<<simulation[3]<<" data "<<dat[i][2]<<", "<<dat[i][3]<<std::endl;
 
     for(int j=0; j<2; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN 0.2mm uncert on ssem position
-    for(int j=2; j<4; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN width with 0.2mm precision
+//    if(fitMode & 0x02) for(int j=2; j<4; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN width with 0.2mm precision
    
 
 //    std::cout<<"SSEM "<<i+1<<" position cumulative chisq contribution "<<chisq<<std::endl;
   }
+//  chisq+=CalcPrior(pars);
+  std::cout<<"returning chisq = "<<chisq<<std::endl;
   return chisq;
 }
 

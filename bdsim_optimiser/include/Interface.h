@@ -40,10 +40,15 @@ public:
   std::vector<std::string> beamline;
   int nPars;
   std::vector<double> internalPars;
+  std::vector<double> nominalPars;
+  int fitMode=3;
+ 
   Interface(std::string dataFile, std::string baseBeamlineFile);
   ~Interface();
   void SetNPars(int npars);
   void SetInternalPars(const double *pars);
+  void SetNominalPars(const double *pars);
+ 
   void ParamScan(int param, TH1D *hist);
   void ParamScan(int param, int npoints, double xlo, double xup);
   double fcn(std::vector<double> pars);
@@ -51,6 +56,8 @@ public:
   double fcn(const double *pars);
   void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);
-  double CalcChisq();
+  double CalcChisq(const double *pars);
+  double CalcPrior(const double *pars);
+  void SetChisqMode(int mode){fitMode=mode;}
 
 };

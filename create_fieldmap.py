@@ -142,7 +142,7 @@ def create_fieldmap3d(magnet, magset, magset_ref, sign):
     outf.close()
 
 
-def create_fieldmap1d(magnet, magset, magset_ref, sign):
+def create_fieldmap1d(magnet, magset, magset_ref, sign, horisontal_bending):
     print(magnet)
     z = read_xyz("magnet_responses/"+magnet+"/"+magnet+"_Z.xls", 'By[Gauss]')
     bi = read_bi("magnet_responses/"+magnet+"/"+magnet+"_BI.xls")
@@ -158,6 +158,8 @@ def create_fieldmap1d(magnet, magset, magset_ref, sign):
     real_current = magset
 
     #get the field strength scaling to apply to the x, y, z fieldmaps
+    print("real field ", interpolate_point(bi, real_current, '[A]', 'By[Gauss]'))
+    print("fieldmap field", interpolate_point(bi, fieldmap_current, '[A]', 'By[Gauss]'))
     field_scale = interpolate_point(bi, real_current, '[A]', 'By[Gauss]')/interpolate_point(bi, fieldmap_current, '[A]', 'By[Gauss]')
     z['By[Gauss]'] = field_scale*z['By[Gauss]']
 
@@ -186,8 +188,13 @@ def create_fieldmap1d(magnet, magset, magset_ref, sign):
     
     for indx, zslice in zscaling.iterrows():
         tmp = zslice
-        tmp['Fx'] = 0. #tmp['Bx[Gauss]']*zslice['scale']/10000. 
-        tmp['Fy'] = sign*tmp['By[Gauss]']*tmp['scale']/10000.
+        if(horisontal_bending):
+            tmp['Fx'] = 0. #tmp['Bx[Gauss]']*zslice['scale']/10000. 
+            tmp['Fy'] = sign*tmp['By[Gauss]']*tmp['scale']/10000.
+        else:
+            tmp['Fy'] = 0. #tmp['Fz']*zslice['scale']/10000.
+            tmp['Fx'] = sign*tmp['By[Gauss]']*tmp['scale']/10000.
+
         tmp['Fz'] = 0. #tmp['Fz']*zslice['scale']/10000.
         tmp['z'] = zslice['z']
         outf.write(str(tmp['z'])+" "+str(tmp['Fx'])+" "+str(tmp['Fy'])+" "+str(tmp['Fz'])+"\n")
@@ -195,18 +202,20 @@ def create_fieldmap1d(magnet, magset, magset_ref, sign):
 
 
 pd.set_option('display.max_rows', 500000)
-vec_magset = [0 ,
--15 ,
-520 ,
-0 ,
-485 ,
-1139 ,
-1190 ,
-408 ,
-15 ,
-354 ,
--13 ,
-423 ]
+#vec_magset = [0 ,
+#-15 ,
+#520 ,
+#0 ,
+#485 ,
+#1139 ,
+#1190 ,
+#408 ,
+#15 ,
+#354 ,
+#-13 ,
+#423 ]
+
+vec_magset = 100*np.ones(12) #set magnet current to 100A
 
 magset = {}
 magset["BPV1"] = vec_magset[0]
@@ -226,13 +235,15 @@ beamline = strip_whitespace(pd.read_csv("fujii-san.csv", header=0, skipinitialsp
 beamline = beamline[beamline['polelength'] != 0] #get all magnets
 
 quads = ['QPQ1', 'QPQ2', 'QPQ4', 'QPQ5']
-dipoles = ['BPV1', 'BPD2', 'BPV2']
+dipoles = ['BPD2', 'BPV1', 'BPV2', 'BPH3']
 
 fieldmap_current = {"BPV1": 1800,
+                    "BPH2": 1800,
                     "QPQ1": 1012.6,
                     "QPQ2": 1500,
                     "BPD2": 2000,
                     "BPV2": 1500,
+                    "BPH3": 1500,
                     "QPQ4": 1100,
                     "QPQ5": 1500}
 
@@ -243,10 +254,17 @@ signs = {"QPQ1": -1,
          "QPQ4": 1,
          "QPQ5": -1,
          "BPV1": 1,
+         "BPH3": 1,
          "BPD2": -1,
          "BPV2": 1}
 
+horisontal_bending = {"BPV1": False,
+                      "BPH2": True,
+                      "BPH3": True,
+                      "BPD2": True,
+                      "BPV2": False}
+
 
 [create_fieldmap3d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in quads] 
-#[create_fieldmap1d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet]) for magnet in dipoles] 
+[create_fieldmap1d(magnet, magset[magnet], fieldmap_current[magnet], signs[magnet], True) for magnet in dipoles] 
 
