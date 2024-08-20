@@ -169,10 +169,10 @@ double Interface::CalcChisq(const double *pars){
     beamOptics.fChain->GetEntry(i+1);
     std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
     std::cout<<"SSEM"<<i+1<<" beam sim postion = "<<simulation[0]<<", "<<simulation[1]<<" data "<<dat[i][0]<<", "<<dat[i][1]<<std::endl;
-//    std::cout<<"SSEM"<<i+1<<" beam sim width   = "<<simulation[2]<<", "<<simulation[3]<<" data "<<dat[i][2]<<", "<<dat[i][3]<<std::endl;
+    std::cout<<"SSEM"<<i+1<<" beam sim width   = "<<simulation[2]<<", "<<simulation[3]<<" data "<<dat[i][2]<<", "<<dat[i][3]<<std::endl;
 
-    for(int j=0; j<2; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN 0.2mm uncert on ssem position
-//    if(fitMode & 0x02) for(int j=2; j<4; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN width with 0.2mm precision
+    if(fitMode & 0x01) for(int j=0; j<2; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN 0.2mm uncert on ssem position
+    if(fitMode & 0x02) for(int j=2; j<4; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN width with 0.2mm precision
    
 
 //    std::cout<<"SSEM "<<i+1<<" position cumulative chisq contribution "<<chisq<<std::endl;
