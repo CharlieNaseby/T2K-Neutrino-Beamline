@@ -37,34 +37,57 @@ int main(int argc, char **argv){
   magnames[9] = "BPH3";
   magnames[10] = "QPQ5";
 
+  std::map<std::string, int> magMap;
+  for(int i=0; i<11; i++) magMap[magnames[i]] = i;
+
+
   double fudgeFactor[11];
-  for(int i=0; i<nPars; i++) fudgeFactor[i] = 1.0;
 
-  fudgeFactor[1] = 1.402333;
-
-  fudgeFactor[4] = 0.851299;
-  fudgeFactor[5] = 0.830461;
-  fudgeFactor[7] = 1.023666;
 
 
   double pars[11];
-  pars[0] = magset[0]/100.;
-  pars[1] = magset[1]/100.;
-  pars[2] = magset[2]/100.;
-  pars[3] = magset[4]/100.;
-  pars[4] = magset[5]/100.;
-  pars[5] = magset[6]/100.;
-  pars[6] = magset[7]/100.;
-  pars[7] = magset[8]/100.;
-  pars[8] = magset[9]/100.;
-  pars[9] = magset[10]/100.;
-  pars[10] = magset[11]/100.;
 
-  for(int i=0; i<nPars; i++) pars[i] *= fudgeFactor[i];
+  bool usePrevBestFit = true;
 
+  if(usePrevBestFit){
+    std::ifstream infile;
+    infile.open("bestFit.txt");
+    std::string line;
+
+    while(std::getline(infile, line)){
+      size_t strpos = line.find(" =");
+      std::string mag = line.substr(0, strpos);
+      std::string val = line.substr(strpos+3);
+      pars[magMap[mag]] = std::stof(val);
+      std::cout<<"setting "<<mag<<" to "<<std::stof(val)<<std::endl;
+    }
+  }
+  else{
+    for(int i=0; i<nPars; i++) fudgeFactor[i] = 1.0;
+  
+    fudgeFactor[magMap['BPH2']] = 1.402333;
+  
+    fudgeFactor[4] = 0.851299;
+    fudgeFactor[5] = 0.830461;
+    fudgeFactor[7] = 1.023666;
+
+    pars[0] = magset[0]/100.;
+    pars[1] = -magset[1]/100.;
+    pars[2] = -magset[2]/100.;
+    pars[3] = magset[4]/100.;
+    pars[4] = magset[5]/100.;
+    pars[5] = magset[6]/100.;
+    pars[6] = magset[7]/100.;
+    pars[7] = -magset[8]/100.;
+    pars[8] = magset[9]/100.;
+    pars[9] = magset[10]/100.;
+    pars[10] = magset[11]/100.;
+    for(int i=0; i<nPars; i++) pars[i] *= fudgeFactor[i];
+
+    //pars[0] = -0.05;  //CERN TODO forcefully set BPV1
+  }
   inter.SetNPars(nPars);
 
-  pars[0] = -0.05;  //CERN TODO forcefully set BPV1
 
   inter.SetInternalPars(pars);
   inter.SetNominalPars(pars);
@@ -73,14 +96,13 @@ int main(int argc, char **argv){
 
 
 
+  inter.SetChisqMode(3);
+
   auto iterstarttime = std::chrono::high_resolution_clock::now();
   inter.fcn(pars);
   auto iterendtime = std::chrono::high_resolution_clock::now();
   auto itertime = std::chrono::duration_cast<std::chrono::microseconds>(iterendtime-iterstarttime).count();
   std::cout<<"Took "<<itertime*1e-6<<"s to run a single iteration"<<std::endl;
-
-
-  exit(1);
 
   ROOT::Math::Functor f(inter, &Interface::fcn_wrapper, nPars);
   ROOT::Math::Minimizer *min = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
@@ -91,19 +113,20 @@ int main(int argc, char **argv){
 
   for(int i=0; i<nPars; i++) min->SetVariable(i, magnames[i].c_str(), pars[i], 0.1);
 
-  std::vector<int> bMagVars = {0, 1, 2, 3, 6, 7, 8, 9, 10};
+  std::vector<int> bMagVars = {0, 1, 4, 5, 7, 9};
   std::vector<int> qMagVars = {2, 3, 6, 8, 10};
 
 //  for(auto fixed : qMagVars) min->FixVariable(fixed);
 
-  for(int i=0; i<nPars; i++) min->FixVariable(i);
+//  for(int i=0; i<nPars; i++) min->FixVariable(i);
   min->SetPrintLevel(2);
 
-  min->ReleaseVariable(0); 
-  min->ReleaseVariable(1);
-  min->ReleaseVariable(4);
-  min->ReleaseVariable(7);
-  inter.SetChisqMode(1);
+//  min->ReleaseVariable(0); 
+//  min->ReleaseVariable(1);
+//  min->ReleaseVariable(4);
+//  min->ReleaseVariable(7);
+  min->FixVariable(9); //BPH3 and QPQ5 do not have and SSEMs afterwards in the sim so would have no data constraint
+  min->FixVariable(10);
   min->Minimize();
   min->PrintResults();
 

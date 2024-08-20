@@ -41,7 +41,7 @@ public:
   int nPars;
   std::vector<double> internalPars;
   std::vector<double> nominalPars;
-  int fitMode=3;
+  unsigned int fitMode=3;  //by default fit width and position
  
   Interface(std::string dataFile, std::string baseBeamlineFile);
   ~Interface();
