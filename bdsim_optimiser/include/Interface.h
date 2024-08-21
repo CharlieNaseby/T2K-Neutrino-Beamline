@@ -41,14 +41,18 @@ public:
   int nPars;
   std::vector<double> internalPars;
   std::vector<double> nominalPars;
+  std::vector<double> magCurrent;
+  std::vector<double> preFit;
+  std::map<std::string, int> magMap;
+  std::vector<std::string> magNames;
   unsigned int fitMode=3;  //by default fit width and position
  
-  Interface(std::string dataFile, std::string baseBeamlineFile);
+  Interface(std::string dataFile, std::string baseBeamlineFile, int npars);
   ~Interface();
-  void SetNPars(int npars);
+  void SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double* pars);
   void SetInternalPars(const double *pars);
   void SetNominalPars(const double *pars);
- 
+  const double* GetNominalPars();
   void ParamScan(int param, TH1D *hist);
   void ParamScan(int param, int npoints, double xlo, double xup);
   double fcn(std::vector<double> pars);

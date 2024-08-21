@@ -97,7 +97,17 @@ def create_fieldmap3d(magnet, magset, magset_ref, sign):
     y = include_sign(y, 'Y[mm]', 'Bx[Gauss]')
     x['By[Gauss]'] = sign*x['By[Gauss]']
     y['Bx[Gauss]'] = sign*y['Bx[Gauss]']
-   
+
+    Bxmin = y.loc[y['Y[mm]'] == y['Y[mm]'].min()]['Bx[Gauss]'].iloc[0]
+    Bxmax = y.loc[y['Y[mm]'] == y['Y[mm]'].max()]['Bx[Gauss]'].iloc[0]
+    ymin = y['Y[mm]'].min()
+    ymax = y['Y[mm]'].max()
+    gradient = (Bxmax-Bxmin)/(10.0*(ymax-ymin)) #units of 0.01 Tm^-1A^-1
+
+
+    print("Gradient ", gradient, " T per m per 100A")
+    print("Predicted K1 ", 0.2998*gradient/30.924, " m^-2 per 100A")
+
     zfield = pd.DataFrame({'z': np.linspace(-fringelen, polelen/2., nzpoints)})
     zfield['By[Gauss]'] = interpolate(z, zfield['z'], 'Z[mm]', 'By[Gauss]')
     zfieldmirror = pd.DataFrame({'z': polelen-zfield['z'], 'By[Gauss]':  zfield['By[Gauss]']})
@@ -157,12 +167,16 @@ def create_fieldmap1d(magnet, magset, magset_ref, sign, horisontal_bending):
     fieldmap_current = magset_ref
     real_current = magset
 
+
     #get the field strength scaling to apply to the x, y, z fieldmaps
     print("real field ", interpolate_point(bi, real_current, '[A]', 'By[Gauss]'))
     print("fieldmap field", interpolate_point(bi, fieldmap_current, '[A]', 'By[Gauss]'))
     field_scale = interpolate_point(bi, real_current, '[A]', 'By[Gauss]')/interpolate_point(bi, fieldmap_current, '[A]', 'By[Gauss]')
     z['By[Gauss]'] = field_scale*z['By[Gauss]']
 
+    B = z.loc[z['Z[mm]'] == z['Z[mm]'].max()]['By[Gauss]'].iloc[0]/10000.0
+
+    print("predicted B/T per 100A ", B)
 
     zfield = pd.DataFrame({'z': np.linspace(-fringelen, polelen/2., nzpoints)})
     zfield['By[Gauss]'] = interpolate(z, zfield['z'], 'Z[mm]', 'By[Gauss]')
