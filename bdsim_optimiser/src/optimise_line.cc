@@ -73,18 +73,22 @@ int main(int argc, char **argv){
   const double *errors = min->Errors();
   const double *bestFit = min->X();
   TH1D *fitResult = new TH1D("fit_result", "fit_result", nPars, 0, nPars);
-  TH1D* prefit = new TH1D("prefit", "prefit", nPars, 0, nPars);
+  TH1D *prefit = new TH1D("prefit", "prefit", nPars, 0, nPars);
+  TH1D *post_minus_pred_div_pred = new TH1D("post_minus_pred_div_pred", "(Post - Pre)/Pre", nPars, 0, nPars);
   const double *nominal = inter.GetNominalPars();
   for(int i=0; i<nPars; i++){
     prefit->SetBinContent(i+1, inter.preFit[i]);
     fitResult->SetBinContent(i+1, bestFit[i]);
     fitResult->SetBinError(i+1, errors[i]);
+    if(TMath::Abs(inter.preFit[i])>1e-6){
+      post_minus_pred_div_pred->SetBinContent(i+1, (bestFit[i]-inter.preFit[i])/inter.preFit[i]);
+      post_minus_pred_div_pred->SetBinError(i+1, errors[i]/inter.preFit[i]);
+    }
+   
   }
   fitResult->Write("best_fit");
   prefit->Write("prefit");
-  fitResult->Add(prefit, -1.);
-  fitResult->Divide(prefit);
-  fitResult->Write("post_minus_pred_div_pred");
+  post_minus_pred_div_pred->Write("post_minus_pre_div_pre");
   outf->Close();
 
 //  for(int i=0; i<nPars; i++) min->ReleaseVariable(i);

@@ -120,7 +120,22 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double 
   preFit[9] = magCurrent[10]/100.;
   preFit[10] = magCurrent[11]/100.;
 
-  for(auto mag : magNames) preFit[magMap[mag]] *= kScaling[mag]; //prefit is always the expected value for the parameters based on the currents
+  std::vector<double> fudgeFactor(nPars);
+  //magnet scaling factors based on a fit to hard edge run0910580 with prefit using fieldmap vals
+  fudgeFactor[0] = 1;
+  fudgeFactor[1] = 0.503659;
+  fudgeFactor[2] = 0.878798;
+  fudgeFactor[3] = 1.11968;
+  fudgeFactor[4] = 1.08873;
+  fudgeFactor[5] = 1.03649;
+  fudgeFactor[6] = 1.4863;
+  fudgeFactor[7] = 1.59548;
+  fudgeFactor[8] = 1.28218;
+  fudgeFactor[9] = 1;
+  fudgeFactor[10] = 1;
+
+  for(auto mag : magNames) preFit[magMap[mag]] *= kScaling[mag] * fudgeFactor[magMap[mag]]; //prefit is always the expected value for the parameters based on the currents
+
 
   if(usePrevBestFit){
     std::ifstream infile;
@@ -136,13 +151,12 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double 
     }
   }
   else if(useFieldMaps){
-    std::vector<double> fudgeFactor(nPars);
     for(int i=0; i<nPars; i++) fudgeFactor[i] = 1.0;
   
-    fudgeFactor[1] = 1.402333;
-    fudgeFactor[4] = 0.851299;
-    fudgeFactor[5] = 0.830461;
-    fudgeFactor[7] = 1.023666;
+//    fudgeFactor[1] = 1.402333;
+//    fudgeFactor[4] = 0.851299;
+//    fudgeFactor[5] = 0.830461;
+//    fudgeFactor[7] = 1.023666;
 
     pars[0] = magCurrent[0]/100.;
     pars[1] = -magCurrent[1]/100.;
