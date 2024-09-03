@@ -6,9 +6,12 @@ import re
 import copy as cp
 matplotlib.use('qtagg')
 
+#known constants
 
+start_of_bpd1 = 17400.
 bpd1_angle = 0.033547
 bpd2_angle = 0.033165
+ssem1s = 1769.-85.
 
 def get_rotation_matrix(a, b):
     #first normalise the vectors just to be safe
@@ -27,6 +30,10 @@ def get_rotation_matrix(a, b):
                     [-v[1], v[0], 0.]])
     R = np.identity(3) + vx + vx.dot(vx)*1./(1.+c)
     return R
+
+def rotmat2d(theta):
+    return np.array([[np.cos(theta), np.sin(theta)],
+                    [-np.sin(theta), np.cos(theta)]])
 
 def normvec(a):
     retval = np.array(a)
@@ -91,13 +98,12 @@ class holder:
                     left = [testpoint, val]
                 else:
                     right = [testpoint, val]
-
         if(np.abs(right[1]) < np.abs(left[1])):
             return right[0]
         else:
             return left[0]
 
-    def calculate_center(self):  ##TODO make this work demanding that the point[0]->center vector has no component along the beamline...
+    def calculate_center(self):
         #first get the vector between the two measured points
         vec = self.point[1] - self.point[0]
         offsetvec = self.offset[1] - self.offset[0]
@@ -115,45 +121,11 @@ class holder:
         R2 = get_rotation_matrix(np.array([0., 0., 1.0]), -vec)
 
         locus = lambda invtan, R, conelen, ang: self.point[0] - (self.point[1] + conelen * R.dot(normvec([np.cos(ang), np.sin(ang), invtan]).T))
-#        phi = np.linspace(0, 2.*np.pi, 100)
-#        circ = np.array([locus(invtanopen, R2, conelen, ang) for ang in phi])
-
-
-#        #now rotate that vector about vec until the resulting vector has the correct component along the beamline
-#        costh = p1c.dot(-vec)
-#        sinth = (1-costh**2)**0.5
-#        invtanth = costh/sinth
-#        print(invtanth)
-#        #now get rotation matrix for a 001 vector to direction -vec
-#        openangle = invtanth * np.ones(100)
-#        cone = np.array([np.cos(phi), np.sin(phi), openangle]).T
-#        cone = np.array([c/np.linalg.norm(c) for c in cone])
-#        rotcone = R2.dot(cone.T).T
-#        centerline_to_cone = self.point[0] - (self.point[1] + np.linalg.norm(self.point[1] - self.point[0]) * rotcone)
-#
-#
-#        center_points = self.point[0] + np.linalg.norm(self.offset[0]) * rotcone
-#
 
         vertical = np.array([0., 0., 1.])
         s = self.s
         if(self.longitudinal):
             s = np.cross(vertical, self.s)
-
-
-#        proj = lambda invtan, R, s, theta: self.point[0] - (self.point[1] + np.linalg.norm(self.point[1] - self.point[0]) * R.dot(normvec([np.cos(theta), np.sin(theta), invtan]).T))
-#
-#
-#        projection = centerline_to_cone.dot(self.s)
-#        newproj = [proj(invtanth, R2, self.s, ang) for ang in phi]
-#        print(np.linalg.norm(np.array(centerline_to_cone[0])))
-#        print(np.linalg.norm(newproj[0]))
-#        exit(1)
-#
-#        plt.plot(phi, projection)
-#        plt.plot(phi, newproj)
-#        plt.show()
-        
 
         best_phi = self.binary_search(locus, invtanopen, R2, s, conelen, 0., np.pi)
         best_vector = self.point[0] + locus(invtanopen, R2, conelen, best_phi)
@@ -190,6 +162,9 @@ class holder:
     def set_zero(self, offset):
         self.point = [(pt + offset) for pt in self.point]
         self.center += offset
+    def get_curvilinear_position(self):
+        return 1.0
+
 
 def get_holder(surv, basename, points, longitudinal, offsets, s=None):
     names = [basename+str(pt) for pt in points]
@@ -198,8 +173,8 @@ def get_holder(surv, basename, points, longitudinal, offsets, s=None):
     else:
         return holder([surv[surv['name'] == name] for name in names],  longitudinal, offsets, s)
 
+
 def curvilinear_coords(s):
-    start_of_bpd1 = 17400.
     intersection_point = start_of_bpd1+3600.5853
     end_of_bpd2 = start_of_bpd1 + 3000. + 1198. + 3000.
 
@@ -231,13 +206,22 @@ def read_excel(filename):
     surv = surv.drop(['x2014', 'y2014', 'h2014'], axis=1)
     surv = surv.drop(['x2017', 'y2017', 'h2017'], axis=1)
     surv = surv.drop(['dx', 'dy', 'dh'], axis=1)
-    surv.loc[surv['name'] == 'ssem12', 'h2022'] += 50. #CERN TODO REMOVE!!!
     return surv
 
-def rotate_surveyxy(surv, R):
+def rotate_surveyxy(surv, theta):
     tmp = surv
+    R = np.array([[np.cos(theta), np.sin(theta)],
+                [-np.sin(theta), np.cos(theta)]])
     surv['x2022'] = R[0,0] * tmp['x2022'] + R[0,1] * tmp['y2022']
     surv['y2022'] = R[1,0] * tmp['x2022'] + R[1,1] * tmp['y2022']
+    return surv
+
+def rotate_surveyxz(surv, theta):
+    tmp = surv
+    R = np.array([[np.cos(theta), np.sin(theta)],
+                [-np.sin(theta), np.cos(theta)]])
+    surv['x2022'] = R[0,0] * tmp['x2022'] + R[0,1] * tmp['h2022']
+    surv['h2022'] = R[1,0] * tmp['x2022'] + R[1,1] * tmp['h2022']
     return surv
 
 def parse_holder(surv, ssem1s):
@@ -259,61 +243,89 @@ def parse_holder(surv, ssem1s):
     #estimate initial beamline direction taking ssem2[0]-ssem1[0]
     s = np.array([ssem2[0][i].iloc[0] - ssem1[0][i].iloc[0] for i in ['x2022', 'y2022', 'h2022']])
 
+    #get the xy rotation
+    theta = np.atan(s[1]/s[0])
+    theta = np.pi - theta #we know that the survey is in the bottom-right quadrant
+    #rotate the whole survey to point along 1, 0, z
+    surv = rotate_surveyxy(surv, theta)
+
+    ssem1 = [surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']]
+    ssem2 = [surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']]
+    s = np.array([ssem2[0][i].iloc[0] - ssem1[0][i].iloc[0] for i in ['x2022', 'y2022', 'h2022']])
+
+    #actually have to this twice, I think numerical precision
+    theta = np.atan(s[1]/s[0])
+    surv = rotate_surveyxy(surv, theta)
+
+    #now should be aligned with 1, 0, z pretty much exactly
+    ssem1 = [surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']]
     ssem1_center = holder(ssem1, False, ssem_offset, s=s).get_center()
+
+
+
 
     #coords relative to ssem1[0]
     surv.loc[:,'x2022'] = surv['x2022']-ssem1_center[0]
     surv.loc[:,'y2022'] = surv['y2022']-ssem1_center[1]
     surv.loc[:,'h2022'] = surv['h2022']-ssem1_center[2]
 
-
-    theta = np.atan(s[1]/s[0])
-    theta += np.pi #we know that the survey is in the bottom-right quadrant
-    R = np.array([[np.cos(theta), -np.sin(theta)],
-                [np.sin(theta), np.cos(theta)]])
-    surv = rotate_surveyxy(surv, R)
-
     ssem1 = [surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']]
     ssem2 = [surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']]
-
     s = np.array([ssem2[0][i].iloc[0] - ssem1[0][i].iloc[0] for i in ['x2022', 'y2022', 'h2022']])
 
-    s = np.array([0.8, 0.2, 0.])
+    ssem1_center = holder([surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']], False, ssem_offset, s=s).get_center()
+    ssem2_center = holder([surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']], False, ssem_offset, s=s).get_center()
+    #again rotate to point along 1., 0., z but this time use the centers
+    theta = np.atan((ssem2_center[1] - ssem1_center[1])/(ssem2_center[0]-ssem1_center[0]))
+    surv = rotate_surveyxy(surv, theta)
 
-    ssems = [get_holder(surv, 'SSEM'+str(id), [1, 2], False, ssem_offset, s=s) for id in range(1,10)]
-    qpqs = [get_holder(surv, 'PQ'+str(id), [1, 2], True, qpq_offset, s=s) for id in range(1, 6)]
+    #and again in the xz plane
+    ssem1_center = holder([surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']], False, ssem_offset, s=s).get_center()
+    ssem2_center = holder([surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']], False, ssem_offset, s=s).get_center()
+    s = ssem2_center - ssem1_center
+    theta = np.atan((ssem2_center[2] - ssem1_center[2])/(ssem2_center[0]-ssem1_center[0]))
+    surv = rotate_surveyxz(surv, theta)
+
+
+
+    ssem1_center = holder([surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']], False, ssem_offset, s=s).get_center()
+    ssem2_center = holder([surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']], False, ssem_offset, s=s).get_center()
+    s = ssem2_center - ssem1_center
+
+    ang = bpd1_angle+bpd2_angle
+    R = np.array([[np.cos(ang), np.sin(ang), 0.],
+                [-np.sin(ang), np.cos(ang), 0.],
+                [0., 0., 1.]])
+
+    s_after_bpd = R.dot(s)
+    ssem_svec = [s if i<=3 else s_after_bpd for i in range(1,10)]
+    qpq_svec = [s if i<=2 else s_after_bpd for i in range(1,6)]
+
+    ssems = [get_holder(surv, 'SSEM'+str(id), [1, 2], False, ssem_offset, s=ssem_svec[id-1]) for id in range(1,10)]
+    qpqs = [get_holder(surv, 'PQ'+str(id), [1, 2], True, qpq_offset, s=qpq_svec[id-1]) for id in range(1, 6)]
     bpds = [get_holder(surv, 'PD'+str(id), [1, 2], True, bpd_offset, s=s) for id in range(1, 3)]
 
     #NOTE SSEMs now 0 indexed!!!
 
-    print("ssem1 position ", ssems[0].get_center())
-    print("ssem1 points ", ssems[0])
     beamline_dir = ssems[1].get_center() - ssems[0].get_center()
-    print("length along ssem 1->2 ", np.linalg.norm(beamline_dir))
     beamline_dir /= np.linalg.norm(beamline_dir)
+    print("beamline dir ", beamline_dir)
+
     R = get_rotation_matrix(beamline_dir, np.array([1., 0., 0.]))
     #rotate so that this direction is along the x axis makes calculating curvilinear position easier
 
 
-    print("qpq1 before rotation ", qpqs[0])
-#    [ss.rotate(R) for ss in ssems] TODO uncomment
+#    [ss.rotate(R) for ss in ssems] 
 #    [bp.rotate(R) for bp in bpds]
 #    [qp.rotate(R) for qp in qpqs]
 #    print("qpq1 after rotation ", qpqs[0])
-#    offset = np.array([ssem1s, 0., 0.])
-#    [ss.set_zero(offset) for ss in ssems]
-#    [bp.set_zero(offset) for bp in bpds]
-#    [qp.set_zero(offset) for qp in qpqs]
+    offset = np.array([ssem1s, 0., 0.])
+    [ss.set_zero(offset) for ss in ssems]
+    [bp.set_zero(offset) for bp in bpds]
+    [qp.set_zero(offset) for qp in qpqs]
  
-    print("qpq1 after set zero ", qpqs[0])
-
-    print("ssem1 position after rotation ", ssems[0].get_center())
-    print("ssem1 point1 after rotation ", ssems[0].point[0])
-
     #beamline_dir = np.array([1., 0, beamline_dir[2]])
     #beamline_dir /= np.linalg.norm(beamline_dir) 
-
-    
     return ssems, bpds, qpqs
 
 
@@ -350,7 +362,6 @@ def plot_centers(hld, lab, xcomp, ycomp, zcomp=None, ax=None):
 
 pd.set_option('display.max_rows', 500000)
 
-ssem1s = 1769.-85.
 survey = read_excel("03_2022_Neutrino.xlsx")
 ssems, bpds, qpqs = parse_holder(survey, ssem1s)
 
@@ -363,41 +374,25 @@ vec_coords_after_bpd = np.vectorize(coords_after_bpd)
 
 x1, y1 = vec_coords_after_bpd(mu)
 
-print("qpq1 before plot1 ", qpqs[0])
 
 plot_points(ssems, 'SSEM', 0, 2)
 plot_points(bpds, 'BPD', 0, 2)
 plot_points(qpqs, 'QPQ', 0, 2)
+plot_centers(ssems, 'SSEM center', 0, 2)
+plot_centers(bpds, 'BPD center', 0, 2)
+plot_centers(qpqs, 'QPQ center', 0, 2)
 plt.xlabel('x(mm)')
 plt.ylabel('z(mm)')
+plt.legend()
 plt.show()
-
-
-plot_centers(ssems, 'SSEM', 0, 2)
-plot_centers(bpds, 'BPD', 0, 2)
-plot_centers(qpqs, 'QPQ', 0, 2)
-plt.xlabel('x(mm)')
-plt.ylabel('z(mm)')
-plt.show()
-
-
 
 
 plot_points(ssems, 'SSEM', 0, 1)
 plot_points(bpds, 'BPD', 0, 1)
 plot_points(qpqs, 'QPQ', 0, 1)
-
 plot_centers(ssems, 'SSEM center', 0, 1)
 plot_centers(bpds, 'BPD center', 0, 1)
-
-print("qpq1 before plot2 ", qpqs[0])
 plot_centers(qpqs, 'QPQ center', 0, 1)
-
-#plt.scatter([s.point[0][0] for s in ssems], [s.point[0][1] for s in ssems])
-#plt.scatter([b.point[0][0] for b in bpds], [b.point[0][1] for b in bpds])
-#plt.scatter([b.point[1][0] for b in bpds], [b.point[1][1] for b in bpds])
-
-
 plt.scatter(x, y, s=0.2)
 plt.scatter(x1, y1, s=0.2)
 plt.xlabel('x(mm)')
