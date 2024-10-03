@@ -4,11 +4,19 @@ import matplotlib
 import matplotlib.pyplot as plt
 import re
 import copy as cp
+import sys
+sys.path.append('../')
+import create_beamline
 matplotlib.use('qtagg')
+
+pd.set_option('display.max_rows', 500000)
+#pd.set_option('display.max_columns', 500000)
+
 
 #known constants
 
 start_of_bpd1 = 17400.
+end_of_bpd2 = 24598.
 bpd1_angle = 0.033547
 bpd2_angle = 0.033165
 ssem1s = 1769.-85.
@@ -51,18 +59,24 @@ class holder:
     offset = []
     set_center = False
     s = []
+    name = []
     longitudinal = False
     def __init__(self, points, longitudinal=False, offsets=None, center=None, s=np.array([1., 0., 0.])):
         self.s = s.T/np.linalg.norm(s)
         self.longitudinal = longitudinal
         if(isinstance(points[0], pd.DataFrame)):
             self.point = [np.array([pt['x2022'].iloc[0], pt['y2022'].iloc[0], pt['h2022'].iloc[0]]) for pt in points]
+            self.name = points[0]['name'].iloc[0]
         elif(isinstance(points[0], list)):
             self.point = [cp.deepcopy(np.array(pt)) for pt in points]
+            self.name = 'NA'
         elif(isinstance(points[0], np.ndarray)):
             self.point = [cp.deepcopy(pt) for pt in points]
+            self.name = 'NA'
         elif(isinstance(points, holder)):
             self.point = cp.deepcopy(points.point)
+            self.name = cp.deepcopy(points.name)
+            self.center = cp.deepcopy(points.center)
         if center is not None:
             self.center = center
             self.set_center = True
@@ -75,7 +89,7 @@ class holder:
     def __sub__(self, other):
         return holder([self.point[i] - other.point[i] for i in range(len(self.point))], center = self.get_center() - other.get_center())
     def __repr__(self):
-        return f"class=holder, point='{self.point}', center='{self.center}'"
+        return f"class=holder, name='{self.name}', point='{self.point}', center='{self.center}'"
 
     def get_center(self):
        return self.center
@@ -163,13 +177,102 @@ class holder:
         self.point = [(pt + offset) for pt in self.point]
         self.center += offset
     def get_curvilinear_position(self):
-        return 1.0
+        #first check if we're after BPDs
+        after_bpds = False
+        if(self.center[0]>end_of_bpd2):
+            after_bpds = True
+            start_s = end_of_bpd2
+
+
+class beamline:
+    line = []
+    ssems=[]
+    qpqs=[] 
+    bpds =[]
+    survey = []
+    s = []
+    def __init__(self):
+        self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True))
+        self.survey = read_excel("03_2022_Neutrino.xlsx")
+        
+        self.ssems, self.bpds, self.qpqs = parse_holder(self.survey, ssem1s)
+        self.line['s_start'] = self.line['length'].shift().cumsum()
+
+        self.map_surv_to_line()
+        self.get_s()
+
+    def map_surv_to_line(self):
+        self.line['survey'] = np.nan
+        for ss in self.ssems:
+            self.line['survey'] = self.line.apply(lambda row: ss.center if row['element'] == ss.name[:-1] else row['survey'], axis=1)
+        for qp in self.qpqs:
+            self.line['survey'] = self.line.apply(lambda row: qp.center if row['element'][1:] == qp.name[:-1] else row['survey'], axis=1)
+        for bp in self.bpds:
+            self.line['survey'] = self.line.apply(lambda row: bp.center if row['element'][1:] == bp.name[:-1] else row['survey'], axis=1)
+
+    def get_s(self):
+
+        s = np.array(self.line.loc[self.line['element']=='SSEM5', 'survey']) - np.array(self.line.loc[self.line['element']=='SSEM4', 'survey'])
+        datum = np.array(self.line.loc[self.line['element']=='SSEM4', 'survey'].iloc[0])
+        datum[2] = 0. #just use ssem4 position for xy position, not height
+        s[0][2] = 0.
+        s = normvec(s[0])
+        self.bendangle = np.atan(s[1]/s[0])
+        bpd1idx = self.line.index[self.line['element'] == 'BPD1'][0]
+        self.line['s_dir'] = self.line.apply(lambda row: s if row.name > bpd1idx else np.array([1., 0., 0.]), axis=1)
+        self.line['angl'] = self.line.apply(lambda row: self.bendangle if row.name > bpd1idx else 0., axis=1)
+        self.line['datum'] = self.line.apply(lambda row: datum if row.name > bpd1idx else np.array([0., 0., 0.]), axis=1)
+       
+
+        self.line['s_survey'] = self.line.apply(lambda row: np.array(row.s_dir).dot(np.array(row.survey)-np.array(row.datum)) if not np.isnan(row['survey']).any() else row['survey'], axis=1)
+
+        self.line['misalign'] = self.line['survey']-self.line['datum'] - (self.line['s_survey']*self.line['s_dir'])
+        #height shift is now correct but need some extra work for x and y after bending
+
+       # self.line['shift'] = self.line.apply(lambda row: np.array(row.shift).dot(np.array(row.survey)-np.array(row.datum)) if not np.isnan(row['shift']).any() else np.array([0., 0., 0.]), axis=1)
+
+        self.line['misalign'] = self.line.apply(lambda row: np.array([[np.cos(row.angl), np.sin(row.angl), 0.],[-np.sin(row.angl), np.cos(row.angl), 0.],[0., 0., 1.]]).dot(row.misalign) if not np.isnan(row.misalign).any() else np.nan, axis=1)
+
+        #assume the difference between the x, y position of ssem4 and the s position of the start of BPD1 is the difference in s between ssem4 and bpd1, error ~0.3mm in s
+
+
+        bpd1_s = self.line.loc[self.line['element'] == 'BPD1', 's_survey'].iloc[0]
+
+        bpd1_ssem4_diff = np.array(self.line.loc[self.line['element'] == 'SSEM4', 'survey'].iloc[0] - [bpd1_s, 0., 0.])
+        bpd1_ssem4_s_diff = np.linalg.norm(bpd1_ssem4_diff[:2])
+
+        bpd1_bpd2_diff = np.array(self.line.loc[self.line['element'] == 'BPD2', 'survey'].iloc[0] - [bpd1_s, 0., 0.])
+        bpd1_bpd2_s_diff = np.linalg.norm(bpd1_bpd2_diff[:2])
+        self.line.loc[self.line['element'] == 'BPD2', 's_survey'] = bpd1_bpd2_s_diff + bpd1_s
+
+        ssem4idx = self.line.index[self.line['element'] == 'SSEM4'][0]
+        self.line['s_survey'] = self.line.apply(lambda row: row['s_survey'] + bpd1_ssem4_s_diff + bpd1_s if row.name >= ssem4idx else row['s_survey'], axis=1)
+
+        print("delta_s ", self.line.loc[self.line.element == 'SSEM2', 'survey'].iloc[0] - self.line.loc[self.line.element == 'SSEM1', 'survey'].iloc[0])
+
+        x = []
+        y = []
+        for idx, row in self.line.iterrows():
+            if not np.isnan(row['s_survey']) and row['type'] == 'ssem':
+                x.append(row.s_start)
+                y.append(row.s_start-row.s_survey)
+                print(row['element'],'\t',row['s_start'], row['s_survey'], row['s_start']-row['s_survey'])
+        plt.scatter(x, y)
+        plt.show()
+
+
+#        for idx, row in self.line.iterrows():
+#            print(row['misalign'])
+
+        #then add the offsets for ssem4+
+#        for row in self.line.loc[:,'shift']:
+#            print(row)
 
 
 def get_holder(surv, basename, points, longitudinal, offsets, s=None):
     names = [basename+str(pt) for pt in points]
     if(s is None):
-        return holder([surv[surv['name'] == name] for name in names],  longitudinal, offsets)
+        return holder([surv[surv['name'] == name] for name in names], longitudinal, offsets)
     else:
         return holder([surv[surv['name'] == name] for name in names],  longitudinal, offsets, s)
 
@@ -189,13 +292,13 @@ def curvilinear_coords(s):
         y = np.sin(bpd1_angle+bpd2_angle)*s + 240.1859
         return x, y
 
-def coords_after_bpd(mu):
-    start_of_bpd1 = 17400
-    intersection_point = start_of_bpd1+3600.5853
-    P = np.array([intersection_point, 0])
-    v = np.array([0.9977756, 0.0666625])
-    pos = P + mu*v
-    return pos[0], pos[1]
+# def coords_after_bpd(mu):
+#     start_of_bpd1 = 17400
+#     intersection_point = start_of_bpd1+3600.5853
+#     P = np.array([intersection_point, 0])
+#     v = np.array([0.9977756, 0.0666625])
+#     pos = P + mu*v
+#     return pos[0], pos[1]
 
 
 def read_excel(filename):
@@ -209,15 +312,13 @@ def read_excel(filename):
     return surv
 
 def rotate_surveyxy(surv, theta):
-    tmp = surv
-    R = np.array([[np.cos(theta), np.sin(theta)],
-                [-np.sin(theta), np.cos(theta)]])
-    surv['x2022'] = R[0,0] * tmp['x2022'] + R[0,1] * tmp['y2022']
-    surv['y2022'] = R[1,0] * tmp['x2022'] + R[1,1] * tmp['y2022']
+    tmp = cp.deepcopy(surv)
+    surv['x2022'] = np.cos(theta) * tmp['x2022'] - np.sin(theta) * tmp['y2022']
+    surv['y2022'] = np.sin(theta) * tmp['x2022'] + np.cos(theta) * tmp['y2022']
     return surv
 
 def rotate_surveyxz(surv, theta):
-    tmp = surv
+    tmp = cp.deepcopy(surv)
     R = np.array([[np.cos(theta), np.sin(theta)],
                 [-np.sin(theta), np.cos(theta)]])
     surv['x2022'] = R[0,0] * tmp['x2022'] + R[0,1] * tmp['h2022']
@@ -245,7 +346,8 @@ def parse_holder(surv, ssem1s):
 
     #get the xy rotation
     theta = np.atan(s[1]/s[0])
-    theta = np.pi - theta #we know that the survey is in the bottom-right quadrant
+    print("theta = ", theta)
+    theta = -np.pi-theta #we know that the survey is in the bottom-right quadrant
     #rotate the whole survey to point along 1, 0, z
     surv = rotate_surveyxy(surv, theta)
 
@@ -253,15 +355,8 @@ def parse_holder(surv, ssem1s):
     ssem2 = [surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']]
     s = np.array([ssem2[0][i].iloc[0] - ssem1[0][i].iloc[0] for i in ['x2022', 'y2022', 'h2022']])
 
-    #actually have to this twice, I think numerical precision
-    theta = np.atan(s[1]/s[0])
-    surv = rotate_surveyxy(surv, theta)
-
-    #now should be aligned with 1, 0, z pretty much exactly
     ssem1 = [surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']]
     ssem1_center = holder(ssem1, False, ssem_offset, s=s).get_center()
-
-
 
 
     #coords relative to ssem1[0]
@@ -287,7 +382,6 @@ def parse_holder(surv, ssem1s):
     surv = rotate_surveyxz(surv, theta)
 
 
-
     ssem1_center = holder([surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']], False, ssem_offset, s=s).get_center()
     ssem2_center = holder([surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']], False, ssem_offset, s=s).get_center()
     s = ssem2_center - ssem1_center
@@ -309,25 +403,14 @@ def parse_holder(surv, ssem1s):
 
     beamline_dir = ssems[1].get_center() - ssems[0].get_center()
     beamline_dir /= np.linalg.norm(beamline_dir)
-    print("beamline dir ", beamline_dir)
+#    print("beamline dir ", beamline_dir)
 
-    R = get_rotation_matrix(beamline_dir, np.array([1., 0., 0.]))
-    #rotate so that this direction is along the x axis makes calculating curvilinear position easier
-
-
-#    [ss.rotate(R) for ss in ssems] 
-#    [bp.rotate(R) for bp in bpds]
-#    [qp.rotate(R) for qp in qpqs]
-#    print("qpq1 after rotation ", qpqs[0])
     offset = np.array([ssem1s, 0., 0.])
     [ss.set_zero(offset) for ss in ssems]
     [bp.set_zero(offset) for bp in bpds]
     [qp.set_zero(offset) for qp in qpqs]
  
-    #beamline_dir = np.array([1., 0, beamline_dir[2]])
-    #beamline_dir /= np.linalg.norm(beamline_dir) 
     return ssems, bpds, qpqs
-
 
 def plot_points(pts, lab, xcomp, ycomp, zcomp=None, ax=None):
     x = []
@@ -360,63 +443,66 @@ def plot_centers(hld, lab, xcomp, ycomp, zcomp=None, ax=None):
         plt.scatter(x, y, label=lab)
       
 
-pd.set_option('display.max_rows', 500000)
+if __name__ == '__main__':
 
-survey = read_excel("03_2022_Neutrino.xlsx")
-ssems, bpds, qpqs = parse_holder(survey, ssem1s)
+    bline = beamline()
 
-s = np.linspace(0, 50000, 10000)
-vec_curvilinear_coords = np.vectorize(curvilinear_coords)
-x, y = vec_curvilinear_coords(s)
-
-mu = np.linspace(0, 50000, 1000)
-vec_coords_after_bpd = np.vectorize(coords_after_bpd)
-
-x1, y1 = vec_coords_after_bpd(mu)
+    survey = read_excel("03_2022_Neutrino.xlsx")
+    ssems, bpds, qpqs = parse_holder(survey, ssem1s)
 
 
-plot_points(ssems, 'SSEM', 0, 2)
-plot_points(bpds, 'BPD', 0, 2)
-plot_points(qpqs, 'QPQ', 0, 2)
-plot_centers(ssems, 'SSEM center', 0, 2)
-plot_centers(bpds, 'BPD center', 0, 2)
-plot_centers(qpqs, 'QPQ center', 0, 2)
-plt.xlabel('x(mm)')
-plt.ylabel('z(mm)')
-plt.legend()
-plt.show()
+
+    s = np.linspace(0, 50000, 10000)
+    vec_curvilinear_coords = np.vectorize(curvilinear_coords)
+    x, y = vec_curvilinear_coords(s)
+
+    mu = np.linspace(0, 50000, 1000)
+#    vec_coords_after_bpd = np.vectorize(coords_after_bpd)
+
+#    x1, y1 = vec_coords_after_bpd(mu)
+
+    plot_points(ssems, 'SSEM', 0, 2)
+    plot_points(bpds, 'BPD', 0, 2)
+    plot_points(qpqs, 'QPQ', 0, 2)
+    plot_centers(ssems, 'SSEM center', 0, 2)
+    plot_centers(bpds, 'BPD center', 0, 2)
+    plot_centers(qpqs, 'QPQ center', 0, 2)
+    plt.xlabel('x(mm)')
+    plt.ylabel('z(mm)')
+    plt.legend()
+    plt.show()
 
 
-plot_points(ssems, 'SSEM', 0, 1)
-plot_points(bpds, 'BPD', 0, 1)
-plot_points(qpqs, 'QPQ', 0, 1)
-plot_centers(ssems, 'SSEM center', 0, 1)
-plot_centers(bpds, 'BPD center', 0, 1)
-plot_centers(qpqs, 'QPQ center', 0, 1)
-plt.scatter(x, y, s=0.2)
-plt.scatter(x1, y1, s=0.2)
-plt.xlabel('x(mm)')
-plt.ylabel('y(mm)')
-plt.legend()
-plt.show()
+    plot_points(ssems, 'SSEM', 0, 1)
+    plot_points(bpds, 'BPD', 0, 1)
+    plot_points(qpqs, 'QPQ', 0, 1)
+    plot_centers(ssems, 'SSEM center', 0, 1)
+    plot_centers(bpds, 'BPD center', 0, 1)
+    plot_centers(qpqs, 'QPQ center', 0, 1)
+    plt.scatter(x, y, s=0.2)
+#    plt.scatter(x1, y1, s=0.2)
+    plt.xlabel('x(mm)')
+    plt.ylabel('y(mm)')
+    plt.legend()
+    plt.show()
 
 
-fig = plt.figure()
-# Add a 3D subplot
-ax = fig.add_subplot(111, projection='3d')
-plot_points(ssems, 'SSEM', 0, 1, 2, ax)
-plot_centers(ssems, 'SSEM center', 0, 1, 2, ax)
-plot_points(bpds, 'BPD', 0, 1, 2, ax)
-plot_centers(bpds, 'BPD center', 0, 1, 2, ax)
-plot_points(qpqs, 'QPQ', 0, 1, 2, ax)
-plot_centers(qpqs, 'QPQ center', 0, 1, 2, ax)
-ax.set_xlabel('x(mm)')
-ax.set_ylabel('y(mm)')
-ax.set_zlabel('z(mm)')
+    fig = plt.figure()
+    # Add a 3D subplot
+    ax = fig.add_subplot(111, projection='3d')
+    plot_points(ssems, 'SSEM', 0, 1, 2, ax)
+    plot_centers(ssems, 'SSEM center', 0, 1, 2, ax)
+    plot_points(bpds, 'BPD', 0, 1, 2, ax)
+    plot_centers(bpds, 'BPD center', 0, 1, 2, ax)
+    plot_points(qpqs, 'QPQ', 0, 1, 2, ax)
+    plot_centers(qpqs, 'QPQ center', 0, 1, 2, ax)
+    ax.set_xlabel('x(mm)')
+    ax.set_ylabel('y(mm)')
+    ax.set_zlabel('z(mm)')
 
-plt.legend()
-#ax.set_aspect('equal', 'box')
-plt.show()
+    plt.legend()
+    #ax.set_aspect('equal', 'box')
+    plt.show()
 
 
 

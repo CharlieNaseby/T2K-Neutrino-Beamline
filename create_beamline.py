@@ -25,7 +25,6 @@ def extract_number(string):
         return None
 
 
-
 class BeamlinePrinter:
     def __init__(self, line, filename, primaries_only=False):
         self.beamline = line
@@ -313,90 +312,92 @@ tunnelSoilThickness = 2*m;\n\n''')
 
 proton_momentum = 30.924 # momentum for a 30GeV KE proton 
 
-#run 910580
-vec_magset = [0 ,
--15 ,
-520 ,
-0 ,
-485 ,
-1139 ,
-1190 ,
-408 ,
-15 ,
-354 ,
--13 ,
-423 ]
-  
 
-beamline = strip_whitespace(pd.read_csv("fujii-san.csv", header=0, skipinitialspace=True))
-magnet_response = strip_whitespace(pd.read_csv("kicurve.csv", header=0, skipinitialspace=True))
-
-
-#copy of the magnet mapping in SAD
-magset = {}
-magset["BPV1"] = vec_magset[0]
-magset["BPH2"] = vec_magset[1]
-magset["QPQ1"] = vec_magset[2]
-magset["QPQ2"] = vec_magset[4]
-magset["BPD1"] = vec_magset[5]
-magset["BPD2"] = vec_magset[6]
-magset["QPQ3"] = vec_magset[7]
-magset["BPV2"] = vec_magset[8]
-magset["QPQ4"] = vec_magset[9]
-magset["BPH3"] = vec_magset[10]
-magset["QPQ5"] = vec_magset[11]
-
-
-kvals = {}
-
-for magnet in magset:
-    mag_df = magnet_response[magnet_response['element'] == magnet]
-    kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
-    zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
-    if magnet[0] == 'B': #bending magnets
-        kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*beamline.loc[beamline['element'] == magnet].iloc[0]['polelength'])
-    else:
-        kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*beamline.loc[beamline['element'] == magnet].iloc[0]['polelength'])
-
-
-print(kvals)
-#kvals['BPD1'] = -1.15329
-#kvals['BPD2'] = -1.14018
-#kvals['QPQ4'] = -0.0518735 #set the QPQ4 val to that in the fake fieldmap
-
-print(kvals)
-mag_df = magnet_response[magnet_response['element'] == 'BPH3']
-#plt.scatter(mag_df['current'], mag_df['kval'])
-#plt.show()
-
-
-
-print_tunnel=False
-print_physics=False
-sample_all=False
-sample_ssem=True
-sample_entry=False
-beam_from_file = True
-beam_halo = False
-enable_blms = False
-no_geom = True
-
-generate_primaries=False
-
-if(generate_primaries):
-    sample_entry = True
-    sample_ssem = False
-    sample_all = False
-    print_physics = False
-    print_tunnel = False
-    beam_from_file = False
+if __name__ == '__main__':
+    #run 910580
+    vec_magset = [0 ,
+    -15 ,
+    520 ,
+    0 ,
+    485 ,
+    1139 ,
+    1190 ,
+    408 ,
+    15 ,
+    354 ,
+    -13 ,
+    423 ]
+    
+    
+    beamline = strip_whitespace(pd.read_csv("fujii-san.csv", header=0, skipinitialspace=True))
+    magnet_response = strip_whitespace(pd.read_csv("kicurve.csv", header=0, skipinitialspace=True))
+    
+    
+    #copy of the magnet mapping in SAD
+    magset = {}
+    magset["BPV1"] = vec_magset[0]
+    magset["BPH2"] = vec_magset[1]
+    magset["QPQ1"] = vec_magset[2]
+    magset["QPQ2"] = vec_magset[4]
+    magset["BPD1"] = vec_magset[5]
+    magset["BPD2"] = vec_magset[6]
+    magset["QPQ3"] = vec_magset[7]
+    magset["BPV2"] = vec_magset[8]
+    magset["QPQ4"] = vec_magset[9]
+    magset["BPH3"] = vec_magset[10]
+    magset["QPQ5"] = vec_magset[11]
+    
+    
+    kvals = {}
+    
+    for magnet in magset:
+        mag_df = magnet_response[magnet_response['element'] == magnet]
+        kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
+        zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
+        if magnet[0] == 'B': #bending magnets
+            kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*beamline.loc[beamline['element'] == magnet].iloc[0]['polelength'])
+        else:
+            kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*beamline.loc[beamline['element'] == magnet].iloc[0]['polelength'])
+    
+    
+    print(kvals)
+    #kvals['BPD1'] = -1.15329
+    #kvals['BPD2'] = -1.14018
+    #kvals['QPQ4'] = -0.0518735 #set the QPQ4 val to that in the fake fieldmap
+    
+    print(kvals)
+    mag_df = magnet_response[magnet_response['element'] == 'BPH3']
+    #plt.scatter(mag_df['current'], mag_df['kval'])
+    #plt.show()
+    
+    
+    
+    print_tunnel=False
+    print_physics=False
+    sample_all=False
+    sample_ssem=True
+    sample_entry=False
+    beam_from_file = True
     beam_halo = False
     enable_blms = False
-
-
-
-#df_tmp = magnet_response[magnet_response['element'] == row.element]
-
-
-prnt = BeamlinePrinter(beamline, "gmad/test.gmad", primaries_only=generate_primaries)
-prnt.print()
+    no_geom = True
+    
+    generate_primaries=False
+    
+    if(generate_primaries):
+        sample_entry = True
+        sample_ssem = False
+        sample_all = False
+        print_physics = False
+        print_tunnel = False
+        beam_from_file = False
+        beam_halo = False
+        enable_blms = False
+    
+    
+    
+    #df_tmp = magnet_response[magnet_response['element'] == row.element]
+    
+    
+    prnt = BeamlinePrinter(beamline, "gmad/test.gmad", primaries_only=generate_primaries)
+    prnt.print()
