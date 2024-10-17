@@ -5,12 +5,13 @@
 #include "Math/Functor.h"
 #include "Math/Factory.h"
 #include "TMatrixD.h"
+#include "TVectorD.h"
 
 int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
 
   std::string baseBeamlineFile="../gmad/test.gmad";
-  std::string ssemDataFile="./ssem_data/run0910580_gen.root";
+  std::string ssemDataFile="./ssem_data/run0910216_gen.root";
 
   const int nPars = 11;
   Interface inter(ssemDataFile, baseBeamlineFile, nPars);
@@ -19,22 +20,22 @@ int main(int argc, char **argv){
 
   bool usePrevBestFit = false;
   bool useFieldMaps = false;
+  bool useFudgeFactor = false;
 
 
-  inter.SetInitialValues(usePrevBestFit, useFieldMaps, pars);
+  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, pars);
   inter.SetInternalPars(pars);
-  inter.SetNominalPars(pars);
+  //inter.SetNominalPars(pars);
 
   for(int i=0; i<nPars; i++) std::cout<<inter.magNames[i]<<"\t"<<pars[i]<<std::endl;
 
-  inter.SetChisqMode(3);
+  inter.SetChisqMode(1+2+4+8);
 
   auto iterstarttime = std::chrono::high_resolution_clock::now();
   inter.fcn(pars);
   auto iterendtime = std::chrono::high_resolution_clock::now();
   auto itertime = std::chrono::duration_cast<std::chrono::microseconds>(iterendtime-iterstarttime).count();
   std::cout<<"Took "<<itertime*1e-6<<"s to run a single iteration"<<std::endl;
-//  exit(1);
 
   ROOT::Math::Functor f(inter, &Interface::fcn_wrapper, nPars);
   ROOT::Math::Minimizer *min = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
@@ -49,6 +50,7 @@ int main(int argc, char **argv){
   std::vector<int> qMagVars = {2, 3, 6, 8, 10};
 
 //  for(auto fixed : qMagVars) min->FixVariable(fixed);
+//  for(auto fixed : bMagVars) min->FixVariable(fixed);
 
 //  for(int i=0; i<nPars; i++) min->FixVariable(i);
   min->SetPrintLevel(2);
@@ -72,31 +74,27 @@ int main(int argc, char **argv){
   cov->Write("postfit_covariance");
   const double *errors = min->Errors();
   const double *bestFit = min->X();
-  TH1D *fitResult = new TH1D("fit_result", "fit_result", nPars, 0, nPars);
-  TH1D *prefit = new TH1D("prefit", "prefit", nPars, 0, nPars);
-  TH1D *post_minus_pred_div_pred = new TH1D("post_minus_pred_div_pred", "(Post - Pre)/Pre", nPars, 0, nPars);
-  const double *nominal = inter.GetNominalPars();
+
+  TVectorD nom(nPars);
+  TVectorD pre(nPars);
+  TVectorD pos(nPars);
+  TVectorD posError(nPars);
+ 
   for(int i=0; i<nPars; i++){
-    prefit->SetBinContent(i+1, inter.preFit[i]);
-    fitResult->SetBinContent(i+1, bestFit[i]);
-    fitResult->SetBinError(i+1, errors[i]);
-    if(TMath::Abs(inter.preFit[i])>1e-6){
-      post_minus_pred_div_pred->SetBinContent(i+1, (bestFit[i]-inter.preFit[i])/inter.preFit[i]);
-      post_minus_pred_div_pred->SetBinError(i+1, errors[i]/inter.preFit[i]);
-    }
-   
+    nom[i] = inter.nominalPars[i];
+    pre[i] = inter.preFit[i];
+    pos[i] = bestFit[i];
+    posError[i] = errors[i];
   }
-  fitResult->Write("best_fit");
-  prefit->Write("prefit");
-  post_minus_pred_div_pred->Write("post_minus_pre_div_pre");
+
+  nom.Write("nominal");
+  pre.Write("preFit");
+  pos.Write("postFit");
+  posError.Write("postFitError");
   outf->Close();
 
 //  for(int i=0; i<nPars; i++) min->ReleaseVariable(i);
 //  for(auto fixed : bMagVars) min->FixVariable(fixed);
-//
-//  inter.SetChisqMode(2);
-//  min->Minimize();
-//  min->PrintResults();
 
  
 //  TFile *result = new TFile("result.root", "RECREATE");

@@ -26,8 +26,9 @@ def extract_number(string):
 
 
 class BeamlinePrinter:
-    def __init__(self, line, filename, primaries_only=False):
+    def __init__(self, line, kv, filename, primaries_only=False):
         self.beamline = line
+        self.kvals = kv
         self.file = open(filename, "w")
         self.s = 0
         self.blmID = 1
@@ -100,6 +101,27 @@ class BeamlinePrinter:
 
       kineticEnergy=30*GeV;\n\n''')
 
+    def print_beam_0910216(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=0.0*m,
+      Xp0=0.0,
+      emitx=0.19*mm*mrad,
+      betx=35.835*m,
+      alfx=-2.3704,
+      dispx=0.443*m,
+      dispxp=0.074,
+
+      Y0=0.0*m,
+      Yp0=0.0,
+      emity=0.157*mm*mrad,
+      bety=7.369*m,
+      alfy=0.064,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;\n\n''')
 
     def print_beam_from_file(self, filename):
         self.file.write('''beam, particle="proton",
@@ -146,7 +168,7 @@ class BeamlinePrinter:
 
     def print_bend_magnet(self, row):
         self.line.append(row.element)
-        self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(kvals[row.element])+'*T')
+        self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
         if(no_geom):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
@@ -154,7 +176,7 @@ class BeamlinePrinter:
 
     def print_quad_magnet(self, row):
         self.line.append(row.element)
-        self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(kvals[row.element]))
+        self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(self.kvals[row.element]))
         if(no_geom):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
@@ -330,6 +352,7 @@ if __name__ == '__main__':
     
     
     beamline = strip_whitespace(pd.read_csv("fujii-san.csv", header=0, skipinitialspace=True))
+    beamline = beamline()
     magnet_response = strip_whitespace(pd.read_csv("kicurve.csv", header=0, skipinitialspace=True))
     
     
@@ -382,7 +405,7 @@ if __name__ == '__main__':
     enable_blms = False
     no_geom = True
     
-    generate_primaries=False
+    generate_primaries=True
     
     if(generate_primaries):
         sample_entry = True
@@ -399,5 +422,5 @@ if __name__ == '__main__':
     #df_tmp = magnet_response[magnet_response['element'] == row.element]
     
     
-    prnt = BeamlinePrinter(beamline, "gmad/test.gmad", primaries_only=generate_primaries)
+    prnt = BeamlinePrinter(beamline, kvals, "gmad/test.gmad", primaries_only=generate_primaries)
     prnt.print()

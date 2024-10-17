@@ -5,10 +5,9 @@ import matplotlib.pyplot as plt
 import re
 import copy as cp
 import sys
-sys.path.append('../')
-import create_beamline
-matplotlib.use('qtagg')
-
+#sys.path.append('../')
+#import create_beamline
+#matplotlib.use('qtagg')
 pd.set_option('display.max_rows', 500000)
 #pd.set_option('display.max_columns', 500000)
 
@@ -20,6 +19,49 @@ end_of_bpd2 = 24598.
 bpd1_angle = 0.033547
 bpd2_angle = 0.033165
 ssem1s = 1769.-85.
+proton_momentum = 30.924 # momentum for a 30GeV KE proton 
+vacuum_pressure = 1e-9 #vacuum pressure in bar
+
+#print_tunnel=False
+#print_physics=True
+#sample_all=True
+#sample_ssem=False
+#sample_entry=False
+#beam_from_file = False
+#beam_halo = False
+#enable_blms = False
+#no_geom = False
+#misalignments = False
+#print_vacuum=True
+#bias_physics=True
+
+#fit configuration
+print_tunnel=False
+print_physics=False
+sample_all=False
+sample_ssem=True
+sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
+beam_from_file = False
+beam_halo = False
+enable_blms = False
+no_geom = True
+misalignments = False
+bias_physics=False
+print_vacuum=False
+
+
+generate_primaries=False
+
+if(generate_primaries):
+    sample_entry = True
+    sample_ssem = False
+    sample_all = False
+    print_physics = False
+    print_tunnel = False
+    beam_from_file = False
+    beam_halo = False
+    enable_blms = False
+    bias_physics=False
 
 def get_rotation_matrix(a, b):
     #first normalise the vectors just to be safe
@@ -53,6 +95,8 @@ def strip_whitespace(df):
     df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
     return df
 
+
+#class to take the two survey points per element and determine the element center
 class holder:
     point = []
     center = []
@@ -183,7 +227,7 @@ class holder:
             after_bpds = True
             start_s = end_of_bpd2
 
-
+#class to store the survey data 
 class beamline:
     line = []
     ssems=[]
@@ -234,8 +278,6 @@ class beamline:
         self.line['misalign'] = self.line.apply(lambda row: np.array([[np.cos(row.angl), np.sin(row.angl), 0.],[-np.sin(row.angl), np.cos(row.angl), 0.],[0., 0., 1.]]).dot(row.misalign) if not np.isnan(row.misalign).any() else np.nan, axis=1)
 
         #assume the difference between the x, y position of ssem4 and the s position of the start of BPD1 is the difference in s between ssem4 and bpd1, error ~0.3mm in s
-
-
         bpd1_s = self.line.loc[self.line['element'] == 'BPD1', 's_survey'].iloc[0]
 
         bpd1_ssem4_diff = np.array(self.line.loc[self.line['element'] == 'SSEM4', 'survey'].iloc[0] - [bpd1_s, 0., 0.])
@@ -246,9 +288,7 @@ class beamline:
         self.line.loc[self.line['element'] == 'BPD2', 's_survey'] = bpd1_bpd2_s_diff + bpd1_s
 
         ssem4idx = self.line.index[self.line['element'] == 'SSEM4'][0]
-        self.line['s_survey'] = self.line.apply(lambda row: row['s_survey'] + bpd1_ssem4_s_diff + bpd1_s if row.name >= ssem4idx else row['s_survey'], axis=1)
-
-        print("delta_s ", self.line.loc[self.line.element == 'SSEM2', 'survey'].iloc[0] - self.line.loc[self.line.element == 'SSEM1', 'survey'].iloc[0])
+        self.line['s_survey'] = self.line.apply(lambda row: row['s_survey'] + bpd1_ssem4_s_diff + bpd1_s if row.name >= ssem4idx else row['s_survey'], axis=1)        
 
         x = []
         y = []
@@ -256,17 +296,371 @@ class beamline:
             if not np.isnan(row['s_survey']) and row['type'] == 'ssem':
                 x.append(row.s_start)
                 y.append(row.s_start-row.s_survey)
-                print(row['element'],'\t',row['s_start'], row['s_survey'], row['s_start']-row['s_survey'])
-        plt.scatter(x, y)
-        plt.show()
+                print(row['element'],',',row['s_start']+85., ',', row['s_survey'], ',', row['s_start']-row['s_survey']+85.0)
+#        plt.scatter(x, y)
+#        plt.show()
+        self.line = self.line.drop(['survey', 's_dir', 'angl', 'datum'], axis=1)
 
 
-#        for idx, row in self.line.iterrows():
-#            print(row['misalign'])
 
-        #then add the offsets for ssem4+
-#        for row in self.line.loc[:,'shift']:
-#            print(row)
+class BeamlinePrinter:
+    def __init__(self, line, kv, filename, primaries_only=False):
+        self.beamline = line
+        self.kvals = kv
+        self.file = open(filename, "w")
+        self.s = 0
+        self.blmID = 1
+        self.primaries_only=primaries_only
+        self.line = []
+
+    ######################################################
+    #beam properties
+    ######################################################
+
+    def print_beam_sad(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=-0.0004542861867420988*m,
+	  Xp0=2.5505774863429934e-05,
+      emitx=0.084015*mm*mrad,
+      betx=37.098*m,
+      alfx=-2.41877,
+      dispx=0.423734*m,
+      dispxp=0.0719639,
+
+      Y0=-0.00023643145922826628*m,
+	  Yp0=7.751587096049882e-05,
+      emity=0.0695782*mm*mrad,
+      bety=5.45*m,
+      alfy=0.178,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;\n\n''')
+
+    def print_beam(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=-0.0004542861867420988*m,
+      Xp0=2.5505774863429934e-05,
+      emitx=0.084015*mm*mrad,
+      betx=39.8775555502868*m,
+      alfx=-0.568424785315,
+      dispx=0.423734*m,
+      dispxp=0.0719639,
+
+      Y0=-0.00023643145922826628*m,
+      Yp0=7.751587096049882e-05,
+      emity=0.0695782*mm*mrad,
+      bety=6.4519061397745*m,
+      alfy=0.35934594606,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;\n\n''')
+
+    def print_beam_0910580(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=0.0*m,
+      Xp0=0.0,
+      emitx=0.19*mm*mrad,
+      betx=35.835*m,
+      alfx=-2.3704,
+      dispx=0.443*m,
+      dispxp=0.074,
+
+      Y0=0.0*m,
+      Yp0=0.0,
+      emity=0.157*mm*mrad,
+      bety=7.369*m,
+      alfy=0.064,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;\n\n''')
+
+    def print_beam_0910216(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=0.0*m,
+      Xp0=0.0,
+      emitx=0.075116*mm*mrad,
+      betx=37.75916*m,
+      alfx=-2.33673231,
+      dispx=0.033185*m,
+      dispxp=0.00337915,
+
+      Y0=0.0*m,
+      Yp0=0.0,
+      emity=0.043281*mm*mrad,
+      bety=5.5537*m,
+      alfy=0.19780927,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;\n\n''')
+
+    def print_beam_from_file(self, filename):
+        self.file.write('''beam, particle="proton",
+      kineticEnergy=30*GeV,
+      distrType="bdsimsampler:entry",''')
+        self.file.write('distrFile="'+filename+'";\n')
+
+    def print_halo(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="halo",
+
+      X0=-0.0004542861867420988*m,
+      Xp0=2.5505774863429934e-05,
+      emitx=0.084015*mm*mrad,
+      betx=39.8775555502868*m,
+      alfx=-0.568424785315,
+
+      Y0=-0.00023643145922826628*m,
+      Yp0=7.751587096049882e-05,
+      emity=0.0695782*mm*mrad,
+      bety=6.4519061397745*m,
+      alfy=0.35934594606,
+      haloNSigmaXInner=4.0,
+      haloNSigmaYInner=4.0,                       
+      haloNSigmaXOuter=8.0,
+      haloNSigmaYOuter=8.0,
+      haloPSWeightFunction="flat",
+
+      kineticEnergy=30*GeV;\n\n
+        ''')
+
+
+    def endl(self):
+        self.file.write(";\n")
+
+
+    ######################################################
+    #now the physical elements
+    ######################################################
+
+    def print_aperture(self, row):
+        self.file.write(', apertureType="'+str(row.aperture_type)+'"')
+        if(row.aperture_type == 'circular'): 
+            self.file.write(', aper1=' + str(0.5*row.aperture_x) + '*mm')
+        elif(row.aperture_type == 'rectangular'):
+            self.file.write(', aper1=' + str(0.5*row.aperture_x) + '*mm, aper2=' + str(0.5*row.aperture_y) + '*mm')
+
+    def print_drift(self, row, name, driftlen):
+        self.line.append(name)
+        self.file.write(name + ': drift, l=' + str(driftlen)+ '*mm')
+        self.print_aperture(row)
+        self.print_xsec_bias('vacuum')
+
+    def print_bend_magnet(self, row):
+        self.line.append(row.element)
+        self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
+        if(no_geom):
+            self.file.write(', magnetGeometryType="none"')
+        self.print_aperture(row)
+        self.print_xsec_bias('vacuum')
+        self.endl()
+
+    def print_quad_magnet(self, row):
+        self.line.append(row.element)
+        self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(self.kvals[row.element]))
+        if(no_geom):
+            self.file.write(', magnetGeometryType="none"')
+        self.print_aperture(row)
+        self.print_xsec_bias('vacuum')
+        self.endl()
+
+    def print_ssem(self, row, thickness):
+        first_driftlen = row.mark
+        name = row.element + "_udrift"
+        self.print_drift(row, name, row.mark)
+        self.endl()
+        misalign = row.misalign
+        if(np.isnan(row.misalign).any()):
+            misalign = [0., 0., 0.]
+        self.print_target(row.element, str(thickness)+"*mm", "G4_Ti", row.aperture_x, misalign)
+        name = row.element + "_ddrift"
+        self.print_drift(row, name, row.length - float(row.mark) - thickness) 
+        self.endl()
+
+    def print_target(self, name, length, material, hWidth, misalign):
+        self.line.append(name)
+        if(misalignments):
+            self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm, offsetX="+str(misalign[1])+"*mm, offsetY="+str(misalign[2])+"*mm")
+        else:
+            self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm")
+        self.print_xsec_bias('material')
+        self.endl()
+
+    def print_dump(self, row):
+        self.line.append(row.element)
+        self.file.write(row.element+': dump, horizontalWidth='+str(row.aperture_x)+'*mm, l='+str(row.length)+'*mm')
+        self.endl()
+
+    def print_blm(self, reference, dx, dy, ds, orientation):
+        self.file.write('blm_'+reference+'_'+str(self.blmID)+': blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=100*mm, blm2=30*mm, blmMaterial="Al",')
+        self.file.write('referenceElement="'+reference+'", x='+str(dx)+'*mm, y='+str(dy)+'*mm, s='+str(ds)+'*mm')
+        if(orientation=='perp'):
+            self.file.write(', theta=1.570796, psi=1.570796')
+        #TODO maybe this also needs xsec biasing?
+        self.endl()
+        self.blmID+=1
+
+    def print_tunnel(self):
+        self.file.write('''
+option, buildTunnel = 1,
+tunnelType="rectangular",
+tunnelOffsetX = 100*cm,
+tunnelOffsetY = 50*cm,
+tunnelAper1 = 150*cm,
+tunnelAper2 = 150*cm,
+tunnelThickness = 30*cm,
+buildTunnelFloor = 0,
+tunnelSoilThickness = 2*m;\n\n''')
+
+
+    ######################################################
+    #now for the more abstract things
+    ######################################################
+    def print_xsec_bias(self, typ):
+        if(bias_physics):
+            if(typ == 'vacuum'):
+                self.file.write(', bias="vacBias"')
+            elif(typ == 'material'):
+                self.file.write(', biasMaterial="matBias"')
+
+    def print_field(self, row, ndim):
+         self.file.write(row.element+'field: field, type="bmap'+str(ndim)+'d", bScaling=1.0, magneticFile="bdsim'+str(ndim)+'d:../magnet_responses/'+row.element+'.dat"')
+         self.endl()
+       
+    def print_fieldmapgeom(self, row, ndim):
+        self.line.append(row.element)
+        self.print_field(row, ndim)
+        self.file.write(row.element+': element, geometryFile="gdml:../'+row.element+'.gdml", fieldAll="'+row.element+'field", l='+str(row.length)+'*mm')
+        self.print_xsec_bias('vacuum')
+        self.endl()
+
+    def print_fieldmap(self, row, magtype, ndim):
+        self.line.append(row.element)
+        self.print_field(row, ndim)
+        self.file.write(row.element+': '+magtype+', fieldVacuum="'+row.element+'field", l='+str(row.length)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt))
+        if(no_geom):
+            self.file.write(', magnetGeometryType="none"')
+        self.print_aperture(row)
+        self.print_xsec_bias('vacuum')
+        self.endl()
+
+    def print_blms(self, row):
+        dx = string_to_list(row.blm_offset_x)
+        dy = string_to_list(row.blm_offset_y)
+        ds = [str(float(entry)+row.polelength/2.0) for entry in string_to_list(row.blm_offset_s)]  #TODO THIS ONLY WORKS FOR PURE QUAD/DIPOLE FIELDMAP WILL BREAK THIS
+        orientation = string_to_list(row.blm_orientation)
+        for i in range(len(dx)):
+            self.print_blm(row.element, dx[i], dy[i], ds[i], orientation[i])
+
+    def print_physics(self, physics_list):
+        self.file.write('option, physicsList =' + '"' + physics_list + '";\n')
+
+    def sample_ssems(self):
+        for element in self.line:
+            if(re.match('SSEM[0-9]$', element)):
+                self.file.write('sample, range='+element+';\n')
+
+    ######################################################
+    #main function to decide which functions to call based on element type
+    ######################################################
+
+    def print(self):
+        self.file.write('chrg: scorer, type="cellcharge";\n')
+        self.file.write('eDep: scorer, type="depositeddose";\n')
+
+        for row in self.beamline.itertuples():
+
+            if(row.type in ['rbend', 'sbend', 'quadrupole']):
+                self.file.write('\n') #give some breathing room
+                self.print_drift(row, row.element+'_driftu', float(row.mark)-row.polelength/2.)
+                self.endl()
+                if(row.type == 'quadrupole'):
+                    self.print_quad_magnet(row)
+                else:
+                    self.print_bend_magnet(row)
+                self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.))
+                self.endl()
+                self.file.write('\n') #give some breathing room
+
+            elif(re.match('fieldmap.*', row.type)):
+                ndim = extract_number(row.type)
+                if(re.match('.*geom', row.type)):
+                    self.print_fieldmapgeom(row, ndim)
+                else:
+                    magtypes = ['sbend', 'rbend', 'quadrupole']
+                    for magtype in magtypes:
+                        print(row.type)
+                        if(re.match('.*'+magtype, row.type)):
+                            print("found match "+magtype)
+                            self.print_fieldmap(row, magtype, ndim)
+
+#            elif(row.type == 'fieldmap3dquad'):
+#                self.print_fieldmap(row, 'drift') #TODO left these three here in case we want to add geometry dependant on magtype
+#            elif(row.type == 'fieldmap3drbend'):
+#                self.print_fieldmap(row, 'drift')
+#            elif(row.type == 'fieldmap3dsbend'):
+#                self.print_fieldmap(row, 'drift')
+
+            elif(row.type == 'ssem'):
+                self.print_ssem(row, 15e-3)
+            elif(row.type == 'wsem'):
+                self.print_ssem(row, 1e-4)
+            elif(row.type == 'dump'):
+                self.print_dump(row)
+            else: #otherwise, i.e. drift or collimator
+                self.print_drift(row, row.element, row.length)
+                self.endl()
+            self.s += row.length
+            if(row.blm and enable_blms):
+                self.print_blms(row)
+            self.file.write("! s=" + str(self.s) + "\n")
+
+        #print the beamline elements in a line
+        self.file.write('\nl0: line = (')
+        if(self.primaries_only):
+            self.line = [self.line[0]]
+        for idx, element in enumerate(self.line):
+            if idx == len(self.line)-1:
+                self.file.write(element +');\n')
+            else:
+                self.file.write(element +',\n')
+
+        self.file.write('\nuse, period=l0;\n')
+        #self.print_beam()
+        if(beam_from_file):
+            self.print_beam_from_file("../run_0910216_10k.root")
+        elif(beam_halo):
+            self.print_halo()
+        else:
+            self.print_beam_0910216()
+
+        if(print_tunnel):
+            self.print_tunnel()
+        if(print_physics):
+            self.print_physics('g4FTFP_BERT')
+        self.file.write('option, nturns=1;\n')
+        if(sample_all):
+            self.file.write('sample, all;\n')
+        elif(sample_ssem):
+            self.sample_ssems()
+        if(sample_entry):
+            self.file.write('sample, range=entry;\n')
+        if(print_vacuum):
+            self.file.write('option, vacuumPressure='+str(vacuum_pressure)+';\n')
+        if(bias_physics): #if we're biasing the physics cross-section flag=2 means only applies to primaries
+            self.file.write('vacBias: xsecBias, particle="proton", proc="all", xsecfact=1, flag=2;\n')
+            self.file.write('matBias: xsecBias, particle="proton", proc="all", xsecfact=1, flag=2;\n')
 
 
 def get_holder(surv, basename, points, longitudinal, offsets, s=None):
@@ -275,7 +669,6 @@ def get_holder(surv, basename, points, longitudinal, offsets, s=None):
         return holder([surv[surv['name'] == name] for name in names], longitudinal, offsets)
     else:
         return holder([surv[surv['name'] == name] for name in names],  longitudinal, offsets, s)
-
 
 def curvilinear_coords(s):
     intersection_point = start_of_bpd1+3600.5853
@@ -291,15 +684,6 @@ def curvilinear_coords(s):
         x = np.cos(bpd1_angle+bpd2_angle)*s + 7193.162 + start_of_bpd1
         y = np.sin(bpd1_angle+bpd2_angle)*s + 240.1859
         return x, y
-
-# def coords_after_bpd(mu):
-#     start_of_bpd1 = 17400
-#     intersection_point = start_of_bpd1+3600.5853
-#     P = np.array([intersection_point, 0])
-#     v = np.array([0.9977756, 0.0666625])
-#     pos = P + mu*v
-#     return pos[0], pos[1]
-
 
 def read_excel(filename):
     surv = pd.ExcelFile(filename)
@@ -346,7 +730,6 @@ def parse_holder(surv, ssem1s):
 
     #get the xy rotation
     theta = np.atan(s[1]/s[0])
-    print("theta = ", theta)
     theta = -np.pi-theta #we know that the survey is in the bottom-right quadrant
     #rotate the whole survey to point along 1, 0, z
     surv = rotate_surveyxy(surv, theta)
@@ -372,14 +755,17 @@ def parse_holder(surv, ssem1s):
     ssem2_center = holder([surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']], False, ssem_offset, s=s).get_center()
     #again rotate to point along 1., 0., z but this time use the centers
     theta = np.atan((ssem2_center[1] - ssem1_center[1])/(ssem2_center[0]-ssem1_center[0]))
-    surv = rotate_surveyxy(surv, theta)
+    surv = rotate_surveyxy(surv, -theta)
+
 
     #and again in the xz plane
     ssem1_center = holder([surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']], False, ssem_offset, s=s).get_center()
     ssem2_center = holder([surv[surv['name'] == 'SSEM21'], surv[surv['name'] == 'SSEM22']], False, ssem_offset, s=s).get_center()
     s = ssem2_center - ssem1_center
+
     theta = np.atan((ssem2_center[2] - ssem1_center[2])/(ssem2_center[0]-ssem1_center[0]))
     surv = rotate_surveyxz(surv, theta)
+
 
 
     ssem1_center = holder([surv[surv['name'] == 'SSEM11'], surv[surv['name'] == 'SSEM12']], False, ssem_offset, s=s).get_center()
@@ -409,7 +795,6 @@ def parse_holder(surv, ssem1s):
     [ss.set_zero(offset) for ss in ssems]
     [bp.set_zero(offset) for bp in bpds]
     [qp.set_zero(offset) for qp in qpqs]
- 
     return ssems, bpds, qpqs
 
 def plot_points(pts, lab, xcomp, ycomp, zcomp=None, ax=None):
@@ -438,18 +823,83 @@ def plot_centers(hld, lab, xcomp, ycomp, zcomp=None, ax=None):
         if(zcomp is not None):
             z.append(hld[i].get_center()[zcomp])
     if(ax is not None):
-        ax.scatter(x, y, z, label=lab)
+        ax.scatter(x, y, z, label=lab, marker='x')
     else:
-        plt.scatter(x, y, label=lab)
+        plt.scatter(x, y, label=lab, marker='x')
       
 
 if __name__ == '__main__':
 
-    bline = beamline()
+
+    beamline_with_misalign = beamline()
+    bline = beamline_with_misalign.line
+
+    #run 910580
+    vec_magset = [0 ,
+    -15 ,
+    520 ,
+    0 ,
+    485 ,
+    1139 ,
+    1190 ,
+    408 ,
+    15 ,
+    354 ,
+    -13 ,
+    423 ]
+    
+    
+    magnet_response = strip_whitespace(pd.read_csv("../kicurve.csv", header=0, skipinitialspace=True))
+    
+    
+    #copy of the magnet mapping in SAD
+    magset = {}
+    magset["BPV1"] = vec_magset[0]
+    magset["BPH2"] = vec_magset[1]
+    magset["QPQ1"] = vec_magset[2]
+    magset["QPQ2"] = vec_magset[4]
+    magset["BPD1"] = vec_magset[5]
+    magset["BPD2"] = vec_magset[6]
+    magset["QPQ3"] = vec_magset[7]
+    magset["BPV2"] = vec_magset[8]
+    magset["QPQ4"] = vec_magset[9]
+    magset["BPH3"] = vec_magset[10]
+    magset["QPQ5"] = vec_magset[11]
+    
+    
+    kvals = {}
+    
+    for magnet in magset:
+        mag_df = magnet_response[magnet_response['element'] == magnet]
+        kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
+        zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
+        if magnet[0] == 'B': #bending magnets
+            kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*bline.loc[bline['element'] == magnet].iloc[0]['polelength'])
+        else:
+            kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*bline.loc[bline['element'] == magnet].iloc[0]['polelength'])
+    
+    
+    #kvals['BPD1'] = -1.15329
+    #kvals['BPD2'] = -1.14018
+    #kvals['QPQ4'] = -0.0518735 #set the QPQ4 val to that in the fake fieldmap
+    
+    mag_df = magnet_response[magnet_response['element'] == 'BPH3']
+    #plt.scatter(mag_df['current'], mag_df['kval'])
+    #plt.show()
+    
+    
+    #df_tmp = magnet_response[magnet_response['element'] == row.element]
+    
+    
+    prnt = BeamlinePrinter(bline, kvals, "test.gmad", primaries_only=generate_primaries)
+    prnt.print()
+
+
+    exit(1)
+
 
     survey = read_excel("03_2022_Neutrino.xlsx")
     ssems, bpds, qpqs = parse_holder(survey, ssem1s)
-
 
 
     s = np.linspace(0, 50000, 10000)
@@ -457,16 +907,14 @@ if __name__ == '__main__':
     x, y = vec_curvilinear_coords(s)
 
     mu = np.linspace(0, 50000, 1000)
-#    vec_coords_after_bpd = np.vectorize(coords_after_bpd)
 
-#    x1, y1 = vec_coords_after_bpd(mu)
 
-    plot_points(ssems, 'SSEM', 0, 2)
-    plot_points(bpds, 'BPD', 0, 2)
-    plot_points(qpqs, 'QPQ', 0, 2)
+    plot_points(ssems, 'SSEM Survey', 0, 2)
+    plot_points(bpds, 'BPD Survey', 0, 2)
+    plot_points(qpqs, 'QPQ Survey', 0, 2)
     plot_centers(ssems, 'SSEM center', 0, 2)
-    plot_centers(bpds, 'BPD center', 0, 2)
-    plot_centers(qpqs, 'QPQ center', 0, 2)
+#    plot_centers(bpds, 'BPD center', 0, 2)
+#    plot_centers(qpqs, 'QPQ center', 0, 2)
     plt.xlabel('x(mm)')
     plt.ylabel('z(mm)')
     plt.legend()
@@ -477,10 +925,9 @@ if __name__ == '__main__':
     plot_points(bpds, 'BPD', 0, 1)
     plot_points(qpqs, 'QPQ', 0, 1)
     plot_centers(ssems, 'SSEM center', 0, 1)
-    plot_centers(bpds, 'BPD center', 0, 1)
-    plot_centers(qpqs, 'QPQ center', 0, 1)
+#    plot_centers(bpds, 'BPD center', 0, 1)
+#    plot_centers(qpqs, 'QPQ center', 0, 1)
     plt.scatter(x, y, s=0.2)
-#    plt.scatter(x1, y1, s=0.2)
     plt.xlabel('x(mm)')
     plt.ylabel('y(mm)')
     plt.legend()
@@ -493,9 +940,9 @@ if __name__ == '__main__':
     plot_points(ssems, 'SSEM', 0, 1, 2, ax)
     plot_centers(ssems, 'SSEM center', 0, 1, 2, ax)
     plot_points(bpds, 'BPD', 0, 1, 2, ax)
-    plot_centers(bpds, 'BPD center', 0, 1, 2, ax)
+#    plot_centers(bpds, 'BPD center', 0, 1, 2, ax)
     plot_points(qpqs, 'QPQ', 0, 1, 2, ax)
-    plot_centers(qpqs, 'QPQ center', 0, 1, 2, ax)
+#    plot_centers(qpqs, 'QPQ center', 0, 1, 2, ax)
     ax.set_xlabel('x(mm)')
     ax.set_ylabel('y(mm)')
     ax.set_zlabel('z(mm)')

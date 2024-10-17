@@ -14,9 +14,10 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
 
   TFile *ssemDataFile = new TFile(dataFile.c_str(), "READ");
   TTree *ssemData = dynamic_cast<TTree*> (ssemDataFile->Get("anabeam"));
-  double ssemx[19], ssemy[19], ssemwx[19], ssemwy[19], ct[5], magset[31];
+  double ssemx[19], ssemax[19], ssemy[19], ssemwx[19], ssemwy[19], ct[5], magset[31];
   ssemData->SetBranchAddress("magset", magset);
   ssemData->SetBranchAddress("ssemx", ssemx);
+  ssemData->SetBranchAddress("ssemax", ssemax);
   ssemData->SetBranchAddress("ssemy", ssemy);
   ssemData->SetBranchAddress("ssemwx", ssemwx);
   ssemData->SetBranchAddress("ssemwy", ssemwy);
@@ -37,13 +38,20 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
 
   for(int i=0; i<ssemData->GetEntries(); i++){
     ssemData->GetEntry(i);
-    if(ct[4] < 100) continue;
+    if(ssemax[0] < 100) continue;  //if there was no beam skip
+    bool skip=false;
+    for(int j=0; j<12; j++){ //for some reason the later magnets do change from shot-to-shot
+      if(magset[j] != magCurrent[j]) skip=true; //select only cases with the same current each shot
+//      std::cout<<j<<" magset "<<magset[j]<<" magcurrent "<<magCurrent[j]<<std::endl;
+    }
+    if(skip) continue;
     for(int j=0; j<NSSEM; j++){
       ssemxMean[j]+=ssemx[j];
       ssemyMean[j]+=ssemy[j];
       ssemwxMean[j]+=ssemwx[j];
       ssemwyMean[j]+=ssemwy[j];
     }
+    std::cout<<magset[9]<<std::endl;
     nShots++;    
   }
   for(int i=0; i<NSSEM; i++){
@@ -79,7 +87,7 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
 
 Interface::~Interface(){};
 
-void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double *pars){
+void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, double *pars){
 
   std::map<std::string, double> kScaling;
   //derived from the KIcurve sad file, scaling of K1 or K0 value in units of 100A
@@ -108,17 +116,17 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double 
   kScaling["BPV2"] = -0.12654858254158613;
   kScaling["BPH3"] = -0.12432151082458207;
 
-  preFit[0] = magCurrent[0]/100.;
-  preFit[1] = magCurrent[1]/100.;
-  preFit[2] = magCurrent[2]/100.;
-  preFit[3] = magCurrent[4]/100.;
-  preFit[4] = magCurrent[5]/100.;
-  preFit[5] = magCurrent[6]/100.;
-  preFit[6] = magCurrent[7]/100.;
-  preFit[7] = magCurrent[8]/100.;
-  preFit[8] = magCurrent[9]/100.;
-  preFit[9] = magCurrent[10]/100.;
-  preFit[10] = magCurrent[11]/100.;
+  nominalPars[0] = magCurrent[0]/100.;
+  nominalPars[1] = magCurrent[1]/100.;
+  nominalPars[2] = magCurrent[2]/100.;
+  nominalPars[3] = magCurrent[4]/100.;
+  nominalPars[4] = magCurrent[5]/100.;
+  nominalPars[5] = magCurrent[6]/100.;
+  nominalPars[6] = magCurrent[7]/100.;
+  nominalPars[7] = magCurrent[8]/100.;
+  nominalPars[8] = magCurrent[9]/100.;
+  nominalPars[9] = magCurrent[10]/100.;
+  nominalPars[10] = magCurrent[11]/100.;
 
   std::vector<double> fudgeFactor(nPars);
   //magnet scaling factors based on a fit to hard edge run0910580 with prefit using fieldmap vals
@@ -134,8 +142,12 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double 
   fudgeFactor[9] = 1;
   fudgeFactor[10] = 1;
 
-  for(auto mag : magNames) preFit[magMap[mag]] *= kScaling[mag] * fudgeFactor[magMap[mag]]; //prefit is always the expected value for the parameters based on the currents
 
+  for(auto mag : magNames){
+    nominalPars[magMap[mag]] *= kScaling[mag];//nominal is always the expected value for the parameters based on the currents
+    preFit[magMap[mag]] = nominalPars[magMap[mag]];
+    if(useFudgeFactor) preFit[magMap[mag]] *= fudgeFactor[magMap[mag]];
+  }
 
   if(usePrevBestFit){
     std::ifstream infile;
@@ -169,8 +181,10 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double 
     pars[8] = -magCurrent[9]/100.;
     pars[9] = magCurrent[10]/100.;
     pars[10] = magCurrent[11]/100.;
-    for(int i=0; i<nPars; i++) pars[i] *= fudgeFactor[i];
-
+    for(int i=0; i<nPars; i++){
+      nominalPars[i] = pars[i];
+      if(useFudgeFactor) pars[i] *= fudgeFactor[i];
+    }
     //pars[0] = -0.05;  //CERN TODO forcefully set BPV1
     for(int i=0; i<nPars; i++) preFit[i] = pars[i];
   }
@@ -202,10 +216,6 @@ void Interface::ParamScan(int param, int npoints, double xlo, double xup){
 
 void Interface::SetInternalPars(const double *pars){
   for(int i=0; i<nPars; i++) internalPars[i] = pars[i];
-}
-
-void Interface::SetNominalPars(const double *pars){
-  for(int i=0; i<nPars; i++) nominalPars[i] = pars[i];
 }
 
 const double* Interface::GetNominalPars(){
@@ -300,26 +310,38 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
 
 double Interface::CalcChisq(const double *pars){
 
-  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=50 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
+  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
   std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
 
   Optics beamOptics("/home/bdsim_output_optics.root");
 
+
   double chisq=0;
+  double chisqx = 0;
+  double chisqy = 0;
+  double chisqwx = 0;
+  double chisqwy = 0;
+
   for(int i=0; i<dat.size(); i++){
     beamOptics.fChain->GetEntry(i+1);
     std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
     std::cout<<"SSEM"<<i+1<<" beam sim postion = "<<simulation[0]<<", "<<simulation[1]<<" data "<<dat[i][0]<<", "<<dat[i][1]<<std::endl;
     std::cout<<"SSEM"<<i+1<<" beam sim width   = "<<simulation[2]<<", "<<simulation[3]<<" data "<<dat[i][2]<<", "<<dat[i][3]<<std::endl;
 
-    if(fitMode & 0x01) for(int j=0; j<2; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN 0.2mm uncert on ssem position
-    if(fitMode & 0x02) for(int j=2; j<4; j++) chisq += (dat[i][j]-simulation[j])*(dat[i][j]-simulation[j])/(0.2);  //CERN width with 0.2mm precision
-   
-
+    if(fitMode & 0x01) chisqx += (dat[i][0]-simulation[0])*(dat[i][0]-simulation[0])/(0.2);  //CERN 0.2mm uncert on ssem position x
+    if(fitMode & 0x02) chisqy += (dat[i][1]-simulation[1])*(dat[i][1]-simulation[1])/(0.2);  //position y
+    if(fitMode & 0x04) chisqwx += (dat[i][2]-simulation[2])*(dat[i][2]-simulation[2])/(0.2);  //CERN width with 0.2mm precision x
+    if(fitMode & 0x08) chisqwy += (dat[i][3]-simulation[3])*(dat[i][3]-simulation[3])/(0.2);  //width y
 //    std::cout<<"SSEM "<<i+1<<" position cumulative chisq contribution "<<chisq<<std::endl;
   }
 //  chisq+=CalcPrior(pars);
+
+  chisq = chisqx + chisqy + chisqwx + chisqwy;
+
   std::cout<<"returning chisq = "<<chisq<<std::endl;
+
+  std::cout<<"xpos chisq \t ypos chisq \t xwid chisq \t ywid chisq"<<std::endl;
+  std::cout<<std::setprecision(4)<<chisqx<<"\t"<<chisqy<<"\t"<<chisqwx<<"\t"<<chisqwy<<std::endl;
   return chisq;
 }
 

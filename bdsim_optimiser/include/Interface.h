@@ -49,9 +49,8 @@ public:
  
   Interface(std::string dataFile, std::string baseBeamlineFile, int npars);
   ~Interface();
-  void SetInitialValues(bool usePrevBestFit, bool useFieldMaps, double* pars);
+  void SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, double* pars);
   void SetInternalPars(const double *pars);
-  void SetNominalPars(const double *pars);
   const double* GetNominalPars();
   void ParamScan(int param, TH1D *hist);
   void ParamScan(int param, int npoints, double xlo, double xup);

@@ -1,0 +1,100 @@
+Bootstrap: docker
+From: rockylinux:9
+
+%post
+    # Update the package repository and install necessary packages
+    yum -y update
+    yum -y install epel-release
+    yum -y install wget curl vim --allowerasing
+    yum -y install sudo yum-utils
+    yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.4/devel/x86_64/os/
+    yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel
+
+#get CLHEP
+    cd /home
+    mkdir clhep
+    cd clhep
+    wget https://proj-clhep.web.cern.ch/proj-clhep/dist1/clhep-2.4.7.1.tgz
+    tar -xzvf clhep-2.4.7.1.tgz
+    cd 2.4.7.1
+    mkdir build
+    cd build
+    cmake ../CLHEP
+    make
+    sudo make install
+    cd /home
+    
+
+    yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel libXpm-devel libXft-devel libXext-devel
+    yum -y install xcb-util-cursor-devel
+
+
+    #our own install of root so minuit works
+    cd /home
+    mkdir root
+    cd root
+    wget https://root.cern/download/root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
+    tar -xzf root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
+    source root/bin/thisroot.sh
+    cd /home
+
+
+#geant4 time
+
+    wget https://gitlab.cern.ch/geant4/geant4/-/archive/v10.7.4/geant4-v10.7.4.tar.gz
+    tar -xzf geant4-v10.7.4.tar.gz
+    mkdir geant4-v10.7.4-build
+    mkdir geant4-v10.7.4-install
+    cd geant4-v10.7.4-build
+    cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=OFF -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=OFF -DGEANT4_USE_XM=OFF
+#    cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=ON -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=ON -DGEANT4_USE_XM=ON
+    make -j1
+    make install
+
+    source /usr/local/bin/geant4.sh
+    yum -y install HepMC3
+
+    cd /home
+    mkdir bdsim
+    cd bdsim
+    wget https://bitbucket.org/jairhul/bdsim/get/c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
+    tar -xzf c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
+    mkdir bdsim-build
+    cd bdsim-build
+    cmake ../jairhul-bdsim-c725b23739b8/
+    make
+    make install
+
+    echo "source /home/root/root/bin/thisroot.sh" > /home/setup.sh
+    echo "source /usr/local/bin/geant4.sh" >> /home/setup.sh
+
+
+    yum -y install pip
+    pip install numpy pandas matplotlib xlrd pyqt6 openpyxl
+
+
+    # Clean up
+    yum clean all
+
+%environment
+    # Set environment variables
+    export LC_ALL=C
+    export LANG=C
+    export PATH=/usr/local/bin:$PATH
+#    export HOME=/home/
+#    source /home/.bashrc
+
+%runscript
+    # Commands to run when the container is executed
+    echo "This is a Rocky Linux container"
+
+%labels
+    Author Charlie Naseby
+    Version v1.0
+    Description "A rocky 9 container for BDSIM"
+
+%help
+    This Singularity definition file creates a container based on Rocky Linux 9.
+    It installs the dependencies for BDSIM and then BDSIM itself based on a specific tag of BDSIM
+
+
