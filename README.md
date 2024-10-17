@@ -1,12 +1,13 @@
 # T2K-Neutrino-Beamline
 This is a respository intended to house all code necessary to simulate the T2K neutrino beamline (preparation section) in the accelerator tracking software BDSIM (L.J. Nevay et al., BDSIM: An Accelerator Tracking Code with Particle-Matter Interactions, Computer Physics Communications 252 107200 (2020) https://doi.org/10.1016/j.cpc.2020.107200). This intends to include simulation of beam loss and comparison to existing beam loss measurements at the beamline with the goal to determine improvements in optics or collimator design to reduce beam loss particularly in the preparation section of the neutrino beamline.
 
-To get started first install BDSIM or if available use the version provided by cvmfs. Most scripts and analysis are in Python, for this you require a pyton 3+ install (tested with 3.12.3).
-To run a simulation first create a beamline, this is described in a csv, a csv for the preparation section is provided in fujii-san.csv and is based on the nominal component positions provided by a spreadsheed provided by Fujii-san. run the beamline creator with
-    python create_beamline.py
-this will create a file in the gmad format in the gmad directory describing the beamline and beam properties as well as tunnel geometry, physics list etc. This file can then be run through BDSIM with 
-    bdsim --file=gmad/file.gmad
-To see the interactive Geant4 viewer of the geometry. To run the optics analysis you can use the run_analysis.sh script, this uses the aforementioned gmad file and a user provided number of protons to simulate, the seed is set for reproducibility purposes. rebdsimOptics is then run over the resulting file to obtain the beam position, width, twiss parameters at each interface in beamline components, this is then converted using the Optics executable to a pandas dataframe csv that can easily be plotted in python.
+To get started first install BDSIM or use the version provided by cvmfs, alternatively and the recommended option; use the .def file to create a singularity container which will automatically download and install all dependencies. Most scripts and analysis are in Python, for this you require a pyton 3+ install (tested with 3.12.3) (also confirmed to work with container). 
+To run a simulation, first create a beamline, this is described in a csv. A csv for the preparation section is provided in fujii-san.csv and is based on the nominal component positions provided by a spreadsheed provided by Fujii-san. Component misalignments are set based on a .csv in survey/ to create the preparation section run the beamline creator with
+    cd survey
+    python extract_positions.py
+this will create a file in the gmad format in the survey directory describing the beamline and beam properties as well as tunnel geometry, physics list etc. see extract positions for available options. This file can then be run through BDSIM with 
+    bdsim --file=survey/file.gmad
+To see the interactive Geant4 viewer of the geometry. To run the optics analysis you can use the run_analysis.sh script, this uses the aforementioned gmad file and a user provided number of protons to simulate, the seed is set for reproducibility purposes. rebdsimOptics is then run over the resulting file to obtain the beam position, width, twiss parameters at each interface in beamline components, this is then converted using the Optics executable in ./optics_dump to a pandas dataframe csv that can easily be plotted in python.
 
 There are a several options that make use of additional inputs such as the option to use a fieldmap and external gdml geometry, these are contained in the magnet_responses and CAD directories respectively. Magnet responses uses the field maps made of the magnets at J-PARC in xls format and converts them to a 3d point cloud in BDSIM format and is run with:
     python create_fieldmap.py
@@ -16,6 +17,7 @@ The CAD directory contains magnet and beamline geometries, the gdml format is us
 
 To include such a component in the beamline, simply replace the 'type' field in fujii-san.csv with fieldmapgeom for the component you want to model, create_beamline.py will use the fieldmap at location magnet_response/element.dat where element is the value in the 'element' field of fujii-san.csv the geometry used will similarly be element.gdml.
 
+To run fits to SSEM data, make use of the ./bdsim_optimiser directory, this quite hacky section makes use of the gmad/test.gmad beam description, edits the magnet strengths according to a set of parameters to be minimised over. The resulting file is then run through BDSIM and rebdsimOptics to extract the predicted beam position and widths at the SSEMs, this is then compared to the data files contained in ./bdsim_optimiser/ssem_data and a chisq measure used to minimise the difference. The best-fit condition will be contained in ./gmad/optimised.gmad and the parameter values, covariance etc. in ./bdsim_optimiser/fit_results.root. Required for this is a file containing initial beam parameters, these can be made by enabling the entry sampling in extract_positions.py, running BDSIM with 10k events, and using the output file as the input for the fit. NOTE: ensure sample entry is disabled for the gmad file used for the fit.
 
 Author:
 Charlie Naseby, c.naseby18@imperial.ac.uk
