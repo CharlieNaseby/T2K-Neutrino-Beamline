@@ -20,7 +20,7 @@ bpd1_angle = 0.033547
 bpd2_angle = 0.033165
 ssem1s = 1769.-85.
 proton_momentum = 30.924 # momentum for a 30GeV KE proton 
-vacuum_pressure = 1e-9 #vacuum pressure in bar
+vacuum_pressure = 1e-4 #vacuum pressure in bar
 
 #print_tunnel=False
 #print_physics=True
@@ -30,7 +30,7 @@ vacuum_pressure = 1e-9 #vacuum pressure in bar
 #beam_from_file = False
 #beam_halo = False
 #enable_blms = False
-#no_geom = False
+#geometry = True
 #misalignments = False
 #print_vacuum=True
 #bias_physics=True
@@ -38,19 +38,19 @@ vacuum_pressure = 1e-9 #vacuum pressure in bar
 #fit configuration
 print_tunnel=False
 print_physics=False
-sample_all=False
+sample_all=True
 sample_ssem=True
 sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
 beam_from_file = False
 beam_halo = False
 enable_blms = False
-no_geom = True
-misalignments = False
+geometry = False
+misalignments=False
 bias_physics=False
 print_vacuum=False
 
 
-generate_primaries=False
+generate_primaries=True
 
 if(generate_primaries):
     sample_entry = True
@@ -94,6 +94,12 @@ def strip_whitespace(df):
     df.columns = df.columns.str.strip()
     df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
     return df
+
+
+def string_to_list(s):
+    s = s.strip('[]').strip()
+    elements = s.split()
+    return elements
 
 
 #class to take the two survey points per element and determine the element center
@@ -292,11 +298,12 @@ class beamline:
 
         x = []
         y = []
+        print("SSEM Position (mm): \t Nominal \t Survey \t Difference")
         for idx, row in self.line.iterrows():
             if not np.isnan(row['s_survey']) and row['type'] == 'ssem':
                 x.append(row.s_start)
                 y.append(row.s_start-row.s_survey)
-                print(row['element'],',',row['s_start']+85., ',', row['s_survey'], ',', row['s_start']-row['s_survey']+85.0)
+                print(row['element'],',\t\t\t',"{:.3f}".format(row['s_start']+85.), ',\t',"{:.3f}".format(row['s_survey']), ',\t',"{:.3f}".format(row['s_start']-row['s_survey']+85.0))
 #        plt.scatter(x, y)
 #        plt.show()
         self.line = self.line.drop(['survey', 's_dir', 'angl', 'datum'], axis=1)
@@ -397,7 +404,7 @@ class BeamlinePrinter:
 
       Y0=0.0*m,
       Yp0=0.0,
-      emity=0.043281*mm*mrad,
+      emity=0.06006*mm*mrad,
       bety=5.5537*m,
       alfy=0.19780927,
       dispy=0.0*m,
@@ -405,6 +412,28 @@ class BeamlinePrinter:
 
       kineticEnergy=30*GeV;\n\n''')
 
+    def print_beam_sadfit_0910216(self):
+        self.file.write('''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=-0.5*mm,
+      Xp0=3.5e-5,
+      emitx=0.0610768*mm*mrad,
+      betx=37.098*m,
+      alfx=-2.4187,
+      dispx=0.42373*m,
+      dispxp=0.07196,
+                        
+      Y0=-0.2*mm,
+      Yp0=7.8e-5,
+      emity=0.05976*mm*mrad,
+      bety=5.45*m,
+      alfy=0.178,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;\n\n''')
+        
     def print_beam_from_file(self, filename):
         self.file.write('''beam, particle="proton",
       kineticEnergy=30*GeV,
@@ -460,7 +489,7 @@ class BeamlinePrinter:
     def print_bend_magnet(self, row):
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
-        if(no_geom):
+        if(not geometry):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
         self.print_xsec_bias('vacuum')
@@ -469,7 +498,7 @@ class BeamlinePrinter:
     def print_quad_magnet(self, row):
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(self.kvals[row.element]))
-        if(no_geom):
+        if(not geometry):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
         self.print_xsec_bias('vacuum')
@@ -549,7 +578,7 @@ tunnelSoilThickness = 2*m;\n\n''')
         self.line.append(row.element)
         self.print_field(row, ndim)
         self.file.write(row.element+': '+magtype+', fieldVacuum="'+row.element+'field", l='+str(row.length)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt))
-        if(no_geom):
+        if(not geometry):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
         self.print_xsec_bias('vacuum')
@@ -639,11 +668,11 @@ tunnelSoilThickness = 2*m;\n\n''')
         self.file.write('\nuse, period=l0;\n')
         #self.print_beam()
         if(beam_from_file):
-            self.print_beam_from_file("../run_0910216_10k.root")
+            self.print_beam_from_file("../run_sadfit_0910216_10k.root")
         elif(beam_halo):
             self.print_halo()
         else:
-            self.print_beam_0910216()
+            self.print_beam_sadfit_0910216()
 
         if(print_tunnel):
             self.print_tunnel()
@@ -834,14 +863,14 @@ if __name__ == '__main__':
     beamline_with_misalign = beamline()
     bline = beamline_with_misalign.line
 
-    #run 910580
+    #run 910216
     vec_magset = [0 ,
     -15 ,
     520 ,
     0 ,
     485 ,
-    1139 ,
-    1190 ,
+    1140 ,
+    1191 ,
     408 ,
     15 ,
     354 ,

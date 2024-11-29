@@ -6,10 +6,10 @@
 Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npars){
 
   nPars = npars;
-  internalPars.resize(npars);
-  nominalPars.resize(npars);
+  internalPars.resize(nPars); //point about which LLH scans will be conducted
+  nominalPars.resize(nPars); //the values of the parameters expected based on true magnet current
   magNames.resize(nPars);
-  preFit.resize(nPars);
+  preFit.resize(nPars); //the values of the parameters expected with scalings or fudge factors applied
 
 
   TFile *ssemDataFile = new TFile(dataFile.c_str(), "READ");
@@ -39,12 +39,11 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   for(int i=0; i<ssemData->GetEntries(); i++){
     ssemData->GetEntry(i);
     if(ssemax[0] < 100) continue;  //if there was no beam skip
-    bool skip=false;
-    for(int j=0; j<12; j++){ //for some reason the later magnets do change from shot-to-shot
-      if(magset[j] != magCurrent[j]) skip=true; //select only cases with the same current each shot
+    for(int j=0; j<12; j++){ //CERN for some reason the later magnets do change from shot-to-shot
+      if(magset[j] != magCurrent[j]) goto loopend; //select only cases with the same current each shot
+                                                   //actually legit use of a goto!
 //      std::cout<<j<<" magset "<<magset[j]<<" magcurrent "<<magCurrent[j]<<std::endl;
     }
-    if(skip) continue;
     for(int j=0; j<NSSEM; j++){
       ssemxMean[j]+=ssemx[j];
       ssemyMean[j]+=ssemy[j];
@@ -52,7 +51,8 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
       ssemwyMean[j]+=ssemwy[j];
     }
     std::cout<<magset[9]<<std::endl;
-    nShots++;    
+    nShots++;
+loopend:;
   }
   for(int i=0; i<NSSEM; i++){
     ssemxMean[i] /= (double)nShots;
@@ -129,16 +129,16 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
   nominalPars[10] = magCurrent[11]/100.;
 
   std::vector<double> fudgeFactor(nPars);
-  //magnet scaling factors based on a fit to hard edge run0910580 with prefit using fieldmap vals
+
   fudgeFactor[0] = 1;
-  fudgeFactor[1] = 0.503659;
-  fudgeFactor[2] = 0.878798;
-  fudgeFactor[3] = 1.11968;
-  fudgeFactor[4] = 1.08873;
-  fudgeFactor[5] = 1.03649;
-  fudgeFactor[6] = 1.4863;
-  fudgeFactor[7] = 1.59548;
-  fudgeFactor[8] = 1.28218;
+  fudgeFactor[1] = 1;
+  fudgeFactor[2] = 1;
+  fudgeFactor[3] = 1;
+  fudgeFactor[4] = 1;
+  fudgeFactor[5] = 1;
+  fudgeFactor[6] = 1;
+  fudgeFactor[7] = 1;
+  fudgeFactor[8] = 1;
   fudgeFactor[9] = 1;
   fudgeFactor[10] = 1;
 
@@ -185,7 +185,6 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
       nominalPars[i] = pars[i];
       if(useFudgeFactor) pars[i] *= fudgeFactor[i];
     }
-    //pars[0] = -0.05;  //CERN TODO forcefully set BPV1
     for(int i=0; i<nPars; i++) preFit[i] = pars[i];
   }
   else{
@@ -228,6 +227,7 @@ double Interface::fcn(std::vector<double> pars){
   const double *tmp = pars.data();
   return fcn(tmp);
 }
+//need a non-overloaded function that just takes const double*
 double Interface::fcn_wrapper(const double *pars){
   return fcn(pars);
 }
@@ -325,18 +325,19 @@ double Interface::CalcChisq(const double *pars){
   for(int i=0; i<dat.size(); i++){
     beamOptics.fChain->GetEntry(i+1);
     std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
-    std::cout<<"SSEM"<<i+1<<" beam sim postion = "<<simulation[0]<<", "<<simulation[1]<<" data "<<dat[i][0]<<", "<<dat[i][1]<<std::endl;
-    std::cout<<"SSEM"<<i+1<<" beam sim width   = "<<simulation[2]<<", "<<simulation[3]<<" data "<<dat[i][2]<<", "<<dat[i][3]<<std::endl;
-
-    if(fitMode & 0x01) chisqx += (dat[i][0]-simulation[0])*(dat[i][0]-simulation[0])/(0.2);  //CERN 0.2mm uncert on ssem position x
-    if(fitMode & 0x02) chisqy += (dat[i][1]-simulation[1])*(dat[i][1]-simulation[1])/(0.2);  //position y
-    if(fitMode & 0x04) chisqwx += (dat[i][2]-simulation[2])*(dat[i][2]-simulation[2])/(0.2);  //CERN width with 0.2mm precision x
-    if(fitMode & 0x08) chisqwy += (dat[i][3]-simulation[3])*(dat[i][3]-simulation[3])/(0.2);  //width y
+    std::cout<<"SSEM"<<i+1<<" beam sim postion = \t"<<simulation[0]<<", \t"<<simulation[1]<<" data \t"<<dat[i][0]<<", \t"<<dat[i][1]<<std::endl;
+    std::cout<<"SSEM"<<i+1<<" beam sim width   = \t"<<simulation[2]<<", \t"<<simulation[3]<<" data \t"<<dat[i][2]<<", \t"<<dat[i][3]<<std::endl;
+    chisqx += (dat[i][0]-simulation[0])*(dat[i][0]-simulation[0])/(0.2*0.2);  //CERN 0.2mm uncert on ssem position x
+    chisqy += (dat[i][1]-simulation[1])*(dat[i][1]-simulation[1])/(0.2*0.2);  //position y
+    chisqwx += (dat[i][2]-simulation[2])*(dat[i][2]-simulation[2])/(0.2*0.2);  //CERN width with 0.2mm precision x
+    chisqwy += (dat[i][3]-simulation[3])*(dat[i][3]-simulation[3])/(0.2*0.2);  //width y
 //    std::cout<<"SSEM "<<i+1<<" position cumulative chisq contribution "<<chisq<<std::endl;
   }
 //  chisq+=CalcPrior(pars);
-
-  chisq = chisqx + chisqy + chisqwx + chisqwy;
+  if(fitMode & 0x01) chisq += chisqx;
+  if(fitMode & 0x02) chisq += chisqy;
+  if(fitMode & 0x04) chisq += chisqwx;
+  if(fitMode & 0x08) chisq += chisqwy;
 
   std::cout<<"returning chisq = "<<chisq<<std::endl;
 

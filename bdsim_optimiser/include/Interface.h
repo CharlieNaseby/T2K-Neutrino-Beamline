@@ -45,7 +45,8 @@ public:
   std::vector<double> preFit;
   std::map<std::string, int> magMap;
   std::vector<std::string> magNames;
-  unsigned int fitMode=3;  //by default fit width and position
+  int testval = 0;
+  unsigned int fitMode=1+2+4+8;  //by default fit width and position
  
   Interface(std::string dataFile, std::string baseBeamlineFile, int npars);
   ~Interface();
@@ -61,6 +62,10 @@ public:
   void ParseInputFile(std::string baseBeamlineFile);
   double CalcChisq(const double *pars);
   double CalcPrior(const double *pars);
-  void SetChisqMode(int mode){fitMode=mode;}
+  void SetChisqMode(int mode){fitMode=mode;};
+  double PrintTestVal(const double *pars){
+    std::cout<<"testval = "<<testval<<std::endl;
+    return 1.0;
+  }
 
 };

@@ -8,7 +8,17 @@ void plot_fit_result(){
     TVectorD posError = *(TVectorD*)(inf->Get("postFitError"));
     TMatrixT<double> cov = *(TMatrixT<double>*)(inf->Get("postfit_covariance"));
 
-
+    char *names[11] = {"BPV1",
+	               "BPH2",
+	               "QPQ1",
+	               "QPQ2",
+	               "BPD1",
+	               "BPD2",
+	               "QPQ3",
+	               "BPV2",
+	               "QPQ4",
+	               "BPH3",
+		       "QPQ5"};
 
     TFile *outf = new TFile("fit_result_plots.root", "RECREATE");
     outf->cd();
@@ -33,10 +43,12 @@ void plot_fit_result(){
 
   for(int i=0; i<nPars; i++){
     prefit->SetBinContent(i+1, pre[i]);
+    prefit->GetXaxis()->SetBinLabel(i+1, names[i]);
     nominalhist->SetBinContent(i+1, nom[i]);
     nominalhist->SetBinError(i+1, 0.0);
     fitResult->SetBinContent(i+1, pos[i]);
     fitResult->SetBinError(i+1, posError[i]);
+    fitResult->GetXaxis()->SetBinLabel(i+1, names[i]);
 
     if(TMath::Abs(pre[i])>1e-6){
       post_minus_pred_div_pred->SetBinContent(i+1, (pos[i]-pre[i])/pre[i]);

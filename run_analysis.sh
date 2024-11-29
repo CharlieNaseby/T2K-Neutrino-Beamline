@@ -5,7 +5,7 @@ echo "input number of particles to simulate"
 read NPROTONS
 
 rm output.root
-bdsim --file=gmad/test.gmad --outfile=output --batch --ngenerate=$NPROTONS --seed=1989
+bdsim --file=gmad/optimised.gmad --outfile=output --batch --ngenerate=$NPROTONS --seed=1989
 
 rebdsimOptics output.root ./optics_dump/optics_output.root --emittanceOnTheFly
 

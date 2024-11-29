@@ -7,7 +7,7 @@ data = []
 
 pd.set_option('display.max_rows', 50000)
 
-with open('QPQ4_no_fringe.dat', newline='') as csvfile:
+with open('QPQ4.dat', newline='') as csvfile:
     field = csv.reader(csvfile, delimiter=' ')
     for row in field:
         if(len(row) > 2 and row[0]!='!'):
@@ -15,8 +15,8 @@ with open('QPQ4_no_fringe.dat', newline='') as csvfile:
 
 
 df = pd.DataFrame(data, columns=['x', 'y', 'z', 'Bx', 'By', 'Bz'])
-line = df[(df['x'].between(10, 11)) & (df['y'].between(-0.1, 0.1))]
-
+line = df[(df['x'].between(10.6, 11)) & (df['y'].between(-0.1, 0.1))]
+print(line)
 plt.plot(line['z'], line['By'])
 plt.show()
 
