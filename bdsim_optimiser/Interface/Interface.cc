@@ -3,12 +3,16 @@
 
 //constructor to set data and the gmad file we'll use as a base to our fit
 
-Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npars){
+Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npars, int nmagnetpars, int nbeampars){
 
   nPars = npars;
+  nMagnetPars = nmagnetpars;
+  nBeamPars = nbeampars;
+
   internalPars.resize(nPars); //point about which LLH scans will be conducted
   nominalPars.resize(nPars); //the values of the parameters expected based on true magnet current
-  magNames.resize(nPars);
+  magNames.resize(nMagnetPars);
+  beamNames.resize(nBeamPars);
   preFit.resize(nPars); //the values of the parameters expected with scalings or fudge factors applied
 
 
@@ -82,12 +86,40 @@ loopend:;
   magMap["QPQ5"] = 10;
 
   for(auto [key, value] : magMap) magNames[value] = key;
+
+  beamNames ={"X0", "Xp0", "emitx", "betx", "alfx", "Y0", "Yp0", "emity", "bety", "alfy"};
+
+  for(auto name : magNames) parNames.push_back(name);
+  for(auto name : beamNames) parNames.push_back(name);
+
+
   ParseInputFile(baseBeamlineFile);
 };
 
 Interface::~Interface(){};
 
 void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, double *pars){
+
+
+  std::map<std::string, double> beamPars;
+  beamPars["X0"]=-0.5;
+  beamPars["Xp0"]=3.5e-5;
+  beamPars["emitx"]=0.0610768;
+  beamPars["betx"]=37.098;
+  beamPars["alfx"]=-2.4187;
+  beamPars["dispx"]=0.42373,
+  beamPars["dispxp"]=0.07196,
+  beamPars["Y0"]=-0.2;
+  beamPars["Yp0"]=7.8e-5;
+  beamPars["emity"]=0.05976;
+  beamPars["bety"]=5.45;
+  beamPars["alfy"]=0.178;
+  beamPars["dispy"]=0.;
+  beamPars["dispyp"]=0.0;
+
+
+
+
 
   std::map<std::string, double> kScaling;
   //derived from the KIcurve sad file, scaling of K1 or K0 value in units of 100A
@@ -128,7 +160,7 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
   nominalPars[9] = magCurrent[10]/100.;
   nominalPars[10] = magCurrent[11]/100.;
 
-  std::vector<double> fudgeFactor(nPars);
+  std::vector<double> fudgeFactor(nMagnetPars);
 
   fudgeFactor[0] = 1;
   fudgeFactor[1] = 1;
@@ -154,7 +186,7 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
     infile.open("bestFitHardEdge.txt");
     std::string line;
 
-    while(std::getline(infile, line)){
+    while(std::getline(infile, line)){ //TODO broken with addition of beam parameters
       size_t strpos = line.find(" =");
       std::string mag = line.substr(0, strpos);
       std::string val = line.substr(strpos+3);
@@ -163,7 +195,7 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
     }
   }
   else if(useFieldMaps){
-    for(int i=0; i<nPars; i++) fudgeFactor[i] = 1.0;
+    for(int i=0; i<nMagnetPars; i++) fudgeFactor[i] = 1.0;
   
 //    fudgeFactor[1] = 1.402333;
 //    fudgeFactor[4] = 0.851299;
@@ -181,14 +213,21 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
     pars[8] = -magCurrent[9]/100.;
     pars[9] = magCurrent[10]/100.;
     pars[10] = magCurrent[11]/100.;
-    for(int i=0; i<nPars; i++){
+    for(int i=0; i<nMagnetPars; i++){
       nominalPars[i] = pars[i];
       if(useFudgeFactor) pars[i] *= fudgeFactor[i];
     }
-    for(int i=0; i<nPars; i++) preFit[i] = pars[i];
+    for(int i=0; i<nMagnetPars; i++) preFit[i] = pars[i];
   }
   else{
-    for(int i=0; i<nPars; i++) pars[i] = preFit[i];
+    for(int i=0; i<nMagnetPars; i++) pars[i] = preFit[i];
+  }
+
+
+  //now for the beam parameters
+  for(int i=0; i<nBeamPars; i++){
+    pars[i+nMagnetPars] = beamPars[beamNames[i]];
+    preFit[i+nMagnetPars] = beamPars[beamNames[i]];
   }
 
 }
@@ -265,53 +304,99 @@ void Interface::GenerateInputFile(const double *pars){
 //this indicates the start of a variable of out fit
 
 void Interface::ParseInputFile(std::string baseBeamlineFile){
+  std::cout<<"parsing input file "<<baseBeamlineFile<<std::endl;
   std::ifstream infile;
   infile.open(baseBeamlineFile);
   beamline.resize(1);
   std::string line;
+  std::vector<std::string> matchStrings = {"bScaling=", "B=", "k1="};
+  for(auto str : beamNames) matchStrings.push_back(str+'=');
+
 
   while(std::getline(infile, line)){
-    //does it have the string bScaling in it?
-    size_t bspos = line.find("bScaling=");
-    size_t k0pos = line.find("B=");
-    size_t k1pos = line.find("k1=");
-    line.append("\n");
-    if(bspos == std::string::npos && k0pos==std::string::npos && k1pos==std::string::npos) beamline[beamline.size()-1].append(line);
-    else{
-      std::string label;
-      size_t strpos = 0;
-      if(bspos!=std::string::npos){
-        strpos = bspos;
-        label = "bScaling=";
+    size_t labstart = std::string::npos;
+    size_t labend = std::string::npos;
+    for(auto name : matchStrings){
+      labstart = line.find(name);
+      if(labstart != std::string::npos){
+        labend = labstart + name.length();
+        break;
       }
-      if(k0pos!=std::string::npos){
-        strpos = k0pos;
-        label = "B=";
-      }
-      if(k1pos!=std::string::npos){
-        strpos = k1pos;
-        label = "k1=";
-      }
-      std::string firstPart = line.substr(0, strpos);
-      firstPart.append(label);
-      beamline[beamline.size()-1].append(firstPart);
-      std::string secondPart = line.substr(strpos);
-      size_t comma = secondPart.find_first_of(",");
-      std::string newSecondPart = secondPart.substr(comma);
-      
-      beamline.push_back(newSecondPart);
     }
+
+    line.append("\n");
+    if(labstart == std::string::npos){
+      beamline[beamline.size()-1].append(line);
+      continue;
+    }
+
+    std::string firstPart = line.substr(0, labend);
+    beamline[beamline.size()-1].append(firstPart);
+
+    std::string secondPart = line.substr(labend);
+    size_t endidx = secondPart.find_first_of("*");  //grab the units
+    size_t comma = secondPart.find_first_of(","); //if its unitless
+    if(endidx == std::string::npos) endidx = comma;
+    std::string newSecondPart = secondPart.substr(endidx);
+    beamline.push_back(newSecondPart);
+
   }
+//    //does it have the string bScaling in it?
+//    size_t bspos = line.find("bScaling=");
+//    size_t k0pos = line.find("B=");
+//    size_t k1pos = line.find("k1=");
+//    if(bspos == std::string::npos && k0pos==std::string::npos && k1pos==std::string::npos) beamline[beamline.size()-1].append(line);
+//    else{
+//      std::string label;
+//      size_t strpos = 0;
+//      if(bspos!=std::string::npos){
+//        strpos = bspos;
+//        label = "bScaling=";
+//      }
+//      if(k0pos!=std::string::npos){
+//        strpos = k0pos;
+//        label = "B=";
+//      }
+//      if(k1pos!=std::string::npos){
+//        strpos = k1pos;
+//        label = "k1=";
+//      }
+//      std::string firstPart = line.substr(0, strpos);
+//      firstPart.append(label);
+//      beamline[beamline.size()-1].append(firstPart);
+//      std::string secondPart = line.substr(strpos);
+//      size_t comma = secondPart.find_first_of(",");
+//      std::string newSecondPart = secondPart.substr(comma);
+//      
+//      beamline.push_back(newSecondPart);
+//    }
+//  }
   if(nPars != beamline.size()-1){
-    std::cerr<<"Number of parameters set is not equal to the number in the gmad file supplied FILE "<<__FILE__<<":"<<__LINE__<<std::endl;
+    std::cerr<<"Number of parameters set is not equal to the number in the gmad file supplied "<<__FILE__<<":"<<__LINE__<<std::endl;
+    std::cerr<<"Expected "<<nPars<<" but file has "<<beamline.size()-1<<std::endl;
     throw  ;
   }
 }
+
+void Interface::CalcBeamPars(){
+    TFile *fitFile = new TFile("/home/bdsim_output.root");
+    TTree *samplerData = static_cast<TTree*>(fitFile->Get("Event"));
+    BDSOutputROOTEventSampler<float> *SSEM1Data = nullptr; //new BDSOutputROOTEventSampler<float>("SSEM1");
+    samplerData->SetBranchAddress("SSEM1.", &SSEM1Data);
+
+    for(int i=0; i<samplerData->GetEntries(); i++){
+        samplerData->GetEntry(i);
+        std::cout<<SSEM1Data->samplerName<<std::endl;
+    }
+}
+
 
 double Interface::CalcChisq(const double *pars){
 
   std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
   std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
+
+//  CalcBeamPars();
 
   Optics beamOptics("/home/bdsim_output_optics.root");
 

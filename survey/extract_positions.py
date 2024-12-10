@@ -38,7 +38,7 @@ vacuum_pressure = 1e-4 #vacuum pressure in bar
 #fit configuration
 print_tunnel=False
 print_physics=False
-sample_all=True
+sample_all=False
 sample_ssem=True
 sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
 beam_from_file = False
@@ -50,7 +50,7 @@ bias_physics=False
 print_vacuum=False
 
 
-generate_primaries=True
+generate_primaries=False
 
 if(generate_primaries):
     sample_entry = True

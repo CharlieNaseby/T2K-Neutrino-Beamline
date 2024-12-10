@@ -16,6 +16,7 @@
 #include "BDSOutputROOTEventBeam.hh"
 #include "BDSOutputROOTEventHeader.hh"
 #include "BDSOutputROOTEventOptions.hh"
+#include "BDSOutputROOTEventSampler.hh"
 #include "AnalysisUtilities.hh"
 
 
@@ -38,17 +39,21 @@ public:
   std::vector<std::array<double, 4> > dat;
   std::vector<double> s;
   std::vector<std::string> beamline;
-  int nPars;
+  int nPars, nMagnetPars, nBeamPars;
   std::vector<double> internalPars;
   std::vector<double> nominalPars;
   std::vector<double> magCurrent;
   std::vector<double> preFit;
   std::map<std::string, int> magMap;
   std::vector<std::string> magNames;
+  std::vector<std::string> beamNames;
+  std::vector<std::string> parNames;
+ 
+
   int testval = 0;
   unsigned int fitMode=1+2+4+8;  //by default fit width and position
  
-  Interface(std::string dataFile, std::string baseBeamlineFile, int npars);
+  Interface(std::string dataFile, std::string baseBeamlineFile, int npars, int nmagnetpars, int nbeampars);
   ~Interface();
   void SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, double* pars);
   void SetInternalPars(const double *pars);
@@ -60,6 +65,7 @@ public:
   double fcn(const double *pars);
   void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);
+  void CalcBeamPars();
   double CalcChisq(const double *pars);
   double CalcPrior(const double *pars);
   void SetChisqMode(int mode){fitMode=mode;};

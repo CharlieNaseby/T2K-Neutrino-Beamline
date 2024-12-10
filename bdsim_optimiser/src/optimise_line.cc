@@ -7,16 +7,19 @@
 #include "TMatrixD.h"
 #include "TVectorD.h"
 
-double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, double *pars, std::vector<int> fixedVars, int fitMode){
+double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, double *pars, std::initializer_list<std::vector<int> > fixedVars, int fitMode){
   inter->SetChisqMode(fitMode);
   min->SetStrategy(3);
   min->SetMaxFunctionCalls(10000);
   min->SetTolerance(10);
 
-  for(int i=0; i<nPars; i++) min->SetVariable(i, inter->magNames[i], pars[i], 0.1);
+  for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], pars[i], 0.1);
+ 
 
-  for(auto fixed : fixedVars) min->FixVariable(fixed);
-
+  for(auto fixedvec : fixedVars)
+    for(auto fixed : fixedvec) 
+      min->FixVariable(fixed);
+  
   min->SetPrintLevel(2);
 
   min->FixVariable(9); //BPH3 and QPQ5 do not have and SSEMs afterwards in the sim so would have no data constraint
@@ -33,8 +36,11 @@ int main(int argc, char **argv){
   std::string baseBeamlineFile="../gmad/test.gmad";
   std::string ssemDataFile="./ssem_data/run0910216_gen.root";
 
-  const int nPars = 11;
-  Interface inter(ssemDataFile, baseBeamlineFile, nPars);
+  const int nMagnetPars = 11;
+  const int nBeamPars = 10;
+  const int nPars = nMagnetPars + nBeamPars;
+
+  Interface inter(ssemDataFile, baseBeamlineFile, nPars, nMagnetPars, nBeamPars);
 
   double pars[nPars];
 
@@ -49,7 +55,7 @@ int main(int argc, char **argv){
   inter.SetInternalPars(pars);
   //inter.SetNominalPars(pars);
 
-  for(int i=0; i<nPars; i++) std::cout<<inter.magNames[i]<<"\t"<<pars[i]<<std::endl;
+  for(int i=0; i<nPars; i++) std::cout<<inter.parNames[i]<<"\t"<<pars[i]<<std::endl;
 
   inter.SetChisqMode(1+2+4+8);
  
@@ -67,6 +73,7 @@ int main(int argc, char **argv){
  
   std::vector<int> bMagVars = {0, 1, 4, 5, 7, 9};
   std::vector<int> qMagVars = {2, 3, 6, 8, 10};
+  std::vector<int> beamParVars = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
   auto wrappedFcn = [&inter](const double* pars) {
       return inter.fcn_wrapper(pars);
@@ -76,13 +83,33 @@ int main(int argc, char **argv){
   ROOT::Math::Minimizer *min = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
 
   min->SetFunction(f);
-//  performFit(min, &inter, nPars, pars, qMagVars, 1+2);
-//  performFit(min, &inter, nPars, pars, bMagVars, 4+8);
+  min->SetVariableLowerLimit(13, 0); //emitx
+  min->SetVariableLowerLimit(14, 0); //betax
+  min->SetVariableLowerLimit(18, 0); //emity
+  min->SetVariableLowerLimit(19, 0); //betay
+
+
+
+//  performFit(min, &inter, nPars, pars, {qMagVars}, 1+2);
+//  performFit(min, &inter, nPars, pars, {bMagVars}, 4+8);
 //
-//  performFit(min, &inter, nPars, pars, qMagVars, 1+2);
-//  performFit(min, &inter, nPars, pars, bMagVars, 4+8);
+//  performFit(min, &inter, nPars, pars, {qMagVars}, 1+2);
+//  performFit(min, &inter, nPars, pars, {bMagVars}, 4+8);
+
+//  performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
+  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+
+  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
 
   performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
+
+
+
+
 
 //  for(auto fixed : qMagVars) min->FixVariable(fixed);
 //  for(auto fixed : bMagVars) min->FixVariable(fixed);

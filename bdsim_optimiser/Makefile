@@ -5,7 +5,7 @@ BASE_DIR=${PWD}
 
 CXX = g++
 INCLUDES=-I$(BASE_DIR)/include -I$(BDSIM_DIR)/include -I$(BDSIM_DIR)/analysis -I$(BDSIM_DIR)/parser -I/home/geant4-v10.7.4-build/source/global/include -I$(G4_DIR)/global/management/include `root-config --glibs --cflags`
-CXXFLAGS = -fPIC -Wall -Wextra 
+CXXFLAGS = -fPIC -Wall -Wextra -g
 LDFLAGS = -shared
 
 BDSIM_LIBS=-lbdsim -lrebdsim
