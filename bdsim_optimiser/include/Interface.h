@@ -26,6 +26,8 @@
 
 #include "BDSIMClass.hh"
 #include "BDSException.hh"
+#include "CNBDSIMClass.h"
+
 
 #include "Math/Minimizer.h"
 #include "Math/Functor.h"
@@ -48,7 +50,7 @@ public:
   std::vector<std::string> magNames;
   std::vector<std::string> beamNames;
   std::vector<std::string> parNames;
- 
+  CNBDSIM *bds; 
 
   int testval = 0;
   unsigned int fitMode=1+2+4+8;  //by default fit width and position
@@ -68,6 +70,7 @@ public:
   void CalcBeamPars();
   double CalcChisq(const double *pars);
   double CalcPrior(const double *pars);
+  void TestBdsim();
   void SetChisqMode(int mode){fitMode=mode;};
   double PrintTestVal(const double *pars){
     std::cout<<"testval = "<<testval<<std::endl;

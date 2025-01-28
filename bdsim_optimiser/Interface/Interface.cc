@@ -8,6 +8,8 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   nPars = npars;
   nMagnetPars = nmagnetpars;
   nBeamPars = nbeampars;
+  bds = new CNBDSIM();
+
 
   internalPars.resize(nPars); //point about which LLH scans will be conducted
   nominalPars.resize(nPars); //the values of the parameters expected based on true magnet current
@@ -341,36 +343,6 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
     beamline.push_back(newSecondPart);
 
   }
-//    //does it have the string bScaling in it?
-//    size_t bspos = line.find("bScaling=");
-//    size_t k0pos = line.find("B=");
-//    size_t k1pos = line.find("k1=");
-//    if(bspos == std::string::npos && k0pos==std::string::npos && k1pos==std::string::npos) beamline[beamline.size()-1].append(line);
-//    else{
-//      std::string label;
-//      size_t strpos = 0;
-//      if(bspos!=std::string::npos){
-//        strpos = bspos;
-//        label = "bScaling=";
-//      }
-//      if(k0pos!=std::string::npos){
-//        strpos = k0pos;
-//        label = "B=";
-//      }
-//      if(k1pos!=std::string::npos){
-//        strpos = k1pos;
-//        label = "k1=";
-//      }
-//      std::string firstPart = line.substr(0, strpos);
-//      firstPart.append(label);
-//      beamline[beamline.size()-1].append(firstPart);
-//      std::string secondPart = line.substr(strpos);
-//      size_t comma = secondPart.find_first_of(",");
-//      std::string newSecondPart = secondPart.substr(comma);
-//      
-//      beamline.push_back(newSecondPart);
-//    }
-//  }
   if(nPars != beamline.size()-1){
     std::cerr<<"Number of parameters set is not equal to the number in the gmad file supplied "<<__FILE__<<":"<<__LINE__<<std::endl;
     std::cerr<<"Expected "<<nPars<<" but file has "<<beamline.size()-1<<std::endl;
@@ -380,14 +352,23 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
 
 void Interface::CalcBeamPars(){
     TFile *fitFile = new TFile("/home/bdsim_output.root");
+    if(fitFile->IsZombie()) std::cout<<"dead file"<<std::endl;
     TTree *samplerData = static_cast<TTree*>(fitFile->Get("Event"));
     BDSOutputROOTEventSampler<float> *SSEM1Data = nullptr; //new BDSOutputROOTEventSampler<float>("SSEM1");
     samplerData->SetBranchAddress("SSEM1.", &SSEM1Data);
 
     for(int i=0; i<samplerData->GetEntries(); i++){
         samplerData->GetEntry(i);
-        std::cout<<SSEM1Data->samplerName<<std::endl;
+        std::cout<<SSEM1Data->x[0] <<std::endl;
     }
+}
+
+
+void Interface::TestBdsim(){
+    
+
+  bds->BeamOn();
+
 }
 
 
@@ -396,7 +377,7 @@ double Interface::CalcChisq(const double *pars){
   std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
   std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
 
-//  CalcBeamPars();
+  CalcBeamPars();
 
   Optics beamOptics("/home/bdsim_output_optics.root");
 
