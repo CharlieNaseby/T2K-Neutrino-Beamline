@@ -82,6 +82,8 @@ along with BDSIM.  If not, see <http://www.gnu.org/licenses/>.
 #include "BDSUtilities.hh"
 #include "BDSVisManager.hh"
 #include "BDSWarning.hh"
+#include "BDSAcceleratorComponentRegistry.hh"
+
 
 
 //wild optimism
@@ -168,7 +170,9 @@ int CNBDSIM::Initialise()
   parser->AmalgamateBeam(execOptions->Beam(), execOptions->Options().recreate);
   /// Check options for consistency
   parser->CheckOptions();
-  
+
+
+
   /// Explicitly initialise materials to construct required materials before global constants.
   BDSMaterials::Instance()->PrepareRequiredMaterials(execOptions->Options().verbose);
 
@@ -402,10 +406,20 @@ int CNBDSIM::Initialise()
 
 void CNBDSIM::BeamOn(int nGenerate)
 {
-//CERN access the list of elements in an editable form
+  nGenerate = 100; //CERN force 100 particles TODO
+  //open geometry in preparation of changing it
+  G4GeometryManager::GetInstance()->OpenGeometry();
 
+
+  BDSAcceleratorComponentRegistry::Instance()->ClearRegistry();
+
+//CERN access the list of elements in an editable form
   for(auto it = parser->beamline_list.begin(); it != parser->beamline_list.end(); ++it){
-    if(it->B > 0.0) it->B += 10.0;
+//    std::string tmpname = it->name;
+//    tmpname += "_alpha";
+//    it->name = tmpname;
+//    it->l += 1e-4;
+//    if(it->k1 > 0.0001) it->k1 = 1.23;
 //    G4cout<<"Printing list of element names "<<it->name<<"  "<<it->B<<G4endl;
   }
 
@@ -421,34 +435,38 @@ void CNBDSIM::BeamOn(int nGenerate)
 //                                             "/home/output_file2.root");
 //
 //  /// Register the geometry and parallel world construction methods with run manager.
-//  realWorld = new BDSDetectorConstruction(userComponentFactory);
-//  
+  auto *tmprealWorld = new BDSDetectorConstruction(userComponentFactory);
+
 //  /// Here the geometry isn't actually constructed - this is called by the runManager->Initialize()
-//  auto parallelWorldsRequiringPhysics = BDS::ConstructAndRegisterParallelWorlds(realWorld,
-//                                                                                realWorld->BuildSamplerWorld(),
-//                                                                                realWorld->BuildPlacementFieldsWorld());
-//  runManager->SetUserInitialization(realWorld);
+  auto tmpparallelWorldsRequiringPhysics = BDS::ConstructAndRegisterParallelWorlds(tmprealWorld,
+                                                                                tmprealWorld->BuildSamplerWorld(),
+                                                                                tmprealWorld->BuildPlacementFieldsWorld());
+
+  auto tmpparallelWorldPhysics = BDS::ConstructParallelWorldPhysics(tmpparallelWorldsRequiringPhysics);
+
+  runManager->SetUserInitialization(tmprealWorld);
 //
 //
-//  auto parallelWorldPhysics = BDS::ConstructParallelWorldPhysics(parallelWorldsRequiringPhysics);
+
+
 //  G4int physicsVerbosity = globals->PhysicsVerbosity();
 //
-//  BDSParticleDefinition* designParticle = nullptr;
-////  BDSParticleDefinition* beamParticle = nullptr;
-//  G4bool beamDifferentFromDesignParticle = false;
-//  BDS::ConstructDesignAndBeamParticle(BDSParser::Instance()->GetBeam(),
-//                                      globals->FFact(),
-//                                      designParticle,
-//                                      beamParticle,
-//                                      beamDifferentFromDesignParticle);
+  BDSParticleDefinition* designParticle = nullptr;
+  BDSParticleDefinition* beamParticle = nullptr;
+  G4bool beamDifferentFromDesignParticle = false;
+  BDS::ConstructDesignAndBeamParticle(BDSParser::Instance()->GetBeam(),
+                                      globals->FFact(),
+                                      designParticle,
+                                      beamParticle,
+                                      beamDifferentFromDesignParticle);
 //
 //  // update rigidity where needed
-//  realWorld->SetDesignParticle(designParticle);
-//  BDSFieldFactory::SetDesignParticle(designParticle);
+  tmprealWorld->SetDesignParticle(designParticle);
+  BDSFieldFactory::SetDesignParticle(designParticle);
 //  BDSGeometryFactorySQL::SetDefaultRigidity(designParticle->BRho()); // used for sql field loading
 //
 //
-//  BDS::RegisterSamplerPhysics(parallelWorldPhysics, physList);
+  BDS::RegisterSamplerPhysics(tmpparallelWorldPhysics, physList);
 //  runManager->SetUserInitialization(physList);
 //
 //
@@ -507,7 +525,7 @@ void CNBDSIM::BeamOn(int nGenerate)
 //
 //  /// Initialize G4 kernel
 //  runManager->ReinitializeGeometry();
-////  runManager->Initialize();
+//  runManager->Initialize();
 //
 //  /// Create importance store for parallel importance world
 //  if (globals->UseImportanceSampling())
@@ -549,7 +567,7 @@ void CNBDSIM::BeamOn(int nGenerate)
 
   //CERN change beam properties
   GMAD::Beam beam = parser->GetBeam();
-  beam.X0 -= 1.0 * CLHEP::mm;
+//  beam.X0 -= 1.0 * CLHEP::mm;
 //  delete bdsBunch;
 
   bdsBunch = BDSBunchFactory::CreateBunch(beamParticle,
@@ -577,26 +595,14 @@ void CNBDSIM::BeamOn(int nGenerate)
 
 //  runManager->GeometryHasBeenModified();
 //  runManager->SetUserAction(new MyPrimaryGeneratorAction());
-//  runManager->ReinitializeGeometry();
+  runManager->ReinitializeGeometry();
+
+
   runManager->Initialize();
 
-
-  if (initialisationResult > 1 || !initialised)
-    {return;} // a mode where we don't do anything
-
-  G4cout.precision(10);
-  /// Catch aborts to close output stream/file. perhaps not all are needed.
-  struct sigaction act;
-  act.sa_handler = &BDS::HandleAborts;
-  sigemptyset(&act.sa_mask);
-  act.sa_flags = 0;
-  if (!ignoreSIGINT)
-    {sigaction(SIGINT,  &act, nullptr);}
-  sigaction(SIGABRT, &act, nullptr);
-  sigaction(SIGTERM, &act, nullptr);
-  sigaction(SIGSEGV, &act, nullptr);
-  
   /// Run in either interactive or batch mode
+  G4GeometryManager::GetInstance()->CloseGeometry();
+
   try
     {
       if (!BDSGlobalConstants::Instance()->Batch())   // Interactive mode

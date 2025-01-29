@@ -31,6 +31,7 @@ class G4VModularPhysicsList;
 class BDSPrimaryGeneratorAction;
 class BDSParticleDefinition;
 class BDSGlobalConstants;
+class BDSAcceleratorComponentRegistry;
 
 #include "G4String.hh"
 

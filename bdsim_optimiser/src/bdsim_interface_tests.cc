@@ -31,19 +31,29 @@ int main(int argc, char **argv){
   char ngen[256] = "--ngenerate=200";
   char outfile[256] = "--outfile=/home/bdsim_output";
   char seed[256] = "--seed=1989";
+  //char verbose[256] = "--verbose=0";
   dargv[1] = path;
   dargv[2] = batch;
   dargv[3] = ngen;
   dargv[4] = outfile;
   dargv[5] = seed;
+//  dargv[6] = verbose;
 
 
   inter.bds->Initialise(5, dargv);
+ 
   std::cout<<"Initialised!!\n\n"<<std::endl;
   inter.bds->BeamOn();
+
+  delete &inter;
+
+
+  Interface inter2(ssemDataFile, baseBeamlineFile, nPars, nMagnetPars, nBeamPars);
+  inter2.bds->Initialise(5, dargv);
+  inter2.bds->BeamOn();
   std::cout<<"Beam on done!!\n\n"<<std::endl;
-  inter.bds->BeamOn();
-  std::cout<<"Beam on done!!\n\n"<<std::endl;
+//  inter.bds->BeamOn();
+//  std::cout<<"Beam on done!!\n\n"<<std::endl;
 
 
 
@@ -55,7 +65,7 @@ int main(int argc, char **argv){
   auto endtime = std::chrono::high_resolution_clock::now();
   auto time = std::chrono::duration_cast<std::chrono::microseconds>(endtime-starttime).count();
   std::cout<<"Took "<<time*1e-6<<"s to run"<<std::endl;
- 
+
   return 0;
 
 }
