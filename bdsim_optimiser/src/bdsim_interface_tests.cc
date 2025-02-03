@@ -44,17 +44,22 @@ int main(int argc, char **argv){
  
   std::cout<<"Initialised!!\n\n"<<std::endl;
   inter.bds->BeamOn();
-
-  delete &inter;
-
-
-  Interface inter2(ssemDataFile, baseBeamlineFile, nPars, nMagnetPars, nBeamPars);
-  inter2.bds->Initialise(5, dargv);
-  inter2.bds->BeamOn();
+//  inter2.bds->BeamOn();
   std::cout<<"Beam on done!!\n\n"<<std::endl;
-//  inter.bds->BeamOn();
+
+  std::vector<int> times;
+  for(int i=0; i<0; i++){
+    auto loopstarttime = std::chrono::high_resolution_clock::now();
+    inter.bds->BeamOn();
+    auto loopendtime = std::chrono::high_resolution_clock::now();
+    auto looptime = std::chrono::duration_cast<std::chrono::microseconds>(loopendtime-loopstarttime).count();
+    times.push_back(looptime);
+  }  
 //  std::cout<<"Beam on done!!\n\n"<<std::endl;
 
+
+
+  for(auto t : times) std::cout<<t*1e-6<<std::endl;
 
 
   auto iterendtime = std::chrono::high_resolution_clock::now();
@@ -65,6 +70,8 @@ int main(int argc, char **argv){
   auto endtime = std::chrono::high_resolution_clock::now();
   auto time = std::chrono::duration_cast<std::chrono::microseconds>(endtime-starttime).count();
   std::cout<<"Took "<<time*1e-6<<"s to run"<<std::endl;
+
+
 
   return 0;
 

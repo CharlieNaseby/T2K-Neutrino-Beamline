@@ -41,7 +41,11 @@ along with BDSIM.  If not, see <http://www.gnu.org/licenses/>.
 #include "G4ParticleGun.hh"
 #include "G4StateManager.hh"
 
-
+#include "G4PhysicalVolumeStore.hh"
+#include "G4LogicalVolumeStore.hh"
+#include "G4SolidStore.hh"  
+  
+  
 #include "CLHEP/Units/SystemOfUnits.h"
 
 #include "BDSAcceleratorModel.hh"
@@ -83,7 +87,11 @@ along with BDSIM.  If not, see <http://www.gnu.org/licenses/>.
 #include "BDSVisManager.hh"
 #include "BDSWarning.hh"
 #include "BDSAcceleratorComponentRegistry.hh"
-
+#include "BDSFieldBuilder.hh"
+#include "BDSFieldMagQuadrupole.hh"
+#include "BDSFieldObjects.hh"
+#include "BDSFieldInfo.hh"
+#include "BDSFieldMagGlobalPlacement.hh"
 
 
 //wild optimism
@@ -353,7 +361,6 @@ int CNBDSIM::Initialise()
   
   primaryGeneratorAction = new BDSPrimaryGeneratorAction(bdsBunch, parser->GetBeam(), globals->Batch());
 
-  std::cout<<"\n\n\n parser->GetBeam() "<<typeid(parser->GetBeam()).name()<<std::endl;
 
 
   // possibly updated after the primary generator as loaded a beam file
@@ -404,53 +411,122 @@ int CNBDSIM::Initialise()
   return 0;
 }
 
+
 void CNBDSIM::BeamOn(int nGenerate)
 {
-  nGenerate = 100; //CERN force 100 particles TODO
-  //open geometry in preparation of changing it
-  G4GeometryManager::GetInstance()->OpenGeometry();
+  
+//  BDSDetectorConstruction::Instance()->ConstructSDandField();
+
+//bdsfieldobjects includes both the field and the integrator both use the strength to calculate things
+
+  for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){
+    G4cout << "looping over fields " << i << G4endl;
+//    G4cout << (*BDSFieldObjects)(BDSAcceleratorModel::Instance()->fields[i]) <<G4endl;
+    if(BDSAcceleratorModel::Instance()->fields[i]->GetInfo()->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
+      G4cout << "passes string check quad " << G4endl;
+//      BDSAcceleratorModel::Instance()->fields[i]->PrintIntegrator();
+//      auto *p = (BDSFieldMag*)(BDSAcceleratorModel::Instance()->fields[i]->GetField());
+//      auto *globplace = dynamic_cast<BDSFieldMag*>(BDSAcceleratorModel::Instance()->fields[i]->GetField());
+//      auto *castglobplace = dynamic_cast<BDSFieldMagGlobalPlacement*>(globplace);
+//      auto *field = globplace->field;
+//      auto *quadfield = dynamic_cast<BDSFieldMagQuadrupole*>(field);
+//      G4cout << "bprime from getfiled " << ((BDSFieldMagQuadrupole*)(((BDSFieldMagGlobalPlacement*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->bPrime << G4endl;
+      G4cout << "bprime from integrator " << ((BDSIntegratorQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()))->bPrime << G4endl;
+      auto *integrator = ((BDSIntegratorQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
+      if(integrator->bPrime > 0) integrator->bPrime*=1.0;
+    }
+    if(auto obj = dynamic_cast<BDSFieldMagQuadrupole*>(BDSAcceleratorModel::Instance()->fields[i]->GetField())){
+      G4cout <<"Object is of type quadrupole" << G4endl;
+    }
+    else{
+      G4cout << BDSAcceleratorModel::Instance()->fields[i]->GetInfo()->FieldType() <<G4endl;
+      G4cout << "Object is NOT of type quadrupole" << G4endl;
+    }
 
 
-  BDSAcceleratorComponentRegistry::Instance()->ClearRegistry();
+//    f->AttachToVolume(BDSFieldBuilder::Instance()->lvs[i], BDSFilend) 
 
-//CERN access the list of elements in an editable form
-  for(auto it = parser->beamline_list.begin(); it != parser->beamline_list.end(); ++it){
-//    std::string tmpname = it->name;
-//    tmpname += "_alpha";
-//    it->name = tmpname;
-//    it->l += 1e-4;
-//    if(it->k1 > 0.0001) it->k1 = 1.23;
-//    G4cout<<"Printing list of element names "<<it->name<<"  "<<it->B<<G4endl;
   }
 
+
+  if (initialisationResult > 1 || !initialised)
+    {return;} // a mode where we don't do anything
+
+  G4cout.precision(10);
+  /// Catch aborts to close output stream/file. perhaps not all are needed.
+  struct sigaction act;
+  act.sa_handler = &BDS::HandleAborts;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags = 0;
+  if (!ignoreSIGINT)
+    {sigaction(SIGINT,  &act, nullptr);}
+  sigaction(SIGABRT, &act, nullptr);
+  sigaction(SIGTERM, &act, nullptr);
+  sigaction(SIGSEGV, &act, nullptr);
+  
+  /// Run in either interactive or batch mode
+  try
+    {
+      if (!BDSGlobalConstants::Instance()->Batch())   // Interactive mode
+        {
+          BDSVisManager visManager = BDSVisManager(BDSGlobalConstants::Instance()->VisMacroFileName(),
+                                                   BDSGlobalConstants::Instance()->Geant4MacroFileName(),
+                                                   realWorld,
+                                                   BDSGlobalConstants::Instance()->VisVerbosity());
+          visManager.StartSession(argcCache, argvCache);
+        }
+      else
+        {// batch mode
+          if (nGenerate < 0)
+            {runManager->BeamOn(BDSGlobalConstants::Instance()->NGenerate());}
+          else
+            {runManager->BeamOn(nGenerate);}
+        }
+    }
+  catch (const BDSException& exception)
+    {
+      // don't do this for now in case it's dangerous and we try tracking with open geometry
+      //G4GeometryManager::GetInstance()->OpenGeometry();
+      throw exception;
+    }
+
+}
+
+/*
+void CNBDSIM::BeamOn2(int nGenerate){
+  G4RunManager::GetRunManager()->GeometryHasBeenModified();
+//  G4GeometryManager::GetInstance()->OpenGeometry();
+
+  G4RunManager::GetRunManager()->DefineWorldVolume(nullptr, false);
+  G4PhysicalVolumeStore::GetInstance()->Clean();
+  G4LogicalVolumeStore::GetInstance()->Clean();
+  G4SolidStore::GetInstance()->Clean();
+  int numVolumes = G4PhysicalVolumeStore::GetInstance()->size();
+  G4cout << "number of volumes = " << numVolumes << G4endl;
+
+
+//  nGenerate = 100;
+  //open geometry in preparation of changing it
+
+  //need to prevent bdsim caching the elements and returning them to us
+  BDSAcceleratorComponentRegistry::Instance()->ClearRegistry();
+//  BDSFieldBuilder::Instance()->ClearRegistry();
+//CERN access the list of elements in an editable form
+  for(auto it = parser->beamline_list.begin(); it != parser->beamline_list.end(); ++it){
+    if(it->k1 > 0.0001) it->k1 = 1.23;
+  }
+
+//CERN
 //  delete bdsOutput;
 //  delete realWorld;
 
-///////////////////////////////////////////////////////////////
+// Register the geometry and parallel world construction methods with run manager.
+  realWorld = new BDSDetectorConstruction(userComponentFactory);
 
-//  G4StateManager::GetStateManager()->SetNewState(G4State_PreInit);
-//
-//  /// Construct output
-//  bdsOutput = BDSOutputFactory::CreateOutput(globals->OutputFormat(),
-//                                             "/home/output_file2.root");
-//
-//  /// Register the geometry and parallel world construction methods with run manager.
-  auto *tmprealWorld = new BDSDetectorConstruction(userComponentFactory);
-
-//  /// Here the geometry isn't actually constructed - this is called by the runManager->Initialize()
-  auto tmpparallelWorldsRequiringPhysics = BDS::ConstructAndRegisterParallelWorlds(tmprealWorld,
-                                                                                tmprealWorld->BuildSamplerWorld(),
-                                                                                tmprealWorld->BuildPlacementFieldsWorld());
-
-  auto tmpparallelWorldPhysics = BDS::ConstructParallelWorldPhysics(tmpparallelWorldsRequiringPhysics);
-
-  runManager->SetUserInitialization(tmprealWorld);
-//
-//
+// Here the geometry isn't actually constructed - this is called by the runManager->Initialize()
+  runManager->SetUserInitialization(realWorld);
 
 
-//  G4int physicsVerbosity = globals->PhysicsVerbosity();
-//
   BDSParticleDefinition* designParticle = nullptr;
   BDSParticleDefinition* beamParticle = nullptr;
   G4bool beamDifferentFromDesignParticle = false;
@@ -459,116 +535,20 @@ void CNBDSIM::BeamOn(int nGenerate)
                                       designParticle,
                                       beamParticle,
                                       beamDifferentFromDesignParticle);
-//
 //  // update rigidity where needed
-  tmprealWorld->SetDesignParticle(designParticle);
-  BDSFieldFactory::SetDesignParticle(designParticle);
-//  BDSGeometryFactorySQL::SetDefaultRigidity(designParticle->BRho()); // used for sql field loading
-//
-//
-  BDS::RegisterSamplerPhysics(tmpparallelWorldPhysics, physList);
-//  runManager->SetUserInitialization(physList);
-//
-//
-//  //CERN change beam properties
-//  GMAD::Beam beam = parser->GetBeam();
-//  beam.X0 -= 10. * CLHEP::mm;
-//
-//
-//
-//  /// Instantiate the specific type of bunch distribution.
-//  bdsBunch = BDSBunchFactory::CreateBunch(beamParticle,
-//                                          parser->GetBeam(),
-//                                          globals->BeamlineTransform(),
-//                                          globals->BeamlineS(),
-//                                          globals->GeneratePrimariesOnly());
-//  /// We no longer need beaParticle so delete it to avoid confusion. The definition is
-//  /// held inside bdsBunch (can be updated dynamically).
-//// CERN  delete beamParticle;
-//  /// Construct extra common particles for possible tracking if required without using a physics list.
-//  if (bdsBunch->ExpectChangingParticleType())
-//    {BDS::ConstructExtendedParticleSet();}
-//  
-//  BDSEventAction* eventAction = new BDSEventAction(bdsOutput);
-//  runManager->SetUserAction(eventAction);
-//  
-//  BDSRunAction* runAction = new BDSRunAction(bdsOutput,
-//                                             bdsBunch,
-//                                             bdsBunch->ParticleDefinition()->IsAnIon(),
-//                                             eventAction,
-//                                             globals->StoreTrajectorySamplerID());
-//  runManager->SetUserAction(runAction);
-//  
-//  // Only add stepping action if it is actually used, so do check here (for performance reasons)
-//  G4int verboseSteppingEventStart = globals->VerboseSteppingEventStart();
-//  G4int verboseSteppingEventStop  = BDS::VerboseEventStop(verboseSteppingEventStart,
-//                                                          globals->VerboseSteppingEventContinueFor());
-//  
-//  runManager->SetUserAction(new BDSTrackingAction(globals->Batch(),
-//                                                  globals->StoreTrajectory(),
-//                                                  globals->StoreTrajectoryOptions(),
-//                                                  eventAction,
-//                                                  verboseSteppingEventStart,
-//                                                  verboseSteppingEventStop,
-//                                                  globals->VerboseSteppingPrimaryOnly(),
-//                                                  globals->VerboseSteppingLevel()));
-//
-//  runManager->SetUserAction(new BDSStackingAction(globals));
-//  
-//  primaryGeneratorAction = new BDSPrimaryGeneratorAction(bdsBunch, parser->GetBeam(), globals->Batch());
-//
-//  // possibly updated after the primary generator as loaded a beam file
-//  eventAction->SetPrintModulo(BDSGlobalConstants::Instance()->PrintModuloEvents());
-//  runManager->SetUserAction(primaryGeneratorAction);
-//  BDSFieldFactory::SetPrimaryGeneratorAction(primaryGeneratorAction);
-//
-//
-//  /// Initialize G4 kernel
-//  runManager->ReinitializeGeometry();
-//  runManager->Initialize();
-//
-//  /// Create importance store for parallel importance world
-//  if (globals->UseImportanceSampling())
-//    {BDS::AddIStore(parallelWorldsRequiringPhysics);}
-//
-//  /// Implement bias operations on all volumes only after G4RunManager::Initialize()
-////  realWorld->BuildPhysicsBias();
-//
-//  /// Set verbosity levels at run and G4 event level. Per event and stepping are controlled
-//  /// in event, tracking and stepping action. These have to be done here due to the order
-//  /// of construction in Geant4.
-//  runManager->SetVerboseLevel(std::min(globals->VerboseRunLevel(), globals->PhysicsVerbosity()));
-//  G4EventManager::GetEventManager()->SetVerboseLevel(globals->VerboseEventLevel());
-//  G4EventManager::GetEventManager()->GetTrackingManager()->SetVerboseLevel(globals->VerboseTrackingLevel());
-//  
-//  /// Close the geometry in preparation for running - everything is now fixed.
-//  G4bool bCloseGeometry = G4GeometryManager::GetInstance()->CloseGeometry();
-//
-//  if (globals->ExportGeometry())
-//    {
-//      BDSGeometryWriter geometrywriter;
-//      geometrywriter.ExportGeometry(globals->ExportType(),
-//                                    globals->ExportFileName());
-//    }
+  realWorld->SetDesignParticle(designParticle);
 
-
-
-///////////////////////////////////////////////////////////////
 
   bdsOutput = BDSOutputFactory::CreateOutput(globals->OutputFormat(),
                                              "/home/output2");
 
-
   BDSEventAction* tmpeventAction = new BDSEventAction(bdsOutput);
   runManager->SetUserAction(tmpeventAction);
-
-
-//  realWorld->UpdateSamplerDiameterAndCountSamplers();
 
   //CERN change beam properties
   GMAD::Beam beam = parser->GetBeam();
 //  beam.X0 -= 1.0 * CLHEP::mm;
-//  delete bdsBunch;
+//  delete bdsBunch;  //CERN
 
   bdsBunch = BDSBunchFactory::CreateBunch(beamParticle,
                                           beam,
@@ -598,7 +578,7 @@ void CNBDSIM::BeamOn(int nGenerate)
   runManager->ReinitializeGeometry();
 
 
-  runManager->Initialize();
+//  runManager->Initialize();
 
   /// Run in either interactive or batch mode
   G4GeometryManager::GetInstance()->CloseGeometry();
@@ -629,6 +609,9 @@ void CNBDSIM::BeamOn(int nGenerate)
     }
 //    delete tmpPrimaryGeneratorAction;
 }
+
+*/
+
 
 CNBDSIM::~CNBDSIM()
 {
@@ -672,6 +655,7 @@ CNBDSIM::~CNBDSIM()
   if (usualPrintOut)
     {G4cout << __METHOD_NAME__ << "End of Run. Thank you for using BDSIM!" << G4endl;}
 }
+
 
 void CNBDSIM::RegisterUserComponent(const G4String& componentTypeName,
                                   BDSComponentConstructor* componentConstructor)
