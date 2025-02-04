@@ -34,6 +34,9 @@ class BDSGlobalConstants;
 class BDSAcceleratorComponentRegistry;
 
 #include "G4String.hh"
+#include <vector>
+#include <array>
+#include <numeric>
 
 
 /** 
@@ -78,7 +81,7 @@ public:
   /// from the standard input e.g. the executable option ngenerate and then the one specified
   /// in the input gmad files as an option.
   void BeamOn(int nGenerate=-1);
-
+  std::vector<std::array<double, 4> > CalcBeamPars();
   /// Register a custom user beam line element by the type name you'd like it to have
   /// and the (user-provided) constructor that can construct it.
   void RegisterUserComponent(const G4String& componentTypeName,
@@ -95,7 +98,8 @@ public:
 //private:
   /// The main function where everything is constructed.
   int Initialise();
-  
+
+  G4String randomState; 
   bool   ignoreSIGINT;         ///< For cmake testing.
   bool   usualPrintOut;        ///< Whether to allow the usual cout output.
   bool   initialised;          ///< Whether initialisation was completed safely

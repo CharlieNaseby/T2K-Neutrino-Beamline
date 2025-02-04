@@ -92,6 +92,10 @@ along with BDSIM.  If not, see <http://www.gnu.org/licenses/>.
 #include "BDSFieldObjects.hh"
 #include "BDSFieldInfo.hh"
 #include "BDSFieldMagGlobalPlacement.hh"
+#include "BDSIntegratorQuadrupole.hh"
+#include "BDSIntegratorDipoleQuadrupole.hh"
+#include "BDSOutputROOTEventSampler.hh"
+
 
 
 //wild optimism
@@ -408,44 +412,35 @@ int CNBDSIM::Initialise()
     }
 
   initialised = true;
+
+  randomState = BDSRandom::GetSeedState();
+
   return 0;
 }
 
 
 void CNBDSIM::BeamOn(int nGenerate)
 {
-  
-//  BDSDetectorConstruction::Instance()->ConstructSDandField();
+  BDSRandom::SetSeed(1989); // set the seed at the start of each run
+  for(auto tr : bdsOutput->samplerTrees) tr->FlushCache();  //clear the storage for the samplers
 
-//bdsfieldobjects includes both the field and the integrator both use the strength to calculate things
+//bdsfieldobjects includes both the field and the integrator both use the strength
+//to calculate things but we only need to change integrator for our purposes
 
-  for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){
-    G4cout << "looping over fields " << i << G4endl;
-//    G4cout << (*BDSFieldObjects)(BDSAcceleratorModel::Instance()->fields[i]) <<G4endl;
-    if(BDSAcceleratorModel::Instance()->fields[i]->GetInfo()->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
-      G4cout << "passes string check quad " << G4endl;
-//      BDSAcceleratorModel::Instance()->fields[i]->PrintIntegrator();
-//      auto *p = (BDSFieldMag*)(BDSAcceleratorModel::Instance()->fields[i]->GetField());
-//      auto *globplace = dynamic_cast<BDSFieldMag*>(BDSAcceleratorModel::Instance()->fields[i]->GetField());
-//      auto *castglobplace = dynamic_cast<BDSFieldMagGlobalPlacement*>(globplace);
-//      auto *field = globplace->field;
-//      auto *quadfield = dynamic_cast<BDSFieldMagQuadrupole*>(field);
-//      G4cout << "bprime from getfiled " << ((BDSFieldMagQuadrupole*)(((BDSFieldMagGlobalPlacement*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->bPrime << G4endl;
-      G4cout << "bprime from integrator " << ((BDSIntegratorQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()))->bPrime << G4endl;
+  for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
+    auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
+    if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
       auto *integrator = ((BDSIntegratorQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
-      if(integrator->bPrime > 0) integrator->bPrime*=1.0;
+      if(integrator->bPrime > 0){
+//        integrator->bPrime = fieldInfo->BRho() * 1.23/CLHEP::m2;
+        G4cout <<"setting quad strength to k1 = 1.23 bPrime = " << integrator->bPrime << G4endl;
+      }
     }
-    if(auto obj = dynamic_cast<BDSFieldMagQuadrupole*>(BDSAcceleratorModel::Instance()->fields[i]->GetField())){
-      G4cout <<"Object is of type quadrupole" << G4endl;
+    else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipole"))){
+      G4cout << "dipole field" << G4endl;
+      auto *integrator = ((BDSIntegratorDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
+
     }
-    else{
-      G4cout << BDSAcceleratorModel::Instance()->fields[i]->GetInfo()->FieldType() <<G4endl;
-      G4cout << "Object is NOT of type quadrupole" << G4endl;
-    }
-
-
-//    f->AttachToVolume(BDSFieldBuilder::Instance()->lvs[i], BDSFilend) 
-
   }
 
 
@@ -490,127 +485,37 @@ void CNBDSIM::BeamOn(int nGenerate)
       throw exception;
     }
 
+  double xstart = bdsOutput->samplerTrees[0]->xcache[0];
+  G4cout << xstart << G4endl;
+    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->xcache.size() <<std::endl;
 }
 
-/*
-void CNBDSIM::BeamOn2(int nGenerate){
-  G4RunManager::GetRunManager()->GeometryHasBeenModified();
-//  G4GeometryManager::GetInstance()->OpenGeometry();
-
-  G4RunManager::GetRunManager()->DefineWorldVolume(nullptr, false);
-  G4PhysicalVolumeStore::GetInstance()->Clean();
-  G4LogicalVolumeStore::GetInstance()->Clean();
-  G4SolidStore::GetInstance()->Clean();
-  int numVolumes = G4PhysicalVolumeStore::GetInstance()->size();
-  G4cout << "number of volumes = " << numVolumes << G4endl;
-
-
-//  nGenerate = 100;
-  //open geometry in preparation of changing it
-
-  //need to prevent bdsim caching the elements and returning them to us
-  BDSAcceleratorComponentRegistry::Instance()->ClearRegistry();
-//  BDSFieldBuilder::Instance()->ClearRegistry();
-//CERN access the list of elements in an editable form
-  for(auto it = parser->beamline_list.begin(); it != parser->beamline_list.end(); ++it){
-    if(it->k1 > 0.0001) it->k1 = 1.23;
-  }
-
-//CERN
-//  delete bdsOutput;
-//  delete realWorld;
-
-// Register the geometry and parallel world construction methods with run manager.
-  realWorld = new BDSDetectorConstruction(userComponentFactory);
-
-// Here the geometry isn't actually constructed - this is called by the runManager->Initialize()
-  runManager->SetUserInitialization(realWorld);
+std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
+    std::vector<std::array<double, 4> > ssemPred;
+    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->x.size() <<std::endl;
+    ssemPred.reserve(bdsOutput->samplerTrees.size());
+    for(int i=0; i<bdsOutput->samplerTrees.size(); i++){ //loop over ssems
+      std::vector<float> x = (*bdsOutput->samplerTrees[i]).xcache;
+      double meanx = std::accumulate(x.begin(), x.end(), 0.0) / x.size();
+      // Compute Standard Deviation using lambda
+      double stddevx = std::sqrt(std::accumulate(x.begin(), x.end(), 0.0,
+        [meanx](float acc, float val) { return acc + (val - meanx) * (val - meanx); }) / x.size());
 
 
-  BDSParticleDefinition* designParticle = nullptr;
-  BDSParticleDefinition* beamParticle = nullptr;
-  G4bool beamDifferentFromDesignParticle = false;
-  BDS::ConstructDesignAndBeamParticle(BDSParser::Instance()->GetBeam(),
-                                      globals->FFact(),
-                                      designParticle,
-                                      beamParticle,
-                                      beamDifferentFromDesignParticle);
-//  // update rigidity where needed
-  realWorld->SetDesignParticle(designParticle);
+      std::vector<float> y = bdsOutput->samplerTrees[i]->ycache;
+      double meany = std::accumulate(y.begin(), y.end(), 0.0) / y.size();
 
-
-  bdsOutput = BDSOutputFactory::CreateOutput(globals->OutputFormat(),
-                                             "/home/output2");
-
-  BDSEventAction* tmpeventAction = new BDSEventAction(bdsOutput);
-  runManager->SetUserAction(tmpeventAction);
-
-  //CERN change beam properties
-  GMAD::Beam beam = parser->GetBeam();
-//  beam.X0 -= 1.0 * CLHEP::mm;
-//  delete bdsBunch;  //CERN
-
-  bdsBunch = BDSBunchFactory::CreateBunch(beamParticle,
-                                          beam,
-                                          globals->BeamlineTransform(),
-                                          globals->BeamlineS(),
-                                          globals->GeneratePrimariesOnly());
-
-  auto tmpPrimaryGeneratorAction = new BDSPrimaryGeneratorAction(bdsBunch, beam, globals->Batch());
-
-//  delete runAction;
-
-  BDSRunAction* runAction = new BDSRunAction(bdsOutput,
-                                             bdsBunch,
-                                             bdsBunch->ParticleDefinition()->IsAnIon(),
-                                             tmpeventAction,
-                                             globals->StoreTrajectorySamplerID());
-  runManager->SetUserAction(runAction);
-
-
-
-  runManager->SetUserAction(tmpPrimaryGeneratorAction);
-  BDSFieldFactory::SetPrimaryGeneratorAction(tmpPrimaryGeneratorAction);
-
-
-//  runManager->GeometryHasBeenModified();
-//  runManager->SetUserAction(new MyPrimaryGeneratorAction());
-  runManager->ReinitializeGeometry();
-
-
-//  runManager->Initialize();
-
-  /// Run in either interactive or batch mode
-  G4GeometryManager::GetInstance()->CloseGeometry();
-
-  try
-    {
-      if (!BDSGlobalConstants::Instance()->Batch())   // Interactive mode
-        {
-          BDSVisManager visManager = BDSVisManager(BDSGlobalConstants::Instance()->VisMacroFileName(),
-                                                   BDSGlobalConstants::Instance()->Geant4MacroFileName(),
-                                                   realWorld,
-                                                   BDSGlobalConstants::Instance()->VisVerbosity());
-          visManager.StartSession(argcCache, argvCache);
-        }
-      else
-        {// batch mode
-          if (nGenerate < 0)
-            {runManager->BeamOn(BDSGlobalConstants::Instance()->NGenerate());}
-          else
-            {runManager->BeamOn(nGenerate);}
-        }
+      // Compute Standard Deviation using lambda
+      double stddevy = std::sqrt(std::accumulate(y.begin(), y.end(), 0.0,
+        [meany](float acc, float val) { return acc + (val - meany) * (val - meany); }) / y.size());
+      
+      ssemPred[i][0] = meanx;
+      ssemPred[i][1] = meany;
+      ssemPred[i][2] = stddevx;
+      ssemPred[i][3] = stddevy;
     }
-  catch (const BDSException& exception)
-    {
-      // don't do this for now in case it's dangerous and we try tracking with open geometry
-      //G4GeometryManager::GetInstance()->OpenGeometry();
-      throw exception;
-    }
-//    delete tmpPrimaryGeneratorAction;
+  return ssemPred;
 }
-
-*/
 
 
 CNBDSIM::~CNBDSIM()

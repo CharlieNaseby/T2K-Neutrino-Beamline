@@ -28,7 +28,7 @@ int main(int argc, char **argv){
   char *dargv[6];
   char path[256] = "--file=/home/T2K-Neutrino-Beamline/gmad/test.gmad";
   char batch[256] = "--batch";
-  char ngen[256] = "--ngenerate=200";
+  char ngen[256] = "--ngenerate=100";
   char outfile[256] = "--outfile=/home/bdsim_output";
   char seed[256] = "--seed=1989";
   //char verbose[256] = "--verbose=0";
@@ -44,6 +44,10 @@ int main(int argc, char **argv){
  
   std::cout<<"Initialised!!\n\n"<<std::endl;
   inter.bds->BeamOn();
+  std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();
+  for(auto axis : simResult[0]) std::cout << "resulting beam parameters at ssem1 " << axis << std::endl;
+
+
 //  inter2.bds->BeamOn();
   std::cout<<"Beam on done!!\n\n"<<std::endl;
 

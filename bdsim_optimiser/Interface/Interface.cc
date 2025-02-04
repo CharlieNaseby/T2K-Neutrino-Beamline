@@ -351,16 +351,7 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
 }
 
 void Interface::CalcBeamPars(){
-    TFile *fitFile = new TFile("/home/bdsim_output.root");
-    if(fitFile->IsZombie()) std::cout<<"dead file"<<std::endl;
-    TTree *samplerData = static_cast<TTree*>(fitFile->Get("Event"));
-    BDSOutputROOTEventSampler<float> *SSEM1Data = nullptr; //new BDSOutputROOTEventSampler<float>("SSEM1");
-    samplerData->SetBranchAddress("SSEM1.", &SSEM1Data);
-
-    for(int i=0; i<samplerData->GetEntries(); i++){
-        samplerData->GetEntry(i);
-        std::cout<<SSEM1Data->x[0] <<std::endl;
-    }
+  
 }
 
 
@@ -374,12 +365,14 @@ void Interface::TestBdsim(){
 
 double Interface::CalcChisq(const double *pars){
 
-  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
-  std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
+  bds->BeamOn();
 
-  CalcBeamPars();
+//  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
+//  std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
 
-  Optics beamOptics("/home/bdsim_output_optics.root");
+  std::vector<std::array<float, 4> > allSSEMSimulation = bds->CalcBeamPars();
+
+  //Optics beamOptics("/home/bdsim_output_optics.root");
 
 
   double chisq=0;
@@ -389,8 +382,9 @@ double Interface::CalcChisq(const double *pars){
   double chisqwy = 0;
 
   for(int i=0; i<dat.size(); i++){
-    beamOptics.fChain->GetEntry(i+1);
-    std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
+    std::array<float, 4> simulation = allSSEMSimulation[i];
+//    beamOptics.fChain->GetEntry(i+1);
+//    std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
     std::cout<<"SSEM"<<i+1<<" beam sim postion = \t"<<simulation[0]<<", \t"<<simulation[1]<<" data \t"<<dat[i][0]<<", \t"<<dat[i][1]<<std::endl;
     std::cout<<"SSEM"<<i+1<<" beam sim width   = \t"<<simulation[2]<<", \t"<<simulation[3]<<" data \t"<<dat[i][2]<<", \t"<<dat[i][3]<<std::endl;
     chisqx += (dat[i][0]-simulation[0])*(dat[i][0]-simulation[0])/(0.2*0.2);  //CERN 0.2mm uncert on ssem position x
