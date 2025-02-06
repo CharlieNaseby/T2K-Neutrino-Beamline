@@ -370,7 +370,7 @@ double Interface::CalcChisq(const double *pars){
 //  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
 //  std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
 
-  std::vector<std::array<float, 4> > allSSEMSimulation = bds->CalcBeamPars();
+  std::vector<std::array<double, 4> > allSSEMSimulation = bds->CalcBeamPars();
 
   //Optics beamOptics("/home/bdsim_output_optics.root");
 
@@ -382,7 +382,7 @@ double Interface::CalcChisq(const double *pars){
   double chisqwy = 0;
 
   for(int i=0; i<dat.size(); i++){
-    std::array<float, 4> simulation = allSSEMSimulation[i];
+    std::array<double, 4> simulation = allSSEMSimulation[i];
 //    beamOptics.fChain->GetEntry(i+1);
 //    std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
     std::cout<<"SSEM"<<i+1<<" beam sim postion = \t"<<simulation[0]<<", \t"<<simulation[1]<<" data \t"<<dat[i][0]<<", \t"<<dat[i][1]<<std::endl;

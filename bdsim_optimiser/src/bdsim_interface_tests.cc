@@ -43,9 +43,9 @@ int main(int argc, char **argv){
   inter.bds->Initialise(5, dargv);
  
   std::cout<<"Initialised!!\n\n"<<std::endl;
-  inter.bds->BeamOn();
+  inter.bds->BeamOn(1);
   std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();
-  for(auto axis : simResult[0]) std::cout << "resulting beam parameters at ssem1 " << axis << std::endl;
+  for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
 
 
 //  inter2.bds->BeamOn();

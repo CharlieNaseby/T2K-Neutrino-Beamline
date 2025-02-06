@@ -89,15 +89,22 @@ along with BDSIM.  If not, see <http://www.gnu.org/licenses/>.
 #include "BDSAcceleratorComponentRegistry.hh"
 #include "BDSFieldBuilder.hh"
 #include "BDSFieldMagQuadrupole.hh"
+#include "BDSFieldMagDipole.hh"
+#include "BDSFieldMagDipoleQuadrupole.hh"
+#include "BDSFieldMagGlobal.hh"
+
+#include "G4TransportationManager.hh"
+#include "G4FieldManager.hh"
+#include "G4ChordFinder.hh"
+
+
 #include "BDSFieldObjects.hh"
 #include "BDSFieldInfo.hh"
 #include "BDSFieldMagGlobalPlacement.hh"
 #include "BDSIntegratorQuadrupole.hh"
 #include "BDSIntegratorDipoleQuadrupole.hh"
 #include "BDSOutputROOTEventSampler.hh"
-
-
-
+#include "BDSIntegratorDipoleRodrigues2.hh"
 //wild optimism
 class MyPrimaryGeneratorAction : public G4VUserPrimaryGeneratorAction {
     G4ParticleGun* fParticleGun;
@@ -431,18 +438,42 @@ void CNBDSIM::BeamOn(int nGenerate)
     auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
     if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
       auto *integrator = ((BDSIntegratorQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
+      G4cout << "quadrupole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
       if(integrator->bPrime > 0){
 //        integrator->bPrime = fieldInfo->BRho() * 1.23/CLHEP::m2;
         G4cout <<"setting quad strength to k1 = 1.23 bPrime = " << integrator->bPrime << G4endl;
       }
     }
     else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipole"))){
-      G4cout << "dipole field" << G4endl;
+      G4cout << "dipole field " << *fieldInfo->MagnetStrength() << G4endl;
+      G4cout << "dipole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
       auto *integrator = ((BDSIntegratorDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
 
+      G4cout << "dipole field ratio " << integrator->fieldRatio << G4endl;
+      std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
+//      G4cout << name <<" field strength according to the field obj" << ((BDSFieldMagDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->localField << G4endl;
+      ((BDSFieldMag*)(((BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->isDipoleQuadrupole();
+      if(name.find("BPD1") != std::string::npos){
+        std::cout << "found BPD1" << std::endl;
+//        integrator->nominalRho*=0.001;
+//        integrator->dipole->fieldScale = 1.1;
+//        G4cout << "BPD1 field strength according to the field obj" << ((BDSFieldMagDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->dipole->localField << G4endl;
+//        ((BDSFieldMagDipole*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->localField *= 1.1;
+//        ((BDSFieldMagDipole*)(((BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->localField *= 1.1;
+        //lets try something wacky
+//        auto *objs = (BDSFieldObjects*)(BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]);
+
+        //objs->replaceEqofM((G4MagneticField*)(objs->GetField()));
+        
+        (*BDSFieldBuilder::Instance()->infos[i]->magnetStrength)["field"] *= 11;
+      }
     }
   }
-
+//  G4FieldManager* fieldManager = G4TransportationManager::GetTransportationManager()->GetFieldManager();
+//  fieldManager->GetChordFinder()->ResetStepEstimate();
+//  fieldManager->ClearChordFinders();
+  realWorld->ConstructSDandField();
+//  G4RunManager::GetRunManager()->GeometryHasBeenModified();
 
   if (initialisationResult > 1 || !initialised)
     {return;} // a mode where we don't do anything
@@ -485,9 +516,6 @@ void CNBDSIM::BeamOn(int nGenerate)
       throw exception;
     }
 
-  double xstart = bdsOutput->samplerTrees[0]->xcache[0];
-  G4cout << xstart << G4endl;
-    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->xcache.size() <<std::endl;
 }
 
 std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
@@ -499,7 +527,7 @@ std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
       double meanx = std::accumulate(x.begin(), x.end(), 0.0) / x.size();
       // Compute Standard Deviation using lambda
       double stddevx = std::sqrt(std::accumulate(x.begin(), x.end(), 0.0,
-        [meanx](float acc, float val) { return acc + (val - meanx) * (val - meanx); }) / x.size());
+        [meanx](float acc, float val) { return acc + (val - meanx) * (val - meanx); }) / (x.size()-1));
 
 
       std::vector<float> y = bdsOutput->samplerTrees[i]->ycache;
@@ -507,7 +535,7 @@ std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
 
       // Compute Standard Deviation using lambda
       double stddevy = std::sqrt(std::accumulate(y.begin(), y.end(), 0.0,
-        [meany](float acc, float val) { return acc + (val - meany) * (val - meany); }) / y.size());
+        [meany](float acc, float val) { return acc + (val - meany) * (val - meany); }) / (y.size()-1));
       
       ssemPred[i][0] = meanx;
       ssemPred[i][1] = meany;

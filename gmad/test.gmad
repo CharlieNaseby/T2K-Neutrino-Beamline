@@ -18,7 +18,7 @@ bellows_PV1u: drift, l=205.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=2100.001
 
 BPV1_driftu: drift, l=250.0*mm, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
-BPV1: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.0*T, magnetGeometryType="none", apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
+BPV1: sbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.0*T, magnetGeometryType="none", apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
 BPV1_driftd: drift, l=350.0*mm, apertureType="rectangular", aper1=67.0*mm, aper2=100.0*mm;
 
 ! s=3700.001
@@ -38,7 +38,7 @@ bellows_PLGd: drift, l=590.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=6940.001
 
 BPH2_driftu: drift, l=260.0*mm, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
-BPH2: rbend, l=600*mm, angle=0.0, tilt=0.0, B=0.00938302203802535*T, magnetGeometryType="none", apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
+BPH2: sbend, l=600*mm, angle=0.0, tilt=0.0, B=0.00938302203802535*T, magnetGeometryType="none", apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
 BPH2_driftd: drift, l=290.0*mm, apertureType="rectangular", aper1=89.0*mm, aper2=39.0*mm;
 
 ! s=8090.001
@@ -146,7 +146,7 @@ bellows_PV2u: drift, l=360.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=37360.001000000004
 
 BPV2_driftu: drift, l=240.0*mm, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
-BPV2: rbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.018046371698465645*T, magnetGeometryType="none", apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
+BPV2: sbend, l=1000*mm, angle=0.0, tilt=1.5707963, B=-0.018046371698465645*T, magnetGeometryType="none", apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
 BPV2_driftd: drift, l=290.0*mm, apertureType="rectangular", aper1=52.0*mm, aper2=70.0*mm;
 
 ! s=38890.001000000004
@@ -186,7 +186,7 @@ ion_pump_4: drift, l=523.0*mm, apertureType="circular", aper1=95.0*mm;
 ! s=47965.001000000004
 
 BPH3_driftu: drift, l=285.0*mm, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
-BPH3: rbend, l=1000*mm, angle=-1e-07, tilt=0.0, B=0.014865248287525015*T, magnetGeometryType="none", apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
+BPH3: sbend, l=1000*mm, angle=-1e-07, tilt=0.0, B=0.014865248287525015*T, magnetGeometryType="none", apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
 BPH3_driftd: drift, l=335.0*mm, apertureType="rectangular", aper1=70.0*mm, aper2=52.0*mm;
 
 ! s=49585.001000000004
@@ -344,7 +344,8 @@ beam, particle="proton",
 
       X0=-0.5*mm,
       Xp0=3.5e-5,
-      emitx=0.0610768*mm*mrad,
+      emitx=0.00001*mm*mrad,
+!0.0610768*mm*mrad,
       betx=37.098*m,
       alfx=-2.4187,
       dispx=0.42373*m,
@@ -352,13 +353,15 @@ beam, particle="proton",
                         
       Y0=-0.2*mm,
       Yp0=7.8e-5,
-      emity=0.05976*mm*mrad,
+      emity=0.00001*mm*mrad,
+!0.05976*mm*mrad,
       bety=5.45*m,
       alfy=0.178,
       dispy=0.0*m,
       dispyp=0.,
 
       kineticEnergy=30*GeV;
+
 
 option, nturns=1;
 sample, range=SSEM1;
