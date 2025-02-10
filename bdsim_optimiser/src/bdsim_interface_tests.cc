@@ -52,9 +52,11 @@ int main(int argc, char **argv){
   std::cout<<"Beam on done!!\n\n"<<std::endl;
 
   std::vector<int> times;
-  for(int i=0; i<0; i++){
+  for(int i=0; i<200; i++){
     auto loopstarttime = std::chrono::high_resolution_clock::now();
     inter.bds->BeamOn();
+    std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();
+    for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
     auto loopendtime = std::chrono::high_resolution_clock::now();
     auto looptime = std::chrono::duration_cast<std::chrono::microseconds>(loopendtime-loopstarttime).count();
     times.push_back(looptime);

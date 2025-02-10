@@ -430,7 +430,7 @@ void CNBDSIM::BeamOn(int nGenerate)
 {
   BDSRandom::SetSeed(1989); // set the seed at the start of each run
   for(auto tr : bdsOutput->samplerTrees) tr->FlushCache();  //clear the storage for the samplers
-
+  for(auto tr : bdsOutput->samplerTrees) tr->FlushLocal();  //clear the storage for the samplers
 //bdsfieldobjects includes both the field and the integrator both use the strength
 //to calculate things but we only need to change integrator for our purposes
 
@@ -438,21 +438,22 @@ void CNBDSIM::BeamOn(int nGenerate)
     auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
     if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
       auto *integrator = ((BDSIntegratorQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
-      G4cout << "quadrupole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
-      if(integrator->bPrime > 0){
+//      G4cout << "quadrupole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
+//      if(integrator->bPrime > 0){
 //        integrator->bPrime = fieldInfo->BRho() * 1.23/CLHEP::m2;
-        G4cout <<"setting quad strength to k1 = 1.23 bPrime = " << integrator->bPrime << G4endl;
-      }
+//        G4cout <<"setting quad strength to k1 = 1.23 bPrime = " << integrator->bPrime << G4endl;
+        (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] *= 1.01;
+//      }
     }
     else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipole"))){
-      G4cout << "dipole field " << *fieldInfo->MagnetStrength() << G4endl;
-      G4cout << "dipole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
+//      G4cout << "dipole field " << *fieldInfo->MagnetStrength() << G4endl;
+//      G4cout << "dipole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
       auto *integrator = ((BDSIntegratorDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
 
-      G4cout << "dipole field ratio " << integrator->fieldRatio << G4endl;
+//      G4cout << "dipole field ratio " << integrator->fieldRatio << G4endl;
       std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
 //      G4cout << name <<" field strength according to the field obj" << ((BDSFieldMagDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->localField << G4endl;
-      ((BDSFieldMag*)(((BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->isDipoleQuadrupole();
+//      ((BDSFieldMag*)(((BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->isDipoleQuadrupole();
       if(name.find("BPD1") != std::string::npos){
         std::cout << "found BPD1" << std::endl;
 //        integrator->nominalRho*=0.001;
@@ -465,10 +466,12 @@ void CNBDSIM::BeamOn(int nGenerate)
 
         //objs->replaceEqofM((G4MagneticField*)(objs->GetField()));
         
-        (*BDSFieldBuilder::Instance()->infos[i]->magnetStrength)["field"] *= 11;
+        (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] *= 1.01;
       }
     }
   }
+  for(auto f : BDSAcceleratorModel::Instance()->fields) delete f;
+  BDSAcceleratorModel::Instance()->fields.resize(0);
 //  G4FieldManager* fieldManager = G4TransportationManager::GetTransportationManager()->GetFieldManager();
 //  fieldManager->GetChordFinder()->ResetStepEstimate();
 //  fieldManager->ClearChordFinders();
