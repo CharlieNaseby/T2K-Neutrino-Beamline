@@ -1,0 +1,244 @@
+diff -ruN jairhul-bdsim-c725b23739b8/include/BDSAcceleratorModel.hh jairhul-bdsim-minimally_modified_backup/include/BDSAcceleratorModel.hh
+--- jairhul-bdsim-c725b23739b8/include/BDSAcceleratorModel.hh	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/include/BDSAcceleratorModel.hh	2025-02-07 14:55:28.887558087 +0000
+@@ -198,8 +198,9 @@
+   BDSBeamline* tunnelBeamline;            ///< Tunnel segments beam line.
+   BDSBeamline* placementBeamline;         ///< Placement beam line.
+   BDSBeamline* blmsBeamline;              ///< BLMs beam line.
+-  
++  public:
+   std::vector<BDSFieldObjects*>         fields;    ///< All field objects.
++  private:
+   std::map<G4String, BDSRegion*>        regions;
+   std::set<BDSRegion*>                  regionStorage; ///< Unique storage of regions.
+   std::map<G4String, BDSApertureInfo*>  apertures; ///< All apertures.
+diff -ruN jairhul-bdsim-c725b23739b8/include/BDSFieldBuilder.hh jairhul-bdsim-minimally_modified_backup/include/BDSFieldBuilder.hh
+--- jairhul-bdsim-c725b23739b8/include/BDSFieldBuilder.hh	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/include/BDSFieldBuilder.hh	2025-02-07 14:43:00.826109449 +0000
+@@ -84,10 +84,11 @@
+ 
+   /// Singleton instance.
+   static BDSFieldBuilder* instance;
+-  
++  public:
+   /// @{ Register of components to build.
+   std::vector<const BDSFieldInfo*> infos;
+   std::vector<std::vector<G4LogicalVolume*> > lvs;
++  private:
+   std::vector<G4bool>              propagators;
+   /// @}
+ 
+diff -ruN jairhul-bdsim-c725b23739b8/include/BDSOutput.hh jairhul-bdsim-minimally_modified_backup/include/BDSOutput.hh
+--- jairhul-bdsim-c725b23739b8/include/BDSOutput.hh	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/include/BDSOutput.hh	2025-02-07 14:50:24.757691062 +0000
+@@ -157,6 +157,8 @@
+   /// Feedback for protected names.
+   static void PrintProtectedNames(std::ostream& out);
+ 
++  using BDSOutputStructures::samplerTrees;
++
+ protected:
+   /// Get the next file name based on the base file name and the accrued number of files.
+   G4String GetNextFileName();
+diff -ruN jairhul-bdsim-c725b23739b8/include/BDSOutputROOTEventSampler.hh jairhul-bdsim-minimally_modified_backup/include/BDSOutputROOTEventSampler.hh
+--- jairhul-bdsim-c725b23739b8/include/BDSOutputROOTEventSampler.hh	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/include/BDSOutputROOTEventSampler.hh	2025-02-07 11:13:52.460206037 +0000
+@@ -50,6 +50,8 @@
+   std::vector<U>     energy;
+   std::vector<U>     x;
+   std::vector<U>     y;
++  std::vector<U>     xcache;
++  std::vector<U>     ycache;
+   U                  z;
+   std::vector<U>     xp;
+   std::vector<U>     yp;
+@@ -132,6 +134,7 @@
+   void SetBranchAddress(TTree *);
+   virtual void Flush();  ///< Clean Sampler
+ 
++  void FlushCache();
+   void FlushLocal(); ///< Actual flush that is non virtual function to use in constructor.
+ 
+   static BDSOutputROOTParticleData* particleTable;
+diff -ruN jairhul-bdsim-c725b23739b8/include/BDSOutputStructures.hh jairhul-bdsim-minimally_modified_backup/include/BDSOutputStructures.hh
+--- jairhul-bdsim-c725b23739b8/include/BDSOutputStructures.hh	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/include/BDSOutputStructures.hh	2025-02-07 11:12:30.561224771 +0000
+@@ -144,11 +144,13 @@
+ #endif
+   BDSOutputROOTEventCoords* primaryGlobal; /// Global coordinates of primary particle.
+   /// Sampler structures.
++public:
+ #ifdef __ROOTDOUBLE__
+   std::vector<BDSOutputROOTEventSampler<double>*> samplerTrees;
+ #else
+   std::vector<BDSOutputROOTEventSampler<float>*> samplerTrees;
+ #endif
++protected:
+   std::vector<std::string> samplerNames; ///< Sampler names to use.
+   std::vector<BDSOutputROOTEventSamplerC*> samplerCTrees;
+   std::vector<BDSOutputROOTEventSamplerS*> samplerSTrees;
+diff -ruN jairhul-bdsim-c725b23739b8/include/BDSRandom.hh jairhul-bdsim-minimally_modified_backup/include/BDSRandom.hh
+--- jairhul-bdsim-c725b23739b8/include/BDSRandom.hh	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/include/BDSRandom.hh	2025-02-07 10:56:39.816291413 +0000
+@@ -46,6 +46,8 @@
+ 
+   /// Set the initial seed. Takes the seed number from
+   /// BDSGlobalConstants - if negative uses the time.
++  void SetSeed(long seed);
++
+   void SetSeed();
+ 
+   /// Print out seed state to G4cout.
+diff -ruN jairhul-bdsim-c725b23739b8/src/BDSEventAction.cc jairhul-bdsim-minimally_modified_backup/src/BDSEventAction.cc
+--- jairhul-bdsim-c725b23739b8/src/BDSEventAction.cc	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/src/BDSEventAction.cc	2025-02-10 09:39:42.466570401 +0000
+@@ -184,8 +184,9 @@
+   G4int currentEventID = evt->GetEventID();
+   BDSSDTerminator::eventNumber = currentEventID; // update static member of terminator
+   eventInfo->SetIndex(currentEventID);
+-  if (currentEventID % printModulo == 0)
+-    {G4cout << "---> Begin of event: " << currentEventID << G4endl;}
++  //CERN unnecessary output
++//  if (currentEventID % printModulo == 0)
++//    {G4cout << "---> Begin of event: " << currentEventID << G4endl;}
+   if (verboseEventBDSIM) // always print this out
+     {G4cout << __METHOD_NAME__ << "event #" << currentEventID << G4endl;}
+ 
+diff -ruN jairhul-bdsim-c725b23739b8/src/BDSOutput.cc jairhul-bdsim-minimally_modified_backup/src/BDSOutput.cc
+--- jairhul-bdsim-c725b23739b8/src/BDSOutput.cc	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/src/BDSOutput.cc	2025-02-10 09:29:51.051486883 +0000
+@@ -329,46 +329,51 @@
+   energyWorldExit              = 0;
+   energyWorldExitKinetic       = 0;
+   nCollimatorsInteracted       = 0;
+-  
+-  if (vertex && storePrimaries)
+-    {FillPrimary(vertex, turnsTaken);}
+-  FillSamplerHitsVector(samplerHitsPlane);
+-  FillSamplerCylinderHitsVector(samplerHitsCylinder);
+-  FillSamplerSphereHitsVector(samplerHitsSphere);
+-  if (samplerHitsLink)
+-    {FillSamplerHitsLink(samplerHitsLink);}
+-  if (energyLoss)
+-    {FillEnergyLoss(energyLoss,        BDSOutput::LossType::energy);}
+-  if (energyLossFull)
+-    {FillEnergyLoss(energyLossFull,    BDSOutput::LossType::energy);}
+-  if (energyLossVacuum)
+-    {FillEnergyLoss(energyLossVacuum,  BDSOutput::LossType::vacuum);}
+-  if (energyLossTunnel)
+-    {FillEnergyLoss(energyLossTunnel,  BDSOutput::LossType::tunnel);}
+-  if (energyLossWorld)
+-    {FillEnergyLoss(energyLossWorld,   BDSOutput::LossType::world);}
+-  if (worldExitHits)
+-    {FillEnergyLoss(worldExitHits,     BDSOutput::LossType::worldexit);}
+-  if (energyLossWorldContents)
+-    {FillEnergyLoss(energyLossWorldContents, BDSOutput::LossType::worldcontents);}
+-  FillPrimaryHit(primaryHits);
+-  FillPrimaryLoss(primaryLosses);
+-  if (trajectories)
+-    {FillTrajectories(trajectories);}
+-  if (collimatorHits)
+-    {FillCollimatorHits(collimatorHits, primaryLosses);}
+-  if (apertureImpacts)
+-    {FillApertureImpacts(apertureImpactHits);}
+-  FillScorerHits(scorerHits); // map always exists
+ 
+-  // we do this after energy loss and collimator hits as the energy loss
+-  // is integrated for putting in event info and the number of collimators
+-  // interacted with counted
+-  if (info)
+-    {FillEventInfo(info);}
++  FillSamplerHitsVector(samplerHitsPlane);
++ //CERN writing to file is such a drag when we only need the primary positions on the samplers
++  bool store_output = false;
++  if(store_output){
++      
++    if (vertex && storePrimaries)
++      {FillPrimary(vertex, turnsTaken);}
++    FillSamplerCylinderHitsVector(samplerHitsCylinder);
++    FillSamplerSphereHitsVector(samplerHitsSphere);
++    if (samplerHitsLink)
++      {FillSamplerHitsLink(samplerHitsLink);}
++    if (energyLoss)
++      {FillEnergyLoss(energyLoss,        BDSOutput::LossType::energy);}
++    if (energyLossFull)
++      {FillEnergyLoss(energyLossFull,    BDSOutput::LossType::energy);}
++    if (energyLossVacuum)
++      {FillEnergyLoss(energyLossVacuum,  BDSOutput::LossType::vacuum);}
++    if (energyLossTunnel)
++      {FillEnergyLoss(energyLossTunnel,  BDSOutput::LossType::tunnel);}
++    if (energyLossWorld)
++      {FillEnergyLoss(energyLossWorld,   BDSOutput::LossType::world);}
++    if (worldExitHits)
++      {FillEnergyLoss(worldExitHits,     BDSOutput::LossType::worldexit);}
++    if (energyLossWorldContents)
++      {FillEnergyLoss(energyLossWorldContents, BDSOutput::LossType::worldcontents);}
++    FillPrimaryHit(primaryHits);
++    FillPrimaryLoss(primaryLosses);
++    if (trajectories)
++      {FillTrajectories(trajectories);}
++    if (collimatorHits)
++      {FillCollimatorHits(collimatorHits, primaryLosses);}
++    if (apertureImpacts)
++      {FillApertureImpacts(apertureImpactHits);}
++    FillScorerHits(scorerHits); // map always exists
+   
+-  WriteFileEventLevel();
+-  ClearStructuresEventLevel();
++    // we do this after energy loss and collimator hits as the energy loss
++    // is integrated for putting in event info and the number of collimators
++    // interacted with counted
++    if (info)
++      {FillEventInfo(info);}
++    
++    WriteFileEventLevel();
++    ClearStructuresEventLevel();
++  }
+ }
+ 
+ void BDSOutput::CloseAndOpenNewFile()
+diff -ruN jairhul-bdsim-c725b23739b8/src/BDSOutputROOTEventSampler.cc jairhul-bdsim-minimally_modified_backup/src/BDSOutputROOTEventSampler.cc
+--- jairhul-bdsim-c725b23739b8/src/BDSOutputROOTEventSampler.cc	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/src/BDSOutputROOTEventSampler.cc	2025-02-07 11:07:29.174384664 +0000
+@@ -72,6 +72,8 @@
+   energy.push_back((U) (hit->coords.totalEnergy / CLHEP::GeV));
+   x.push_back((U) (hit->coords.x / CLHEP::m));
+   y.push_back((U) (hit->coords.y / CLHEP::m));
++  xcache.push_back((U) (hit->coords.x / CLHEP::m));
++  ycache.push_back((U) (hit->coords.y / CLHEP::m));
+ 
+   xp.push_back((U) (hit->coords.xp));
+   yp.push_back((U) (hit->coords.yp));
+@@ -300,6 +302,13 @@
+ }
+ 
+ template <class U>
++void BDSOutputROOTEventSampler<U>::FlushCache()
++{
++  xcache.clear();
++  ycache.clear();
++}
++
++template <class U>
+ std::vector<U> BDSOutputROOTEventSampler<U>::getKineticEnergy()
+ {
+   std::vector<U> result((unsigned long)n);
+diff -ruN jairhul-bdsim-c725b23739b8/src/BDSRandom.cc jairhul-bdsim-minimally_modified_backup/src/BDSRandom.cc
+--- jairhul-bdsim-c725b23739b8/src/BDSRandom.cc	2024-01-29 19:21:58.000000000 +0000
++++ jairhul-bdsim-minimally_modified_backup/src/BDSRandom.cc	2025-02-07 10:57:50.004155817 +0000
+@@ -89,6 +89,15 @@
+     }
+ }
+ 
++void BDSRandom::SetSeed(long seed)
++{
++  CLHEP::HepRandom::setTheSeed(seed);
++
++  // feedback - get the seed from the generator itself (ensures set correctly)
++  G4cout << __METHOD_NAME__ << "Random number generator's seed = "
++	 << CLHEP::HepRandom::getTheSeed() << G4endl;
++}
++
+ void BDSRandom::SetSeed()
+ {
+ #ifdef BDSDEBUG

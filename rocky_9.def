@@ -8,7 +8,7 @@ From: rockylinux:9
     yum -y install wget curl vim --allowerasing
     yum -y install sudo yum-utils
     yum-config-manager --add-repo https://dl.rockylinux.org/vault/rocky/9.4/devel/x86_64/os/
-    yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel
+    yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
 
 #get CLHEP
     cd /home
@@ -59,9 +59,6 @@ From: rockylinux:9
     cd bdsim
     wget https://bitbucket.org/jairhul/bdsim/get/c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
     tar -xzf c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
-    #need to make one modification to BDSIM source unfortunately replacing a private inheritance with public
-    sed -i '/class BDSParser/c\class BDSParser: private GMAD::Parser/' jairhul-bdsim-c725b23739b8/include/BDSParser.hh
-    sed -i '/using GMAD::Parser::GetBeamline/a\  using GMAD::Parser::beamline_list;' jairhul-bdsim-c725b23739b8/include/BDSParser.hh
     mkdir bdsim-build
     cd bdsim-build
     cmake ../jairhul-bdsim-c725b23739b8/
