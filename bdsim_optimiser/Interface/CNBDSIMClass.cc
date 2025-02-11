@@ -338,7 +338,7 @@ int CNBDSIM::Initialise()
     }
   
   /// Set user action classes
-  BDSEventAction* eventAction = new BDSEventAction(bdsOutput);
+  eventAction = new BDSEventAction(bdsOutput);
   runManager->SetUserAction(eventAction);
   
   BDSRunAction* runAction = new BDSRunAction(bdsOutput,
@@ -425,8 +425,34 @@ int CNBDSIM::Initialise()
   return 0;
 }
 
+double CNBDSIM::GetParameterValue(std::string key){
+    if(key == "X0") return parser->GetBeam().X0;
+    else if(key == "Xp0") return parser->GetBeam().Xp0;
+    else if(key == "emitx") return parser->GetBeam().emitx;
+    else if(key == "betx") return parser->GetBeam().betx;
+    else if(key == "alfx") return parser->GetBeam().alfx;
+    else if(key == "Y0") return parser->GetBeam().Y0;
+    else if(key == "Yp0") return parser->GetBeam().Yp0;
+    else if(key == "emity") return parser->GetBeam().emity;
+    else if(key == "bety") return parser->GetBeam().bety;
+    else if(key == "alfy") return parser->GetBeam().alfy;
+    else{
+      for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
+        auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
+        std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
+        if(name.find(key) != std::string::npos){
+          if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole")))
+            return (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"];
+          else 
+            return 1000.0*(*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"];
+        }
+      }
+    }
+    return -999;
+}
 
-void CNBDSIM::BeamOn(int nGenerate)
+
+void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
 {
   BDSRandom::SetSeed(1989); // set the seed at the start of each run
   for(auto tr : bdsOutput->samplerTrees) tr->FlushCache();  //clear the storage for the samplers
@@ -436,47 +462,63 @@ void CNBDSIM::BeamOn(int nGenerate)
 
   for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
     auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
-    if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
-      auto *integrator = ((BDSIntegratorQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
-//      G4cout << "quadrupole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
-//      if(integrator->bPrime > 0){
-//        integrator->bPrime = fieldInfo->BRho() * 1.23/CLHEP::m2;
-//        G4cout <<"setting quad strength to k1 = 1.23 bPrime = " << integrator->bPrime << G4endl;
-        (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] *= 1.01;
-//      }
-    }
-    else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipole"))){
-//      G4cout << "dipole field " << *fieldInfo->MagnetStrength() << G4endl;
-//      G4cout << "dipole field name " << BDSFieldBuilder::Instance()->lvs[i][0]->GetName() << G4endl;
-      auto *integrator = ((BDSIntegratorDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetIntegrator()));
-
-//      G4cout << "dipole field ratio " << integrator->fieldRatio << G4endl;
-      std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
-//      G4cout << name <<" field strength according to the field obj" << ((BDSFieldMagDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->localField << G4endl;
-//      ((BDSFieldMag*)(((BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->isDipoleQuadrupole();
-      if(name.find("BPD1") != std::string::npos){
-        std::cout << "found BPD1" << std::endl;
-//        integrator->nominalRho*=0.001;
-//        integrator->dipole->fieldScale = 1.1;
-//        G4cout << "BPD1 field strength according to the field obj" << ((BDSFieldMagDipoleQuadrupole*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->dipole->localField << G4endl;
-//        ((BDSFieldMagDipole*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->localField *= 1.1;
-//        ((BDSFieldMagDipole*)(((BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]->GetField()))->field))->localField *= 1.1;
-        //lets try something wacky
-//        auto *objs = (BDSFieldObjects*)(BDSFieldMagGlobal*)(BDSAcceleratorModel::Instance()->fields[i]);
-
-        //objs->replaceEqofM((G4MagneticField*)(objs->GetField()));
-        
-        (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] *= 1.01;
+    std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
+    for(auto [key, value] : pars){
+      if(name.find(key) != std::string::npos){
+        if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
+          G4cout << "Setting quadupole "<<key<<" to "<< value << " from " << (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] << G4endl;
+          (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] = value;
+        }
+        else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipole"))){
+          value *= 0.001;  //Convert from T to kT?
+          G4cout << "Setting dipole "<<key<<" to "<< value << " from "<< (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] << G4endl;
+          (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] = value;
+        }
+        else{
+          G4cerr << "Found magnet with name "<< name << " not of type dipole or quadrupole, type: " << fieldInfo->FieldType() << " exiting" << G4endl;
+          throw;
+        }
       }
     }
   }
   for(auto f : BDSAcceleratorModel::Instance()->fields) delete f;
   BDSAcceleratorModel::Instance()->fields.resize(0);
-//  G4FieldManager* fieldManager = G4TransportationManager::GetTransportationManager()->GetFieldManager();
-//  fieldManager->GetChordFinder()->ResetStepEstimate();
-//  fieldManager->ClearChordFinders();
   realWorld->ConstructSDandField();
-//  G4RunManager::GetRunManager()->GeometryHasBeenModified();
+
+
+  //CERN change beam properties
+  for(auto [key, value] : pars){
+    if(key == "X0") parser->GetBeam().X0 = value;
+    else if(key == "Xp0") parser->GetBeam().Xp0 = value;
+    else if(key == "emitx") parser->GetBeam().emitx = value>0.0 ? value : 1e-10;
+    else if(key == "betx") parser->GetBeam().betx = value>0.0 ? value : 1e-10;
+    else if(key == "alfx") parser->GetBeam().alfx = value;
+    else if(key == "Y0") parser->GetBeam().Y0 = value;
+    else if(key == "Yp0") parser->GetBeam().Yp0 = value;
+    else if(key == "emity") parser->GetBeam().emity = value>0.0 ? value : 1e-10;
+    else if(key == "bety") parser->GetBeam().bety = value>0.0 ? value : 1e-10;
+    else if(key == "alfy") parser->GetBeam().alfy = value;
+    G4cout << "Set " << key << " to value " << value << G4endl;
+  }
+
+//  parser->GetBeam().X0 -= 0.001; //subtractm 1mm
+  bdsBunch = BDSBunchFactory::CreateBunch(beamParticle,
+                                          parser->GetBeam(),
+                                          globals->BeamlineTransform(),
+                                          globals->BeamlineS(),
+                                          globals->GeneratePrimariesOnly());
+  auto tmpPrimaryGeneratorAction = new BDSPrimaryGeneratorAction(bdsBunch, parser->GetBeam(), globals->Batch());
+//  delete runAction;
+  BDSRunAction* runAction = new BDSRunAction(bdsOutput,
+                                             bdsBunch,
+                                             bdsBunch->ParticleDefinition()->IsAnIon(),
+                                             eventAction,
+                                             globals->StoreTrajectorySamplerID());
+  runManager->SetUserAction(runAction);
+  runManager->SetUserAction(tmpPrimaryGeneratorAction);
+  BDSFieldFactory::SetPrimaryGeneratorAction(tmpPrimaryGeneratorAction);
+  runManager->Initialize();
+
 
   if (initialisationResult > 1 || !initialised)
     {return;} // a mode where we don't do anything
@@ -519,6 +561,9 @@ void CNBDSIM::BeamOn(int nGenerate)
       throw exception;
     }
 
+    delete tmpPrimaryGeneratorAction;
+    delete runAction;
+    delete bdsBunch;
 }
 
 std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
@@ -527,6 +572,7 @@ std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
     ssemPred.reserve(bdsOutput->samplerTrees.size());
     for(int i=0; i<bdsOutput->samplerTrees.size(); i++){ //loop over ssems
       std::vector<float> x = (*bdsOutput->samplerTrees[i]).xcache;
+      for(auto &ele : x) ele*=1000;  //convert to mm
       double meanx = std::accumulate(x.begin(), x.end(), 0.0) / x.size();
       // Compute Standard Deviation using lambda
       double stddevx = std::sqrt(std::accumulate(x.begin(), x.end(), 0.0,
@@ -534,6 +580,8 @@ std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
 
 
       std::vector<float> y = bdsOutput->samplerTrees[i]->ycache;
+      for(auto &ele : y) ele*=1000;  //convert to mm
+
       double meany = std::accumulate(y.begin(), y.end(), 0.0) / y.size();
 
       // Compute Standard Deviation using lambda

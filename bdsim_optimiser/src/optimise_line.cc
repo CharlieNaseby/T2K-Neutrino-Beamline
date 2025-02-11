@@ -33,7 +33,7 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
 int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
 
-  std::string baseBeamlineFile="../gmad/test.gmad";
+  std::string baseBeamlineFile="../gmad/optimised_test.gmad";
   std::string ssemDataFile="./ssem_data/run0910216_gen.root";
 
   const int nMagnetPars = 11;
@@ -47,9 +47,10 @@ int main(int argc, char **argv){
   bool usePrevBestFit = false;
   bool useFieldMaps = false;
   bool useFudgeFactor = false;
+  bool useInputFile = true;
 
 
-  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, pars);
+  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars);
 
   //pars is now set to the expected prefit values of the magnets based on the bools above
   inter.SetInternalPars(pars);
@@ -88,6 +89,22 @@ int main(int argc, char **argv){
   min->SetVariableLowerLimit(18, 0); //emity
   min->SetVariableLowerLimit(19, 0); //betay
 
+  for(int i=0; i<inter.parNames.size(); i++) std::cout<< i<<"  " << inter.parNames[i] <<std::endl;
+//  TFile *result = new TFile("result.root", "RECREATE");
+//  TH1D *hist;
+//  for(int i=0; i<nPars; i++){
+//    std::string name = "param_";
+//    name += inter.parNames[i];
+//    if(pars[i]>=0) hist = new TH1D(name.c_str(), name.c_str(), 11, pars[i]*0.5, pars[i]*1.5);
+//    else hist = new TH1D(name.c_str(), name.c_str(), 11, pars[i]*1.5, pars[i]*0.5);
+//
+//    inter.ParamScan(i, hist);
+//
+//    result->cd();
+//    hist->Write(name.c_str());
+//  }
+//  result->Close();
+
 
 
 //  performFit(min, &inter, nPars, pars, {qMagVars}, 1+2);
@@ -98,6 +115,7 @@ int main(int argc, char **argv){
 
 //  performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
   performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+  std::cout << "about to call perform fit with q magnets only"<<std::endl;
   performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
   performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
 
@@ -156,13 +174,6 @@ int main(int argc, char **argv){
 //  for(auto fixed : bMagVars) min->FixVariable(fixed);
  
   
-//  TFile *result = new TFile("result.root", "RECREATE");
-//  TH1D *scan = new TH1D("param_4", "param_4", 20, 0., 15);
- 
-//  inter.ParamScan(4, scan);
-//  result->cd();
-//  scan->Write();
-//  result->Close();
  
   auto endtime = std::chrono::high_resolution_clock::now();
   auto time = std::chrono::duration_cast<std::chrono::microseconds>(endtime-starttime).count();

@@ -10,6 +10,22 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   nBeamPars = nbeampars;
   bds = new CNBDSIM();
 
+  char *dargv[6];
+  char path[256] = "--file=/home/T2K-Neutrino-Beamline/gmad/optimised_test.gmad";
+  char batch[256] = "--batch";
+  char ngen[256] = "--ngenerate=100";
+  char outfile[256] = "--outfile=/home/bdsim_output";
+  char seed[256] = "--seed=1989";
+  //char verbose[256] = "--verbose=0";
+  dargv[1] = path;
+  dargv[2] = batch;
+  dargv[3] = ngen;
+  dargv[4] = outfile;
+  dargv[5] = seed;
+//  dargv[6] = verbose;
+  bds->Initialise(5, dargv);
+
+
 
   internalPars.resize(nPars); //point about which LLH scans will be conducted
   nominalPars.resize(nPars); //the values of the parameters expected based on true magnet current
@@ -100,7 +116,7 @@ loopend:;
 
 Interface::~Interface(){};
 
-void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, double *pars){
+void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double *pars){
 
 
   std::map<std::string, double> beamPars;
@@ -149,6 +165,8 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
   kScaling["BPD2"] = -0.09289046446110355;
   kScaling["BPV2"] = -0.12654858254158613;
   kScaling["BPH3"] = -0.12432151082458207;
+
+  for(auto &val : magCurrent) val += 1e-3; //annoyyingly magnets with 0 strength create issues
 
   nominalPars[0] = magCurrent[0]/100.;
   nominalPars[1] = magCurrent[1]/100.;
@@ -221,6 +239,7 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
     }
     for(int i=0; i<nMagnetPars; i++) preFit[i] = pars[i];
   }
+
   else{
     for(int i=0; i<nMagnetPars; i++) pars[i] = preFit[i];
   }
@@ -230,6 +249,13 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
   for(int i=0; i<nBeamPars; i++){
     pars[i+nMagnetPars] = beamPars[beamNames[i]];
     preFit[i+nMagnetPars] = beamPars[beamNames[i]];
+  }
+
+  if(useInputFile){ //use the values from the gmad file supplied
+    for(int i=0; i<nPars; i++){
+      pars[i] = bds->GetParameterValue(parNames[i]);
+      preFit[i] = pars[i];
+    }
   }
 
 }
@@ -273,9 +299,19 @@ double Interface::fcn_wrapper(const double *pars){
   return fcn(pars);
 }
 
+bool Interface::CheckBounds(std::map<std::string, double> pars){
+  std::vector<std::string> badpars = {"emitx", "betx", "emity", "bety"};
+  for(auto st : badpars){
+    if(pars[st] < 0) return false;
+  }
+  return true;
+}
+
+
 double Interface::fcn(const double *pars){
+
   SetInternalPars(pars);
-  GenerateInputFile(pars);
+//  GenerateInputFile(pars);
   return CalcChisq(pars);
 }
 
@@ -287,7 +323,7 @@ double Interface::CalcPrior(const double *pars){
   return chisq;
 }
 
-//I hate that this is the way to do this just as much as you do
+//I hate that this is the way to do this just as much as you do, not anymore!! :D
 
 //first need to write a gmad input file with the magnet strengths implied by pars
 void Interface::GenerateInputFile(const double *pars){
@@ -350,32 +386,36 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
   }
 }
 
-void Interface::CalcBeamPars(){
-  
+std::vector<std::array<double, 4> > Interface::GetBeamPars(){
+  return bds->CalcBeamPars();
 }
 
 
 void Interface::TestBdsim(){
-    
-
   bds->BeamOn();
-
 }
-
 
 double Interface::CalcChisq(const double *pars){
 
-  bds->BeamOn();
+  std::map<std::string, double> parmap;
+  int i=0;
+  for(auto key : parNames){
+    parmap[key] = pars[i];
+    i++;
+  }
+
+  if(CheckBounds(parmap) == false) return 1234567891.0;
+  bds->BeamOn(100, parmap);
 
 //  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
 //  std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
 
-  std::vector<std::array<double, 4> > allSSEMSimulation = bds->CalcBeamPars();
+  std::vector<std::array<double, 4> > allSSEMSimulation = GetBeamPars();
 
   //Optics beamOptics("/home/bdsim_output_optics.root");
 
 
-  double chisq=0;
+  double chisq = 0;
   double chisqx = 0;
   double chisqy = 0;
   double chisqwx = 0;
@@ -403,6 +443,7 @@ double Interface::CalcChisq(const double *pars){
 
   std::cout<<"xpos chisq \t ypos chisq \t xwid chisq \t ywid chisq"<<std::endl;
   std::cout<<std::setprecision(4)<<chisqx<<"\t"<<chisqy<<"\t"<<chisqwx<<"\t"<<chisqwy<<std::endl;
+  if(std::isnan(chisq)) return 123456789.0;
   return chisq;
 }
 

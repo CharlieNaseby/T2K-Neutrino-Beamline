@@ -20,6 +20,7 @@ along with BDSIM.  If not, see <http://www.gnu.org/licenses/>.
 #define CNBDSIMCLASS_H
 
 class BDSBunch;
+class BDSEventAction;
 class BDSComponentConstructor;
 class BDSComponentFactoryUser;
 class BDSDetectorConstruction;
@@ -37,6 +38,7 @@ class BDSAcceleratorComponentRegistry;
 #include <vector>
 #include <array>
 #include <numeric>
+#include <map>
 
 
 /** 
@@ -65,6 +67,8 @@ public:
   /// Initialise everything given these arguments.
   int Initialise(int argc, char** argv, bool usualPrintOut=true);
 
+  double GetParameterValue(std::string key);
+
   /// Construct and initialise BDSIM.
   CNBDSIM(int argc, char** argv, bool usualPrintOut=true);
 
@@ -80,7 +84,7 @@ public:
   /// Generate nGenerate events. If the default argument -1 is used, the number is taken
   /// from the standard input e.g. the executable option ngenerate and then the one specified
   /// in the input gmad files as an option.
-  void BeamOn(int nGenerate=-1);
+  void BeamOn(int nGenerate=-1, std::map<std::string, double> pars = {{std::string("NULL"), -999.0}} );
   std::vector<std::array<double, 4> > CalcBeamPars();
   /// Register a custom user beam line element by the type name you'd like it to have
   /// and the (user-provided) constructor that can construct it.
@@ -111,6 +115,7 @@ public:
   BDSParser*     parser;
   BDSOutput*     bdsOutput;
   BDSBunch*      bdsBunch;
+  BDSEventAction* eventAction;
   BDSRunManager* runManager;
   G4VModularPhysicsList* physList;
   BDSComponentFactoryUser* userComponentFactory; ///< Optional user registered component factory.

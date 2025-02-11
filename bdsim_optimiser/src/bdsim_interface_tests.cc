@@ -25,36 +25,32 @@ int main(int argc, char **argv){
 //just see how long a single iteration takes
  
   auto iterstarttime = std::chrono::high_resolution_clock::now();
-  char *dargv[6];
-  char path[256] = "--file=/home/T2K-Neutrino-Beamline/gmad/test.gmad";
-  char batch[256] = "--batch";
-  char ngen[256] = "--ngenerate=100";
-  char outfile[256] = "--outfile=/home/bdsim_output";
-  char seed[256] = "--seed=1989";
-  //char verbose[256] = "--verbose=0";
-  dargv[1] = path;
-  dargv[2] = batch;
-  dargv[3] = ngen;
-  dargv[4] = outfile;
-  dargv[5] = seed;
-//  dargv[6] = verbose;
-
-
-  inter.bds->Initialise(5, dargv);
- 
   std::cout<<"Initialised!!\n\n"<<std::endl;
-  inter.bds->BeamOn(1);
+  std::map<std::string, double> pars;
+  pars["BPD1"] = -1.09;
+//  pars["QPQ1"] = 0.055;
+
+  inter.bds->BeamOn(100, pars);
   std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();
   for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
 
+  pars["BPD1"] = -1.11;
+  inter.bds->BeamOn(100, pars);
+  simResult = inter.bds->CalcBeamPars();
+  for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
+
+  pars["BPD1"] = -1.15;
+  inter.bds->BeamOn(100, pars);
+  simResult = inter.bds->CalcBeamPars();
+  for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
 
 //  inter2.bds->BeamOn();
   std::cout<<"Beam on done!!\n\n"<<std::endl;
 
   std::vector<int> times;
-  for(int i=0; i<200; i++){
+  for(int i=0; i<0; i++){
     auto loopstarttime = std::chrono::high_resolution_clock::now();
-    inter.bds->BeamOn();
+    inter.bds->BeamOn(100, pars);
     std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();
     for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
     auto loopendtime = std::chrono::high_resolution_clock::now();

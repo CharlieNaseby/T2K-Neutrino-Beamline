@@ -50,24 +50,25 @@ public:
   std::vector<std::string> magNames;
   std::vector<std::string> beamNames;
   std::vector<std::string> parNames;
-  CNBDSIM *bds; 
+  CNBDSIM *bds;
 
   int testval = 0;
   unsigned int fitMode=1+2+4+8;  //by default fit width and position
  
   Interface(std::string dataFile, std::string baseBeamlineFile, int npars, int nmagnetpars, int nbeampars);
   ~Interface();
-  void SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, double* pars);
+  void SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double* pars);
   void SetInternalPars(const double *pars);
   const double* GetNominalPars();
   void ParamScan(int param, TH1D *hist);
   void ParamScan(int param, int npoints, double xlo, double xup);
+  bool CheckBounds(std::map<std::string, double> pars);
   double fcn(std::vector<double> pars);
   double fcn_wrapper(const double *pars);
   double fcn(const double *pars);
   void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);
-  void CalcBeamPars();
+  std::vector<std::array<double, 4> > GetBeamPars();
   double CalcChisq(const double *pars);
   double CalcPrior(const double *pars);
   void TestBdsim();
