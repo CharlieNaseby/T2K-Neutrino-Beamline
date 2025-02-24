@@ -11,7 +11,7 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
   inter->SetChisqMode(fitMode);
   min->SetStrategy(3);
   min->SetMaxFunctionCalls(10000);
-  min->SetTolerance(10);
+  min->SetTolerance(1000);
 
   for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], pars[i], 0.1);
  
@@ -22,6 +22,7 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
   
   min->SetPrintLevel(2);
 
+  min->FixVariable(0); //BPV1 is set to 0 current
   min->FixVariable(9); //BPH3 and QPQ5 do not have and SSEMs afterwards in the sim so would have no data constraint
   min->FixVariable(10);
   min->Minimize();
@@ -44,13 +45,40 @@ int main(int argc, char **argv){
 
   double pars[nPars];
 
-  bool usePrevBestFit = false;
-  bool useFieldMaps = false;
+  bool usePrevBestFit = true;
+  bool useFieldMaps = false; //currently unsupported
   bool useFudgeFactor = false;
-  bool useInputFile = true;
+  bool useInputFile = false;
 
 
   inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars);
+
+  //set prior constraints
+  //negative values are a fractional uncertainty on the nominal value
+  //positive values are an absolute uncertainty in the same units as the parameter
+
+  inter.priorErrors["BPV1"] = 0.00001; //nominal current is 0 maybe there should actually be no freedom here..
+  inter.priorErrors["BPH2"] = -0.2;
+  inter.priorErrors["QPQ1"] = -0.2;
+  inter.priorErrors["QPQ2"] = -0.2;
+  inter.priorErrors["BPD1"] = -0.2;
+  inter.priorErrors["BPD2"] = -0.2;
+  inter.priorErrors["QPQ3"] = -0.2;
+  inter.priorErrors["BPV2"] = -0.2;
+  inter.priorErrors["QPQ4"] = -0.2;
+  inter.priorErrors["BPH3"] = -0.2;
+  inter.priorErrors["QPQ5"] = -0.2;
+
+  //really lose constraints on beam parameters, but does really help with them not exploding 
+  inter.priorErrors["X0"] = 2;
+  inter.priorErrors["emitx"] = -0.2;
+  inter.priorErrors["betx"] = 10;
+  inter.priorErrors["alfx"] = 5;
+
+  inter.priorErrors["Y0"] = 2;
+  inter.priorErrors["emity"] = -0.2;
+  inter.priorErrors["bety"] = 10;
+  inter.priorErrors["alfy"] = 5;
 
   //pars is now set to the expected prefit values of the magnets based on the bools above
   inter.SetInternalPars(pars);
@@ -114,15 +142,21 @@ int main(int argc, char **argv){
 //  performFit(min, &inter, nPars, pars, {bMagVars}, 4+8);
 
 //  performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
-  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
-  std::cout << "about to call perform fit with q magnets only"<<std::endl;
-  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
-  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
 
-  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
-  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
-  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
-
+//  std::cout << "about to call perform fit with B magnets only"<<std::endl;
+//  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+//  std::cout << "about to call perform fit with Q magnets only"<<std::endl;
+//  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+//  std::cout << "about to call perform fit with beam only"<<std::endl;
+//  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+//
+//  std::cout << "about to call perform fit with B magnets only take 2"<<std::endl;
+//  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+//  std::cout << "about to call perform fit with Q magnets only take 2"<<std::endl;
+//  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+//  std::cout << "about to call perform fit with beam only take 2"<<std::endl;
+//  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+  std::cout << "about to call perform fit with all parameters free (this may take a while)"<<std::endl;
   performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
 
 
@@ -158,7 +192,7 @@ int main(int argc, char **argv){
   TVectorD posError(nPars);
   
   for(int i=0; i<nPars; i++){
-    nom[i] = inter.nominalPars[i];
+    nom[i] = inter.nominalPars[inter.parNames[i]];
     pre[i] = inter.preFit[i];
     pos[i] = bestFit[i];
     posError[i] = errors[i];

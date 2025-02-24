@@ -457,8 +457,6 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
   BDSRandom::SetSeed(1989); // set the seed at the start of each run
   for(auto tr : bdsOutput->samplerTrees) tr->FlushCache();  //clear the storage for the samplers
   for(auto tr : bdsOutput->samplerTrees) tr->FlushLocal();  //clear the storage for the samplers
-//bdsfieldobjects includes both the field and the integrator both use the strength
-//to calculate things but we only need to change integrator for our purposes
 
   for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
     auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
@@ -466,12 +464,12 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
     for(auto [key, value] : pars){
       if(name.find(key) != std::string::npos){
         if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
-          G4cout << "Setting quadupole "<<key<<" to "<< value << " from " << (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] << G4endl;
+//          G4cout << "Setting quadupole "<<key<<" to "<< value << " from " << (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] << G4endl;
           (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] = value;
         }
         else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipole"))){
           value *= 0.001;  //Convert from T to kT?
-          G4cout << "Setting dipole "<<key<<" to "<< value << " from "<< (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] << G4endl;
+//          G4cout << "Setting dipole "<<key<<" to "<< value << " from "<< (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] << G4endl;
           (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] = value;
         }
         else{
@@ -481,8 +479,8 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
       }
     }
   }
-  for(auto f : BDSAcceleratorModel::Instance()->fields) delete f;
-  BDSAcceleratorModel::Instance()->fields.resize(0);
+  for(auto f : BDSAcceleratorModel::Instance()->fields) delete f;  //prepare to replace the fields with the ones we just made
+  BDSAcceleratorModel::Instance()->fields.resize(0);  //uses push_back so need to reset the vector too
   realWorld->ConstructSDandField();
 
 
@@ -498,7 +496,7 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
     else if(key == "emity") parser->GetBeam().emity = value>0.0 ? value : 1e-10;
     else if(key == "bety") parser->GetBeam().bety = value>0.0 ? value : 1e-10;
     else if(key == "alfy") parser->GetBeam().alfy = value;
-    G4cout << "Set " << key << " to value " << value << G4endl;
+//    G4cout << "Set " << key << " to value " << value << G4endl;
   }
 
 //  parser->GetBeam().X0 -= 0.001; //subtractm 1mm
@@ -590,8 +588,8 @@ std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
       
       ssemPred[i][0] = meanx;
       ssemPred[i][1] = meany;
-      ssemPred[i][2] = stddevx;
-      ssemPred[i][3] = stddevy;
+      ssemPred[i][2] = stddevx*2;
+      ssemPred[i][3] = stddevy*2;
     }
   return ssemPred;
 }

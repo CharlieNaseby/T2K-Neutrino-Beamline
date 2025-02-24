@@ -28,7 +28,7 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
 
 
   internalPars.resize(nPars); //point about which LLH scans will be conducted
-  nominalPars.resize(nPars); //the values of the parameters expected based on true magnet current
+//  nominalPars.resize(nPars); //the values of the parameters expected based on true magnet current
   magNames.resize(nMagnetPars);
   beamNames.resize(nBeamPars);
   preFit.resize(nPars); //the values of the parameters expected with scalings or fudge factors applied
@@ -120,16 +120,16 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
 
 
   std::map<std::string, double> beamPars;
-  beamPars["X0"]=-0.5;
+  beamPars["X0"]=-0.5e-3;
   beamPars["Xp0"]=3.5e-5;
-  beamPars["emitx"]=0.0610768;
+  beamPars["emitx"]=0.0610768e-6;
   beamPars["betx"]=37.098;
   beamPars["alfx"]=-2.4187;
   beamPars["dispx"]=0.42373,
   beamPars["dispxp"]=0.07196,
-  beamPars["Y0"]=-0.2;
+  beamPars["Y0"]=-0.2e-3;
   beamPars["Yp0"]=7.8e-5;
-  beamPars["emity"]=0.05976;
+  beamPars["emity"]=0.05976e-6;
   beamPars["bety"]=5.45;
   beamPars["alfy"]=0.178;
   beamPars["dispy"]=0.;
@@ -166,19 +166,19 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
   kScaling["BPV2"] = -0.12654858254158613;
   kScaling["BPH3"] = -0.12432151082458207;
 
-  for(auto &val : magCurrent) val += 1e-3; //annoyyingly magnets with 0 strength create issues
+  for(auto &val : magCurrent) val += 1e-3; //annoyingly magnets with 0 strength create issues
 
-  nominalPars[0] = magCurrent[0]/100.;
-  nominalPars[1] = magCurrent[1]/100.;
-  nominalPars[2] = magCurrent[2]/100.;
-  nominalPars[3] = magCurrent[4]/100.;
-  nominalPars[4] = magCurrent[5]/100.;
-  nominalPars[5] = magCurrent[6]/100.;
-  nominalPars[6] = magCurrent[7]/100.;
-  nominalPars[7] = magCurrent[8]/100.;
-  nominalPars[8] = magCurrent[9]/100.;
-  nominalPars[9] = magCurrent[10]/100.;
-  nominalPars[10] = magCurrent[11]/100.;
+  nominalPars["BPV1"] = magCurrent[0]/100.;
+  nominalPars["BPH2"] = magCurrent[1]/100.;
+  nominalPars["QPQ1"] = magCurrent[2]/100.;
+  nominalPars["QPQ2"] = magCurrent[4]/100.;
+  nominalPars["BPD1"] = magCurrent[5]/100.;
+  nominalPars["BPD2"] = magCurrent[6]/100.;
+  nominalPars["QPQ3"] = magCurrent[7]/100.;
+  nominalPars["BPV2"] = magCurrent[8]/100.;
+  nominalPars["QPQ4"] = magCurrent[9]/100.;
+  nominalPars["BPH3"] = magCurrent[10]/100.;
+  nominalPars["QPQ5"] = magCurrent[11]/100.;
 
   std::vector<double> fudgeFactor(nMagnetPars);
 
@@ -196,25 +196,28 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
 
 
   for(auto mag : magNames){
-    nominalPars[magMap[mag]] *= kScaling[mag];//nominal is always the expected value for the parameters based on the currents
-    preFit[magMap[mag]] = nominalPars[magMap[mag]];
+    nominalPars[mag] *= kScaling[mag];//nominal is always the expected value for the parameters based on the currents
+    preFit[magMap[mag]] = nominalPars[mag];
     if(useFudgeFactor) preFit[magMap[mag]] *= fudgeFactor[magMap[mag]];
   }
 
-  if(usePrevBestFit){
-    std::ifstream infile;
-    infile.open("bestFitHardEdge.txt");
-    std::string line;
+//  if(usePrevBestFit){
+//    std::ifstream infile;
+//    infile.open("bestFitHardEdge.txt");
+//    std::string line;
+//
+//    while(std::getline(infile, line)){ //TODO broken with addition of beam parameters
+//      size_t strpos = line.find(" =");
+//      std::string mag = line.substr(0, strpos);
+//      std::string val = line.substr(strpos+3);
+//      pars[magMap[mag]] = std::stof(val);
+//      std::cout<<"setting "<<magMap[mag]<<" magname "<<mag<<" to "<<std::stof(val)<<std::endl;
+//    }
+//  }
 
-    while(std::getline(infile, line)){ //TODO broken with addition of beam parameters
-      size_t strpos = line.find(" =");
-      std::string mag = line.substr(0, strpos);
-      std::string val = line.substr(strpos+3);
-      pars[magMap[mag]] = std::stof(val);
-      std::cout<<"setting "<<magMap[mag]<<" magname "<<mag<<" to "<<std::stof(val)<<std::endl;
-    }
-  }
-  else if(useFieldMaps){
+  if(useFieldMaps){
+    std::cerr << "Using field maps for the fit CURRENTLY UNSUPPORTED" << std::endl;
+    throw;
     for(int i=0; i<nMagnetPars; i++) fudgeFactor[i] = 1.0;
   
 //    fudgeFactor[1] = 1.402333;
@@ -234,29 +237,48 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
     pars[9] = magCurrent[10]/100.;
     pars[10] = magCurrent[11]/100.;
     for(int i=0; i<nMagnetPars; i++){
-      nominalPars[i] = pars[i];
+      nominalPars[magNames[i]] = pars[i];
       if(useFudgeFactor) pars[i] *= fudgeFactor[i];
     }
     for(int i=0; i<nMagnetPars; i++) preFit[i] = pars[i];
   }
-
   else{
     for(int i=0; i<nMagnetPars; i++) pars[i] = preFit[i];
   }
-
 
   //now for the beam parameters
   for(int i=0; i<nBeamPars; i++){
     pars[i+nMagnetPars] = beamPars[beamNames[i]];
     preFit[i+nMagnetPars] = beamPars[beamNames[i]];
+    nominalPars[beamNames[i]] = beamPars[beamNames[i]];
   }
-
-  if(useInputFile){ //use the values from the gmad file supplied
+  if(usePrevBestFit){
+    std::cout << "Using previous fit result contained in file previous_fit.root" << std::endl;
+    TFile inf("previous_fit.root", "READ");
+    TVectorT<double> filePostFit = *(TVectorT<double>*)inf.Get("postFit");
+    TVectorT<double> filePreFit = *(TVectorT<double>*)inf.Get("preFit");
+    TVectorT<double> fileNominal = *(TVectorT<double>*)inf.Get("nominal");
+   
+    if(filePostFit.GetNrows() != nPars){
+      std::cerr << "invalid size of parameters supplied from previous fit file"<<std::endl;
+      throw;
+    }
+    for(int i=0; i<filePostFit.GetNrows(); i++){
+      pars[i] = filePostFit[i];
+      preFit[i] = filePreFit[i];
+      nominalPars[parNames[i]] = fileNominal[i];
+    }
+    inf.Close();
+  }
+  else if(useInputFile){ //use the values from the gmad file supplied
     for(int i=0; i<nPars; i++){
       pars[i] = bds->GetParameterValue(parNames[i]);
       preFit[i] = pars[i];
+      nominalPars[parNames[i]] = pars[i];
     }
   }
+  for(int i=0; i<nPars; i++) std::cout << parNames[i] << " is set to " << pars[i] << std::endl;
+
 
 }
 void Interface::ParamScan(int param, TH1D *hist){
@@ -284,8 +306,8 @@ void Interface::SetInternalPars(const double *pars){
   for(int i=0; i<nPars; i++) internalPars[i] = pars[i];
 }
 
-const double* Interface::GetNominalPars(){
-  return &nominalPars[0];
+std::map<std::string, double> Interface::GetNominalPars(){
+  return nominalPars;
 }
 //the cost function we'll minimise
 
@@ -300,8 +322,8 @@ double Interface::fcn_wrapper(const double *pars){
 }
 
 bool Interface::CheckBounds(std::map<std::string, double> pars){
-  std::vector<std::string> badpars = {"emitx", "betx", "emity", "bety"};
-  for(auto st : badpars){
+  std::vector<std::string> limitedpars = {"emitx", "betx", "emity", "bety"};
+  for(auto st : limitedpars){
     if(pars[st] < 0) return false;
   }
   return true;
@@ -315,10 +337,14 @@ double Interface::fcn(const double *pars){
   return CalcChisq(pars);
 }
 
-double Interface::CalcPrior(const double *pars){
+double Interface::CalcPrior(std::map<std::string, double> pars){
   double chisq = 0;
-  for(int i=0; i<nPars; i++){
-    chisq += (pars[i]-nominalPars[i])*(pars[i]-nominalPars[i])/(1e-10+(0.1*nominalPars[i])*(0.1*nominalPars[i]));
+  for(auto [key, value] : priorErrors){
+    double contribution = 0;
+    if(value >= 0) contribution = std::pow(pars[key] - nominalPars[key], 2)/(std::pow(value,2)); //before you efficiency freaks complain pow(x, 2) expands to x*x with -O1+
+    else contribution = std::pow(pars[key] - nominalPars[key], 2)/(std::pow(nominalPars[key]*value, 2));
+    chisq += contribution;
+//    std::cout<<"adding to the prior "<<key << " diff "<<pars[key]-nominalPars[key]<<" adding "<<contribution<<" to chisq"<<std::endl;
   }
   return chisq;
 }
@@ -433,16 +459,17 @@ double Interface::CalcChisq(const double *pars){
     chisqwy += (dat[i][3]-simulation[3])*(dat[i][3]-simulation[3])/(0.2*0.2);  //width y
 //    std::cout<<"SSEM "<<i+1<<" position cumulative chisq contribution "<<chisq<<std::endl;
   }
-//  chisq+=CalcPrior(pars);
+  double prior = CalcPrior(parmap);
   if(fitMode & 0x01) chisq += chisqx;
   if(fitMode & 0x02) chisq += chisqy;
   if(fitMode & 0x04) chisq += chisqwx;
   if(fitMode & 0x08) chisq += chisqwy;
+  chisq += prior;
 
   std::cout<<"returning chisq = "<<chisq<<std::endl;
 
-  std::cout<<"xpos chisq \t ypos chisq \t xwid chisq \t ywid chisq"<<std::endl;
-  std::cout<<std::setprecision(4)<<chisqx<<"\t"<<chisqy<<"\t"<<chisqwx<<"\t"<<chisqwy<<std::endl;
+  std::cout<<"xpos chisq \t ypos chisq \t xwid chisq \t ywid chisq \t prior"<<std::endl;
+  std::cout<<std::setprecision(4)<<chisqx<<"\t"<<chisqy<<"\t"<<chisqwx<<"\t"<<chisqwy<<"\t"<<prior<<std::endl;
   if(std::isnan(chisq)) return 123456789.0;
   return chisq;
 }

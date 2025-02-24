@@ -1,14 +1,15 @@
 Bootstrap: docker
-From: rockylinux:9
+From: rockylinux/rockylinux:9.5
 
 %post
     # Update the package repository and install necessary packages
+    cat /etc/os-release
     yum -y update
     yum -y install epel-release
     yum -y install wget curl vim --allowerasing
     yum -y install sudo yum-utils
-    yum-config-manager --add-repo https://dl.rockylinux.org/vault/rocky/9.4/devel/x86_64/os/
-    yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
+    yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.5/devel/x86_64/os/
+    yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel
 
 #get CLHEP
     cd /home
@@ -57,7 +58,7 @@ From: rockylinux:9
     cd /home
     mkdir bdsim
     cd bdsim
-    wget https://bitbucket.org/jairhul/bdsim/get/c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
+    wget https://www.hep.ph.ic.ac.uk/~cn4018/bdsim/c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
     tar -xzf c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
     mkdir bdsim-build
     cd bdsim-build
@@ -69,7 +70,7 @@ From: rockylinux:9
     echo "source /usr/local/bin/geant4.sh" >> /home/setup.sh
 
 
-    yum -y install pip
+    yum -y install pip gperftools
     pip install numpy pandas matplotlib xlrd pyqt6 openpyxl
 
 

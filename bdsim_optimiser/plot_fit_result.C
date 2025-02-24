@@ -8,7 +8,7 @@ void plot_fit_result(){
     TVectorD posError = *(TVectorD*)(inf->Get("postFitError"));
     TMatrixT<double> cov = *(TMatrixT<double>*)(inf->Get("postfit_covariance"));
 
-    char *names[11] = {"BPV1",
+    char *names[21] = {"BPV1",
 	               "BPH2",
 	               "QPQ1",
 	               "QPQ2",
@@ -18,7 +18,8 @@ void plot_fit_result(){
 	               "BPV2",
 	               "QPQ4",
 	               "BPH3",
-		       "QPQ5"};
+		       "QPQ5",
+		       "X0", "Xp0", "emitx", "betx", "alfx", "Y0", "Yp0", "emity", "bety", "alfy"};
 
     TFile *outf = new TFile("fit_result_plots.root", "RECREATE");
     outf->cd();
@@ -40,6 +41,10 @@ void plot_fit_result(){
   TH1D *nominalhist = new TH1D("nominalhist", "nominalhist", nPars, 0, nPars);
   TH1D *post_minus_pred_div_pred = new TH1D("post_minus_pred_div_pred", "(Post - Pre)/Pre", nPars, 0, nPars);
   TH1D *post_minus_nom_div_nom = new TH1D("post_minus_nom_div_nom", "(Post - Nominal)/Nominal", nPars, 0, nPars);
+  TH1D *pull_vs_prefit = new TH1D("pull_vs_prefit", "(Post - Pre)/#sigma_{post}", nPars, 0, nPars);
+
+  TH2D corrth2(corr);
+
 
   for(int i=0; i<nPars; i++){
     prefit->SetBinContent(i+1, pre[i]);
@@ -50,15 +55,27 @@ void plot_fit_result(){
     fitResult->SetBinError(i+1, posError[i]);
     fitResult->GetXaxis()->SetBinLabel(i+1, names[i]);
 
-    if(TMath::Abs(pre[i])>1e-6){
+    post_minus_pred_div_pred->GetXaxis()->SetBinLabel(i+1, names[i]);
+    post_minus_nom_div_nom->GetXaxis()->SetBinLabel(i+1, names[i]);
+    corrth2.GetXaxis()->SetBinLabel(i+1, names[i]);
+    corrth2.GetYaxis()->SetBinLabel(i+1, names[i]);
+
+
+    pull_vs_prefit->GetXaxis()->SetBinLabel(i+1, names[i]);
+
+    if(TMath::Abs(posError[i]>1e-10)) pull_vs_prefit->SetBinContent(i+1, (pos[i]-pre[i])/posError[i]);
+
+    if(TMath::Abs(pre[i])>1e-7){
       post_minus_pred_div_pred->SetBinContent(i+1, (pos[i]-pre[i])/pre[i]);
       post_minus_pred_div_pred->SetBinError(i+1, posError[i]/pre[i]);
 
       post_minus_nom_div_nom->SetBinContent(i+1, (pos[i]-nom[i])/nom[i]);
       post_minus_nom_div_nom->SetBinError(i+1, posError[i]/nom[i]);
+
     }
   }
-  corr.Write("postfit_correlation");
+  corrth2.Write("postfit_correlation");
+  pull_vs_prefit->Write();
   fitResult->Write("best_fit");
   prefit->Write("prefit");
   nominalhist->Write("nominalhist");

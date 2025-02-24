@@ -607,8 +607,16 @@ tunnelSoilThickness = 2*m;\n\n''')
     def print(self):
         self.file.write('chrg: scorer, type="cellcharge";\n')
         self.file.write('eDep: scorer, type="depositeddose";\n')
-
+        previously_drift = False
+        prev_row = []
+        driftlen = 0.0
         for row in self.beamline.itertuples():
+            
+            if(row.type != 'drift' and previously_drift and not geometry):
+                #we have reached a non-drift element, so flush the drift components to the file
+                self.print_drift(prev_row, prev_row.element, driftlen)
+                self.endl()
+                driftlen = 0.0
 
             if(row.type in ['rbend', 'sbend', 'quadrupole']):
                 self.file.write('\n') #give some breathing room
@@ -648,8 +656,17 @@ tunnelSoilThickness = 2*m;\n\n''')
             elif(row.type == 'dump'):
                 self.print_dump(row)
             else: #otherwise, i.e. drift or collimator
-                self.print_drift(row, row.element, row.length)
-                self.endl()
+                if(geometry):
+                    self.print_drift(row, row.element, row.length)
+                    self.endl()
+                else:
+                    driftlen += row.length
+
+
+            prev_row = row
+            if(row.type == 'drift'):
+                previously_drift = True
+
             self.s += row.length
             if(row.blm and enable_blms):
                 self.print_blms(row)
@@ -906,6 +923,8 @@ if __name__ == '__main__':
             kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*bline.loc[bline['element'] == magnet].iloc[0]['polelength'])
         else:
             kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*bline.loc[bline['element'] == magnet].iloc[0]['polelength'])
+        if abs(kvals[magnet]) < 1e-8: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero
+            kvals[magnet] = 1e-8
     
     
     #kvals['BPD1'] = -1.15329
