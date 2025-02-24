@@ -45,10 +45,10 @@ int main(int argc, char **argv){
 
   double pars[nPars];
 
-  bool usePrevBestFit = true;
+  bool usePrevBestFit = false;
   bool useFieldMaps = false; //currently unsupported
   bool useFudgeFactor = false;
-  bool useInputFile = false;
+  bool useInputFile = true;
 
 
   inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars);

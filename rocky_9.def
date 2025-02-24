@@ -9,7 +9,7 @@ From: rockylinux/rockylinux:9.5
     yum -y install wget curl vim --allowerasing
     yum -y install sudo yum-utils
     yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.5/devel/x86_64/os/
-    yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel
+    yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
 
 #get CLHEP
     cd /home
