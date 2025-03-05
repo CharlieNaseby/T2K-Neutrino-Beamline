@@ -14,7 +14,7 @@ BDSIM_LIBS=-lbdsim -lrebdsim
 
 TARGET = libinterface.so
 
-
+PROFILER=-lprofiler
 
 LIB_DIR=libs
 BIN_DIR=bin
@@ -31,14 +31,14 @@ EXECUTABLES=$(SRC_FILES:$(SRC_DIR)/%.cc=$(BIN_DIR)/%)
 all: $(LIB_DIR)/$(TARGET)  $(EXECUTABLES)
 
 $(LIB_DIR)/$(TARGET): $(OBJ_FILES)
-	$(CXX) $(LDFLAGS) $(BDSIM_LIBS) $(INCLUDES) -o $@ $^
+	$(CXX) $(LDFLAGS) $(BDSIM_LIBS) $(INCLUDES) $(PROFILER) -o $@ $^
 
 $(INTERFACE_DIR)/%.o: $(INTERFACE_DIR)/%.cc
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(PROFILER) -c $< -o $@
 
 
 $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(LIB_DIR)/$(TARGET)
-	$(CXX) $(CXXFLAGS) -L$(LIB_DIR) $(INCLUDES) $(BDSIM_LIBS) -linterface -o $@ $< -I./include
+	$(CXX) $(CXXFLAGS) -L$(LIB_DIR) $(INCLUDES) $(PROFILER) $(BDSIM_LIBS) -linterface -o $@ $< -I./include
 
 
 clean:

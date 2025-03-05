@@ -48,7 +48,7 @@ int main(int argc, char **argv){
   std::cout<<"Beam on done!!\n\n"<<std::endl;
 
   std::vector<int> times;
-  for(int i=0; i<0; i++){
+  for(int i=0; i<10; i++){
     auto loopstarttime = std::chrono::high_resolution_clock::now();
     inter.bds->BeamOn(100, pars);
     std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();

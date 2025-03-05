@@ -1,0 +1,5 @@
+
+*.o
+*.so
+bdsim_optimiser/bin
+

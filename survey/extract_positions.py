@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import re
 import copy as cp
 import sys
+import ast
 #sys.path.append('../')
 #import create_beamline
 #matplotlib.use('qtagg')
@@ -45,10 +46,10 @@ beam_from_file = False
 beam_halo = False
 enable_blms = False
 geometry = False
-misalignments=False
+misalignments=True
 bias_physics=False
 print_vacuum=False
-
+merge_drifts=False
 
 generate_primaries=False
 
@@ -81,6 +82,16 @@ def get_rotation_matrix(a, b):
     R = np.identity(3) + vx + vx.dot(vx)*1./(1.+c)
     return R
 
+def is_empty(obj):
+    if isinstance(obj, np.ndarray):  # If it's a NumPy array
+        return obj.size == 0  # Check if the array is empty using its size
+    elif isinstance(obj, list):  # If it's a Python list
+        return len(obj) == 0  # Check if the list is empty using its length
+    else:
+        raise ValueError("Unsupported type. Only lists and numpy arrays are supported.")
+        
+
+
 def rotmat2d(theta):
     return np.array([[np.cos(theta), np.sin(theta)],
                     [-np.sin(theta), np.cos(theta)]])
@@ -95,11 +106,265 @@ def strip_whitespace(df):
     df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
     return df
 
+def get_intersection_len(p1, v1, p2, v2):
+    A = np.array([[v1[0], -v2[0]], [v1[1], -v2[1]]])
+    B = p2 - p1
+    a, b = np.linalg.solve(A, B)
+    return a
+    
+    
+#    umerator = p2[1]-p1[1]+v2[1]*(p1[0]-p2[0])/v2[0]
+#    denominator = v1[1]+v1[0]*v2[1]/v2[0]
+#    return numerator/denominator
+
 
 def string_to_list(s):
-    s = s.strip('[]').strip()
-    elements = s.split()
+    s = s.replace(' ', ',')
+    s = s.replace('][', '],[')
+    elements = ast.literal_eval(s)
     return elements
+
+class survey_element:
+    def __init__(self, nom_normvec):
+        self.nominal_normvec = cp.deepcopy(nom_normvec)
+        self.s_nom = 0.
+        self.s_surv = 0.
+        self.segment = []
+        self.segment_id = -1.
+        self.nominal_center = []
+        self.survey_points = []
+        self.survey_center = []
+        self.survey_diff = []
+        self.nominal_offset = []
+        self.name = []
+
+    def rotate_survey(self, axis, theta):
+        c = np.cos(theta)
+        s = np.sin(theta)
+        if(axis == 'xy'):
+            R = np.array([[c, -s, 0.],[s, c, 0.], [0., 0., 1.]])
+        else:
+            raise Exception('axis not valid')
+        if(not is_empty(self.survey_points)):
+            self.survey_points = R.dot(self.survey_points.T).T
+        if(not is_empty(self.survey_center)):
+            self.survey_center = R.dot(self.survey_center.T).T
+    def shift_survey(self, change):
+        self.survey_center += change
+        self.survey_points += change
+    
+    def binary_search(self, func, R, horisontal, l, r):
+        precision = 1e-8
+        val = 99999
+        left = [l, func(l, R, horisontal)]
+        right = [r, func(r, R, horisontal)]
+        niter = 0
+        while(np.abs(val) > precision and niter < 1000):
+            niter += 1
+            testpoint = (left[0]+right[0])/2.
+            val = func(testpoint, R, horisontal)
+#            print(f'testing point {testpoint} returned value {val}')
+            if(val<0):
+                if(left[1]<0):
+                    left = [testpoint, val]
+                else:
+                    right = [testpoint, val]
+            elif(val>0):
+                if(left[1]>0):
+                    left = [testpoint, val]
+                else:
+                    right = [testpoint, val]
+        if(np.abs(right[1]) < np.abs(left[1])):
+            return right[0]
+        else:
+            return left[0]
+
+    def calculate_survey_center(self, s):
+
+        survey_point_diff = self.survey_points[1] - self.survey_points[0]
+        nominal_surv_point_diff = -self.nominal_offset[1] + self.nominal_offset[0] #these numbers are center to point vector so sort of backwards from the survey
+
+        R = get_rotation_matrix(nominal_surv_point_diff, survey_point_diff) #rotation to take the points from the idealised space to the survey space
+
+        p1c = R.dot(-self.nominal_offset[0]) #direction to go from survey point 1 to the center
+        #there is an extra DOF, rotation about the line connecting the two survey points traces out a cone of valid p1c vectors
+        #how far along the magnet direction does the p1c line go?
+        len_along_magdir = p1c.dot(normvec(-survey_point_diff))
+#        print(f'len along magdir = {len_along_magdir}')
+        circle_radius = np.linalg.norm(np.cross(p1c, normvec(survey_point_diff)))
+
+        #can now define a circle around survey_point_diff at position len_along_magdir with radius circle_radius
+        R2 = get_rotation_matrix(np.array([0.0, 0.0, 1.0]), survey_point_diff)
+        angles = np.linspace(0, 2*np.pi, 100)
+        xycircle = np.array([np.cos(angles), np.sin(angles), np.zeros(angles.size)])
+        rotated_circle = R2.dot(xycircle)
+        vertical = np.array([0.0, 0.0, 1.0])
+        horisontal = normvec(np.cross(vertical, normvec(survey_point_diff)))
+        circle = lambda angle, R2, horisontal: horisontal.dot(R2.dot(np.array([np.cos(angle), np.sin(angle), 0.0])))
+
+        best_angle = self.binary_search(circle, R2, horisontal, -np.pi/2., np.pi/2.)
+#        print(f'best angle {best_angle}')
+        #get resulting center point
+        self.survey_center = self.survey_points[0] + len_along_magdir*normvec(survey_point_diff) + circle_radius*R2.dot(np.array([np.cos(best_angle), np.sin(best_angle), 0.0]))
+#        print(f'survey center {self.survey_center}')
+#        print(f'for survey points {self.survey_points}')
+
+        #alternate method as a cross-check
+        center = self.survey_points[0]
+        center -= self.nominal_offset[0][0]*normvec(survey_point_diff) #move along vector connecting survey points by amount nominal diff
+        center -= self.nominal_offset[0][1]*horisontal
+        center -= self.nominal_offset[0][2]*vertical
+#        print(f'alternative method gets center of {center}')
+
+
+class nominalBeamline:
+    svectors = []
+    sstart = []
+    slen = []
+    bline = []
+    offsets = []
+    mag_objs = []
+    def __init__(self): #a bunch of vectors extraced from the .dwg files provided by Fujii-san
+        self.nuin_to_bpd1 = np.array([[27711.320296225927,10246.557442498312,0.0], [8826.078822922398,10998.629426709593,0.0]])
+        self.startpoint = self.nuin_to_bpd1[0,:]
+        self.bpd1_to_bpd2 = np.array([[8826.078822922398,10998.629426709593,0.0], [4625.740813728273,11025.057932632815,0.0]])
+        self.bpd2_to_arc = np.array([[4625.740813728273,11025.057932632815,0.0],[-26953.86986321407,10165.298827699111,0.0]])
+        self.mag_objs = {"BPV1":survey_element(np.array([[24832.38910462714,9576.830981585355,0.0], [24885.262495664367,10904.532021424293,0.0]])),
+                         "BPH2": survey_element(np.array([[20234.464068271784,10976.996762330913,0.0], [20189.0617097797,9836.900439275993,0.0]])),
+                         "QPQ1": survey_element(np.array([[17308.21253825885,11632.058913716024,0.0], [17231.215549930905,9698.591442102286,0.0]])),
+                         "QPQ2": survey_element(np.array([[12997.315158351666,11444.001473098717,0.0], [12947.273757007451,10187.414380095572,0.0]])),
+                         "BPD1": survey_element(np.array([[8849.395131864345,12038.357324908586,0.0], [8802.84416590732,10018.893780319399,0.0]])),
+                         "BPD2": survey_element(np.array([[4614.8592335086605,12065.001003860916,0.0], [4635.994610472831,10045.111577135578,0.0]])),
+                         "QPQ3": survey_element(np.array([[-5990.328971827361,11463.303398540442,0.0], [-5955.518885550551,10184.702260589635,0.0]])),
+                         "BPV2": survey_element(np.array([[-10385.778916663812,11237.333989977218,0.0], [-10351.093606239794,9963.315964633332,0.0]])),
+                         "QPQ4": survey_element(np.array([[-13482.390984855087,11437.10340747186,0.0], [-13436.376745104855,9746.96512861545,0.0]])),
+                         "BPH3": survey_element(np.array([[-21036.911835919527,11136.816798865471,0.0], [-20992.823456530015,9517.416843696026,0.0]])),
+                         "QPQ5": survey_element(np.array([[-23329.778140908842,10844.180117790922,0.0], [-23287.611953749027,9295.383755414225,0.0]]))}
+
+        self.nuin_to_bpd1 = self.nuin_to_bpd1 - self.startpoint
+        self.bpd1_to_bpd2 = self.bpd1_to_bpd2 - self.startpoint
+        self.bpd2_to_arc =  self.bpd2_to_arc -  self.startpoint
+        for key, val in self.mag_objs.items():
+            self.mag_objs[key].nominal_normvec = val.nominal_normvec-self.startpoint
+            self.mag_objs[key].name = key
+
+        #drop the 3rd component
+        self.nuin_to_bpd1 = self.nuin_to_bpd1[:, :2]
+        self.bpd1_to_bpd2 = self.bpd1_to_bpd2[:, :2]
+        self.bpd2_to_arc = self.bpd2_to_arc[:, :2]
+        for key, val in self.mag_objs.items():
+            self.mag_objs[key].nominal_normvec = val.nominal_normvec[:, :2]
+
+        print("after dropping 3rd component nuin to bpd1 ", self.nuin_to_bpd1)
+       #rotate to point along (1, 0, 0)
+        initial_vec = normvec(self.nuin_to_bpd1[1])
+        print("initial vec ", initial_vec)
+        rotangle = np.atan(initial_vec[1]/initial_vec[0])-np.pi
+        print("rotating through angle ", rotangle)
+        self.rotate(rotangle)
+
+        self.svectors.append(self.nuin_to_bpd1[1] - self.nuin_to_bpd1[0])
+        self.sstart.append(self.nuin_to_bpd1[0])
+
+        self.svectors.append(self.bpd1_to_bpd2[1] - self.bpd1_to_bpd2[0])
+        self.sstart.append(self.bpd1_to_bpd2[0])
+        
+        self.svectors.append(self.bpd2_to_arc[1] - self.bpd2_to_arc[0])
+        self.sstart.append(self.bpd2_to_arc[0])
+        print("svectors ", self.svectors)
+        print("sstart ", self.sstart)
+
+        self.get_intersections()
+        self.get_survey()
+
+    def draw_beamline(self):
+        plt.plot(self.nuin_to_bpd1[:,0], self.nuin_to_bpd1[:,1])
+        plt.plot(self.bpd1_to_bpd2[:,0], self.bpd1_to_bpd2[:,1])
+        plt.plot(self.bpd2_to_arc[:,0], self.bpd2_to_arc[:,1])
+        for key, val in self.mag_objs.items():
+            plt.plot(val.nominal_normvec[:,0], val.nominal_normvec[:,1])
+
+        plt.show()
+    
+    def rotate(self, theta):
+        self.nuin_to_bpd1 = rotmat2d(theta).dot(self.nuin_to_bpd1.T).T
+        self.bpd1_to_bpd2 = rotmat2d(theta).dot(self.bpd1_to_bpd2.T).T
+        self.bpd2_to_arc = rotmat2d(theta).dot(self.bpd2_to_arc.T).T
+        for key, val in self.mag_objs.items():
+            self.mag_objs[key].nominal_normvec = rotmat2d(theta).dot(val.nominal_normvec.T).T
+      
+    def get_intersections(self):
+        for key, val in self.mag_objs.items():
+            #first check against nuin to bpd1
+            summed_len = 0
+            for i in range(len(self.svectors)):
+                mu = get_intersection_len(self.sstart[i], self.svectors[i], val.nominal_normvec[0], val.nominal_normvec[1]-val.nominal_normvec[0])
+                print(mu)
+                if mu <= 1 and mu >=0:
+                    val.s_nom = summed_len + mu*np.linalg.norm(self.svectors[i])
+                    val.segment_id = i
+                    val.segment = [np.append(self.sstart[i], 0.0), np.append(self.svectors[i], 0.0)]
+                    val.nominal_center = self.sstart[i] + mu*self.svectors[i]
+                    val.nominal_center = np.append(val.nominal_center, 0.0)
+                    print("found intersection for ", key, " in segment ", i, " at length ", summed_len + mu*np.linalg.norm(self.svectors[i]))
+                    break
+                else:
+                    summed_len += np.linalg.norm(self.svectors[i])
+    def get_survey(self):
+        self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True))
+        self.survey = read_excel("03_2022_Neutrino.xlsx")
+        print(self.survey)
+        for key, value in self.mag_objs.items():
+
+            self.mag_objs[key].nominal_offset = np.array(string_to_list(self.line.loc[self.line['element'] == key, 'survey_offset'].iloc[0]), dtype=np.float64)
+#            print(f'survey offset for {key} is {self.mag_objs[key].nominal_offset}')
+            for col in ['x2022', 'y2022', 'h2022']:
+                self.mag_objs[key].survey_points.append(self.survey.loc[self.survey['name'] == key[1:]+'1', col].iloc[0])
+            for col in ['x2022', 'y2022', 'h2022']:
+                self.mag_objs[key].survey_points.append(self.survey.loc[self.survey['name'] == key[1:]+'2', col].iloc[0])
+
+            self.mag_objs[key].survey_points = np.array(self.mag_objs[key].survey_points).reshape(2, 3)
+
+#            print(f'survey points for {key} set to {self.mag_objs[key].survey_points}')
+
+        #need to start to align the survey data to the nominal beamline, let's take BPV1 and QPQ2 (the most extreme magnets in the first straight stretch)
+        bpv1_estimate = self.mag_objs['BPV1'].survey_points[0] - np.array([0., 0., self.mag_objs['BPV1'].nominal_offset[0,2]]) #subtract just the vertical component
+        for mag in self.mag_objs.values():
+            mag.survey_points = mag.survey_points - np.array([bpv1_estimate, bpv1_estimate])
+#            print(f'changed {mag.name} survey points to {mag.survey_points}')
+
+#        print(f'survey points for {key} set to {self.mag_objs[key].survey_points}')
+
+
+        qpq2_estimate = self.mag_objs['QPQ2'].survey_points[0] - np.array([0., 0., self.mag_objs['QPQ2'].nominal_offset[0,2]]) #subtract just the vertical component
+        bpv1_estimate = self.mag_objs['BPV1'].survey_points[0] - np.array([0., 0., self.mag_objs['BPV1'].nominal_offset[0,2]]) #subtract just the vertical component
+
+        s_estimate = qpq2_estimate - bpv1_estimate
+        #rotate in xy
+        angle = np.pi+np.atan(s_estimate[1]/s_estimate[0]) #we know its in the bottom left quadrant
+#        print(f'angle = {angle} for direction {s_estimate}')
+        for mag in self.mag_objs.values():
+            mag.rotate_survey('xy', -angle)
+            mag.calculate_survey_center(mag.segment[1])
+#            print(f'rotated survey data to {mag.survey_points}')
+
+        #almost perfect at this point ~ 1mm precision over 50m of beamline
+        #optional: repeat this rotation using the xz plane
+
+        #now need to define a zero position, use BPV1 center from the survey and set it to the nominal position
+        bpv1_survey_center = cp.deepcopy(self.mag_objs['BPV1'].survey_center)
+        bpv1_nominal_center = self.mag_objs['BPV1'].nominal_center
+        for mag in self.mag_objs.values():
+            mag.shift_survey(bpv1_nominal_center - bpv1_survey_center)
+            print(f'misalign for {mag.name} is {mag.survey_center - mag.nominal_center}')
+        
+        self.bline = beamline()
+        print(self.bline.bpds[0].center, self.mag_objs['BPV1'].nominal_center)
+
+
+
+
+
 
 
 #class to take the two survey points per element and determine the element center
@@ -114,7 +379,12 @@ class holder:
     def __init__(self, points, longitudinal=False, offsets=None, center=None, s=np.array([1., 0., 0.])):
         self.s = s.T/np.linalg.norm(s)
         self.longitudinal = longitudinal
-        if(isinstance(points[0], pd.DataFrame)):
+        if(isinstance(points, pd.DataFrame)):
+            self.point = np.array([points['x2022'].tolist(), points['y2022'].tolist(), points['h2022'].tolist()])
+            self.point = [self.point[:,i] for i in range(self.point.shape[1])]
+            print(points)
+            self.name = points['name'].iloc[0]
+        elif(isinstance(points[0], pd.DataFrame)):
             self.point = [np.array([pt['x2022'].iloc[0], pt['y2022'].iloc[0], pt['h2022'].iloc[0]]) for pt in points]
             self.name = points[0]['name'].iloc[0]
         elif(isinstance(points[0], list)):
@@ -131,7 +401,16 @@ class holder:
             self.center = center
             self.set_center = True
         if offsets is not None:
-            self.offset = cp.deepcopy(offsets)
+            if(isinstance(offsets[0], np.ndarray)):
+                self.offset = cp.deepcopy(offsets)
+            elif(isinstance(offsets, list)):
+                self.offset = [np.array(ele) for ele in offsets]
+            elif(isinstance(offsets, str)):
+                self.offset = np.array(string_to_list(offsets))
+#                self.offset = [self.offset[:, i] for i in range(self.offset.shape[1])]
+            else:
+                print(offsets)
+                raise Exception("Offset type undetermined ", type(offsets))
             self.calculate_center()
         else:
             self.offset = np.nan
@@ -245,9 +524,10 @@ class beamline:
         self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True))
         self.survey = read_excel("03_2022_Neutrino.xlsx")
         
-        self.ssems, self.bpds, self.qpqs = parse_holder(self.survey, ssem1s)
+        self.ssems, self.bpds, self.qpqs = parse_holder(self.survey, self.line, ssem1s)
         self.line['s_start'] = self.line['length'].shift().cumsum()
-
+#        self.line['survey_offset_list'] = string_to_list(self.line['survey_offset'])
+#        print(self.line['survey_offset_list'])
         self.map_surv_to_line()
         self.get_s()
 
@@ -300,10 +580,12 @@ class beamline:
         y = []
         print("SSEM Position (mm): \t Nominal \t Survey \t Difference")
         for idx, row in self.line.iterrows():
-            if not np.isnan(row['s_survey']) and row['type'] == 'ssem':
-                x.append(row.s_start)
-                y.append(row.s_start-row.s_survey)
-                print(row['element'],',\t\t\t',"{:.3f}".format(row['s_start']+85.), ',\t',"{:.3f}".format(row['s_survey']), ',\t',"{:.3f}".format(row['s_start']-row['s_survey']+85.0))
+            if not np.isnan(row['s_survey']):# and row['type'] == 'ssem':
+
+                nominal_s_start = row['s_start']+float(row['mark'])-0.5*float(row['polelength'])
+                x.append(nominal_s_start)
+                y.append(nominal_s_start-row.s_survey)
+                print(row['element'],',\t\t\t',"{:.3f}".format(nominal_s_start), ',\t',"{:.3f}".format(row['s_survey']), ',\t',"{:.3f}".format(nominal_s_start-row['s_survey']))
 #        plt.scatter(x, y)
 #        plt.show()
         self.line = self.line.drop(['survey', 's_dir', 'angl', 'datum'], axis=1)
@@ -489,6 +771,8 @@ class BeamlinePrinter:
     def print_bend_magnet(self, row):
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
+        if(misalignments):
+            self.file.write(', offsetX='+str(row.misalign[1])+', offsetY='+str(row.misalign[2])+', offsetZ='+str(row.misalign[0]))
         if(not geometry):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
@@ -498,6 +782,8 @@ class BeamlinePrinter:
     def print_quad_magnet(self, row):
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(self.kvals[row.element]))
+        if(misalignments):
+            self.file.write(', offsetX='+str(row.misalign[1])+', offsetY='+str(row.misalign[2])+', offsetZ='+str(row.misalign[0]))
         if(not geometry):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
@@ -520,7 +806,7 @@ class BeamlinePrinter:
     def print_target(self, name, length, material, hWidth, misalign):
         self.line.append(name)
         if(misalignments):
-            self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm, offsetX="+str(misalign[1])+"*mm, offsetY="+str(misalign[2])+"*mm")
+            self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm, offsetX="+str(misalign[1])+"*mm, offsetY="+str(misalign[2])+"*mm, offsetZ="+str(misalign[0])+"*mm")
         else:
             self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm")
         self.print_xsec_bias('material')
@@ -612,7 +898,7 @@ tunnelSoilThickness = 2*m;\n\n''')
         driftlen = 0.0
         for row in self.beamline.itertuples():
             
-            if(row.type != 'drift' and previously_drift and not geometry):
+            if(row.type != 'drift' and previously_drift and merge_drifts):
                 #we have reached a non-drift element, so flush the drift components to the file
                 self.print_drift(prev_row, prev_row.element, driftlen)
                 self.endl()
@@ -656,7 +942,7 @@ tunnelSoilThickness = 2*m;\n\n''')
             elif(row.type == 'dump'):
                 self.print_dump(row)
             else: #otherwise, i.e. drift or collimator
-                if(geometry):
+                if(not merge_drifts):
                     self.print_drift(row, row.element, row.length)
                     self.endl()
                 else:
@@ -712,24 +998,10 @@ tunnelSoilThickness = 2*m;\n\n''')
 def get_holder(surv, basename, points, longitudinal, offsets, s=None):
     names = [basename+str(pt) for pt in points]
     if(s is None):
-        return holder([surv[surv['name'] == name] for name in names], longitudinal, offsets)
+        return holder(surv[surv['name'].isin(names)], longitudinal, offsets)
     else:
-        return holder([surv[surv['name'] == name] for name in names],  longitudinal, offsets, s)
+        return holder(surv[surv['name'].isin(names)], longitudinal, offsets, s)
 
-def curvilinear_coords(s):
-    intersection_point = start_of_bpd1+3600.5853
-    end_of_bpd2 = start_of_bpd1 + 3000. + 1198. + 3000.
-
-    if(s<start_of_bpd1):
-        x=s
-        return x, 0.
-    elif(s<end_of_bpd2):
-        return 0., 0.
-    else:
-        s -= end_of_bpd2
-        x = np.cos(bpd1_angle+bpd2_angle)*s + 7193.162 + start_of_bpd1
-        y = np.sin(bpd1_angle+bpd2_angle)*s + 240.1859
-        return x, y
 
 def read_excel(filename):
     surv = pd.ExcelFile(filename)
@@ -755,12 +1027,22 @@ def rotate_surveyxz(surv, theta):
     surv['h2022'] = R[1,0] * tmp['x2022'] + R[1,1] * tmp['h2022']
     return surv
 
-def parse_holder(surv, ssem1s):
-    #for now only keep SSEM data
-#    surv = surv[surv.name.str.contains('SSEM*', regex=True)]
+def parse_holder(surv, line, ssem1s):
+
+#    ssem_offset = line[re.match('ssem[0-9]*', line['element'])] ##SSEM offsets are the same for all SSEMs (for now, not true in FF)
+    bpd_offset = line[line['element'].str.contains(r'^BP', regex=True)]
+    bpd_names = bpd_offset['element']
+    bpd_offset = bpd_offset.set_index('element')['survey_offset'].to_dict()
+
+    qpq_offset = line[line['element'].str.contains(r'^QP', regex=True)]
+
+    print("qpq_offset_type ", type(qpq_offset['survey_offset']))
+
+    qpq_names = qpq_offset['element']
+    qpq_offset = qpq_offset.set_index('element')['survey_offset'].to_dict()
     ssem_offset = np.array([[0., 0., 225.5],[0., 330., 225.5]]) #offset in x,y,h where x is along the beamline,y is horisontal and h is vertical
-    bpd_offset =  np.array([[0., 0., 500.],[3000., 0., 500.]]) #offset in x,y,h where x is along the beamline,y is horisontal and h is vertical
-    qpq_offset =  np.array([[0., 0., 500.],[3000., 0., 500.]]) #offset in x,y,h where x is along the beamline,y is horisontal and h is vertical
+#    bpd_offset =  np.array([[0., 0., 500.],[3000., 0., 500.]]) #offset in x,y,h where x is along the beamline,y is horisontal and h is vertical
+#    qpq_offset =  np.array([[0., 0., 500.],[3000., 0., 500.]]) #offset in x,y,h where x is along the beamline,y is horisontal and h is vertical
 
     #due to the issue of multiple solutions, described in the rotation matrix we must make an assumption:
     #components are placed such that the vertical axis of their vertical face is perpendicular to the beamline 
@@ -825,11 +1107,26 @@ def parse_holder(surv, ssem1s):
 
     s_after_bpd = R.dot(s)
     ssem_svec = [s if i<=3 else s_after_bpd for i in range(1,10)]
-    qpq_svec = [s if i<=2 else s_after_bpd for i in range(1,6)]
+    qpq_svec = {'QPQ1': s,
+             'QPQ2': s,
+             'QPQ3': s_after_bpd,
+             'QPQ4': s_after_bpd,
+             'QPQ5': s_after_bpd}
+    
+    bpd_svec = {'BPV1': s,
+             'BPH2': s,
+             'BPD1': s,             #CERN TODO these should be something between s and s_after_bpd
+             'BPD2': s_after_bpd,   #CERN TODO 
+             'BPV2': s_after_bpd,
+             'BPH3': s_after_bpd}
+   
+
+
+    #qpq_svec = [s if i<=2 else s_after_bpd for i in range(1,6)]
 
     ssems = [get_holder(surv, 'SSEM'+str(id), [1, 2], False, ssem_offset, s=ssem_svec[id-1]) for id in range(1,10)]
-    qpqs = [get_holder(surv, 'PQ'+str(id), [1, 2], True, qpq_offset, s=qpq_svec[id-1]) for id in range(1, 6)]
-    bpds = [get_holder(surv, 'PD'+str(id), [1, 2], True, bpd_offset, s=s) for id in range(1, 3)]
+    qpqs = [get_holder(surv, id[1:], [1, 2], True, qpq_offset[id], s=qpq_svec[id]) for id in qpq_names]
+    bpds = [get_holder(surv, id[1:], [1, 2], True, bpd_offset[id], s=bpd_svec[id]) for id in bpd_names]
 
     #NOTE SSEMs now 0 indexed!!!
 
@@ -876,6 +1173,9 @@ def plot_centers(hld, lab, xcomp, ycomp, zcomp=None, ax=None):
 
 if __name__ == '__main__':
 
+    nom = nominalBeamline()
+    nom.draw_beamline()
+    exit(1)
 
     beamline_with_misalign = beamline()
     bline = beamline_with_misalign.line
@@ -943,11 +1243,11 @@ if __name__ == '__main__':
     prnt.print()
 
 
-    exit(1)
+#    exit(1)
 
-
+###################just for plotting purposes###################
     survey = read_excel("03_2022_Neutrino.xlsx")
-    ssems, bpds, qpqs = parse_holder(survey, ssem1s)
+    ssems, bpds, qpqs = parse_holder(survey, bline, ssem1s)
 
 
     s = np.linspace(0, 50000, 10000)
@@ -961,8 +1261,8 @@ if __name__ == '__main__':
     plot_points(bpds, 'BPD Survey', 0, 2)
     plot_points(qpqs, 'QPQ Survey', 0, 2)
     plot_centers(ssems, 'SSEM center', 0, 2)
-#    plot_centers(bpds, 'BPD center', 0, 2)
-#    plot_centers(qpqs, 'QPQ center', 0, 2)
+    plot_centers(bpds, 'BPD center', 0, 2)
+    plot_centers(qpqs, 'QPQ center', 0, 2)
     plt.xlabel('x(mm)')
     plt.ylabel('z(mm)')
     plt.legend()
@@ -973,9 +1273,8 @@ if __name__ == '__main__':
     plot_points(bpds, 'BPD', 0, 1)
     plot_points(qpqs, 'QPQ', 0, 1)
     plot_centers(ssems, 'SSEM center', 0, 1)
-#    plot_centers(bpds, 'BPD center', 0, 1)
-#    plot_centers(qpqs, 'QPQ center', 0, 1)
-    plt.scatter(x, y, s=0.2)
+    plot_centers(bpds, 'BPD center', 0, 1)
+    plot_centers(qpqs, 'QPQ center', 0, 1)
     plt.xlabel('x(mm)')
     plt.ylabel('y(mm)')
     plt.legend()
@@ -988,9 +1287,9 @@ if __name__ == '__main__':
     plot_points(ssems, 'SSEM', 0, 1, 2, ax)
     plot_centers(ssems, 'SSEM center', 0, 1, 2, ax)
     plot_points(bpds, 'BPD', 0, 1, 2, ax)
-#    plot_centers(bpds, 'BPD center', 0, 1, 2, ax)
+    plot_centers(bpds, 'BPD center', 0, 1, 2, ax)
     plot_points(qpqs, 'QPQ', 0, 1, 2, ax)
-#    plot_centers(qpqs, 'QPQ center', 0, 1, 2, ax)
+    plot_centers(qpqs, 'QPQ center', 0, 1, 2, ax)
     ax.set_xlabel('x(mm)')
     ax.set_ylabel('y(mm)')
     ax.set_zlabel('z(mm)')
