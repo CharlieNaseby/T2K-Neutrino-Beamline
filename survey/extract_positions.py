@@ -51,6 +51,22 @@ bias_physics=False
 print_vacuum=False
 merge_drifts=False
 
+#beam loss configuration
+print_tunnel=False
+print_physics=False
+sample_all=True
+sample_ssem=True
+sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
+beam_from_file = False
+beam_halo = False
+enable_blms = True
+geometry = True
+misalignments=True
+bias_physics=False
+print_vacuum=False
+merge_drifts=False
+
+
 generate_primaries=False
 
 if(generate_primaries):
@@ -112,17 +128,19 @@ def get_intersection_len(p1, v1, p2, v2):
     a, b = np.linalg.solve(A, B)
     return a
     
-    
-#    umerator = p2[1]-p1[1]+v2[1]*(p1[0]-p2[0])/v2[0]
-#    denominator = v1[1]+v1[0]*v2[1]/v2[0]
-#    return numerator/denominator
-
-
 def string_to_list(s):
     s = s.replace(' ', ',')
     s = s.replace('][', '],[')
     elements = ast.literal_eval(s)
     return elements
+
+def string_to_string_list(s):
+    return s.strip("[]").split()
+    s = s.replace(' ', ',')
+    s = s.replace('][', '],[')
+    elements = ast.literal_eval(s)
+    return elements
+
 
 class survey_element:
     def __init__(self, nom_normvec):
@@ -137,12 +155,18 @@ class survey_element:
         self.survey_diff = []
         self.nominal_offset = []
         self.name = []
+        self.magnum = -1
+        self.segment_start_s = []
+        self.angle_diff = 0.
+        self.angle = 0.
 
     def rotate_survey(self, axis, theta):
         c = np.cos(theta)
         s = np.sin(theta)
         if(axis == 'xy'):
             R = np.array([[c, -s, 0.],[s, c, 0.], [0., 0., 1.]])
+        elif(axis == 'xz'):
+            R = np.array([[c, 0, -s], [0, 1, 0], [s, 0, c]])
         else:
             raise Exception('axis not valid')
         if(not is_empty(self.survey_points)):
@@ -152,7 +176,7 @@ class survey_element:
     def shift_survey(self, change):
         self.survey_center += change
         self.survey_points += change
-    
+
     def binary_search(self, func, R, horisontal, l, r):
         precision = 1e-8
         val = 99999
@@ -179,10 +203,10 @@ class survey_element:
         else:
             return left[0]
 
-    def calculate_survey_center(self, s):
+    def calculate_survey_center(self):
 
-        survey_point_diff = self.survey_points[1] - self.survey_points[0]
-        nominal_surv_point_diff = -self.nominal_offset[1] + self.nominal_offset[0] #these numbers are center to point vector so sort of backwards from the survey
+        survey_point_diff = cp.deepcopy(self.survey_points[1] - self.survey_points[0])
+        nominal_surv_point_diff = cp.deepcopy(-self.nominal_offset[1] + self.nominal_offset[0]) #these numbers are center to point vector so sort of backwards from the survey
 
         R = get_rotation_matrix(nominal_surv_point_diff, survey_point_diff) #rotation to take the points from the idealised space to the survey space
 
@@ -190,7 +214,6 @@ class survey_element:
         #there is an extra DOF, rotation about the line connecting the two survey points traces out a cone of valid p1c vectors
         #how far along the magnet direction does the p1c line go?
         len_along_magdir = p1c.dot(normvec(-survey_point_diff))
-#        print(f'len along magdir = {len_along_magdir}')
         circle_radius = np.linalg.norm(np.cross(p1c, normvec(survey_point_diff)))
 
         #can now define a circle around survey_point_diff at position len_along_magdir with radius circle_radius
@@ -203,18 +226,16 @@ class survey_element:
         circle = lambda angle, R2, horisontal: horisontal.dot(R2.dot(np.array([np.cos(angle), np.sin(angle), 0.0])))
 
         best_angle = self.binary_search(circle, R2, horisontal, -np.pi/2., np.pi/2.)
-#        print(f'best angle {best_angle}')
         #get resulting center point
         self.survey_center = self.survey_points[0] + len_along_magdir*normvec(survey_point_diff) + circle_radius*R2.dot(np.array([np.cos(best_angle), np.sin(best_angle), 0.0]))
-#        print(f'survey center {self.survey_center}')
-#        print(f'for survey points {self.survey_points}')
-
         #alternate method as a cross-check
-        center = self.survey_points[0]
+        center = cp.deepcopy(self.survey_points[0])
         center -= self.nominal_offset[0][0]*normvec(survey_point_diff) #move along vector connecting survey points by amount nominal diff
         center -= self.nominal_offset[0][1]*horisontal
         center -= self.nominal_offset[0][2]*vertical
-#        print(f'alternative method gets center of {center}')
+
+        if(np.linalg.norm(center - self.survey_center) > 1e-1):
+            print(f'WARNING centers calculated through two methods differ above threshold for {self.name}, {center} vs {self.survey_center}')
 
 
 class nominalBeamline:
@@ -225,6 +246,10 @@ class nominalBeamline:
     offsets = []
     mag_objs = []
     def __init__(self): #a bunch of vectors extraced from the .dwg files provided by Fujii-san
+        self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
+        self.line['s_start'] = self.line['length'].shift().cumsum()
+
+
         self.nuin_to_bpd1 = np.array([[27711.320296225927,10246.557442498312,0.0], [8826.078822922398,10998.629426709593,0.0]])
         self.startpoint = self.nuin_to_bpd1[0,:]
         self.bpd1_to_bpd2 = np.array([[8826.078822922398,10998.629426709593,0.0], [4625.740813728273,11025.057932632815,0.0]])
@@ -244,9 +269,12 @@ class nominalBeamline:
         self.nuin_to_bpd1 = self.nuin_to_bpd1 - self.startpoint
         self.bpd1_to_bpd2 = self.bpd1_to_bpd2 - self.startpoint
         self.bpd2_to_arc =  self.bpd2_to_arc -  self.startpoint
+        ctr = 0
         for key, val in self.mag_objs.items():
             self.mag_objs[key].nominal_normvec = val.nominal_normvec-self.startpoint
             self.mag_objs[key].name = key
+            self.mag_objs[key].magnum = ctr
+            ctr += 1
 
         #drop the 3rd component
         self.nuin_to_bpd1 = self.nuin_to_bpd1[:, :2]
@@ -255,12 +283,9 @@ class nominalBeamline:
         for key, val in self.mag_objs.items():
             self.mag_objs[key].nominal_normvec = val.nominal_normvec[:, :2]
 
-        print("after dropping 3rd component nuin to bpd1 ", self.nuin_to_bpd1)
        #rotate to point along (1, 0, 0)
         initial_vec = normvec(self.nuin_to_bpd1[1])
-        print("initial vec ", initial_vec)
         rotangle = np.atan(initial_vec[1]/initial_vec[0])-np.pi
-        print("rotating through angle ", rotangle)
         self.rotate(rotangle)
 
         self.svectors.append(self.nuin_to_bpd1[1] - self.nuin_to_bpd1[0])
@@ -271,19 +296,28 @@ class nominalBeamline:
         
         self.svectors.append(self.bpd2_to_arc[1] - self.bpd2_to_arc[0])
         self.sstart.append(self.bpd2_to_arc[0])
-        print("svectors ", self.svectors)
-        print("sstart ", self.sstart)
 
         self.get_intersections()
         self.get_survey()
+        self.get_offsets()
+        self.match_misalignments()
 
-    def draw_beamline(self):
-        plt.plot(self.nuin_to_bpd1[:,0], self.nuin_to_bpd1[:,1])
-        plt.plot(self.bpd1_to_bpd2[:,0], self.bpd1_to_bpd2[:,1])
-        plt.plot(self.bpd2_to_arc[:,0], self.bpd2_to_arc[:,1])
+    def draw_beamline(self, axis1, axis2):
+
+        nuin_to_bpd1_3d = np.hstack((self.nuin_to_bpd1, np.zeros((self.nuin_to_bpd1.shape[0], 1))))
+        bpd1_to_bpd2_3d = np.hstack((self.bpd1_to_bpd2, np.zeros((self.bpd1_to_bpd2.shape[0], 1))))
+        bpd2_to_arc_3d = np.hstack((self.bpd2_to_arc, np.zeros((self.bpd2_to_arc.shape[0], 1))))
+
+        plt.plot(nuin_to_bpd1_3d[:,axis1], nuin_to_bpd1_3d[:,axis2])
+        plt.plot(bpd1_to_bpd2_3d[:,axis1], bpd1_to_bpd2_3d[:,axis2])
+        plt.plot(bpd2_to_arc_3d[:,axis1], bpd2_to_arc_3d[:,axis2])
         for key, val in self.mag_objs.items():
-            plt.plot(val.nominal_normvec[:,0], val.nominal_normvec[:,1])
+            nominal_normvec_3d = np.hstack((val.nominal_normvec, np.zeros((val.nominal_normvec.shape[0], 1))))
 
+            plt.plot(nominal_normvec_3d[:,axis1], nominal_normvec_3d[:,axis2], label=val.name)
+            plt.scatter(val.survey_points[:,axis1], val.survey_points[:,axis2], label=val.name)
+            plt.scatter(val.survey_center[axis1], val.survey_center[axis2], label=val.name)
+        plt.legend()
         plt.show()
     
     def rotate(self, theta):
@@ -299,21 +333,24 @@ class nominalBeamline:
             summed_len = 0
             for i in range(len(self.svectors)):
                 mu = get_intersection_len(self.sstart[i], self.svectors[i], val.nominal_normvec[0], val.nominal_normvec[1]-val.nominal_normvec[0])
-                print(mu)
                 if mu <= 1 and mu >=0:
+                    val.segment_start_s = summed_len
                     val.s_nom = summed_len + mu*np.linalg.norm(self.svectors[i])
                     val.segment_id = i
                     val.segment = [np.append(self.sstart[i], 0.0), np.append(self.svectors[i], 0.0)]
                     val.nominal_center = self.sstart[i] + mu*self.svectors[i]
                     val.nominal_center = np.append(val.nominal_center, 0.0)
-                    print("found intersection for ", key, " in segment ", i, " at length ", summed_len + mu*np.linalg.norm(self.svectors[i]))
+                    if(mu*np.linalg.norm(self.svectors[i]) < 1.0): #bending magnet (within 1mm of the change point)
+                        val.angle = np.acos(normvec(self.svectors[i]).dot(normvec(self.svectors[i-1]))) * np.sign(normvec(self.svectors[i-1])[1] - normvec(self.svectors[i])[1]) # negative if y increases
+                    elif(mu*np.linalg.norm(self.svectors[i]) > np.linalg.norm(self.svectors[i]) - 1.0): #bending magnet (within 1mm of the change point)
+                        val.angle = np.acos(normvec(self.svectors[i]).dot(normvec(self.svectors[i+1]))) * np.sign(normvec(self.svectors[i])[1] - normvec(self.svectors[i+1])[1]) # negative if y increases
+                    print("found intersection for ", key, " in segment ", i, " at length ", summed_len + mu*np.linalg.norm(self.svectors[i]), " with angle ", val.angle)
                     break
                 else:
                     summed_len += np.linalg.norm(self.svectors[i])
     def get_survey(self):
         self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True))
         self.survey = read_excel("03_2022_Neutrino.xlsx")
-        print(self.survey)
         for key, value in self.mag_objs.items():
 
             self.mag_objs[key].nominal_offset = np.array(string_to_list(self.line.loc[self.line['element'] == key, 'survey_offset'].iloc[0]), dtype=np.float64)
@@ -326,6 +363,8 @@ class nominalBeamline:
             self.mag_objs[key].survey_points = np.array(self.mag_objs[key].survey_points).reshape(2, 3)
 
 #            print(f'survey points for {key} set to {self.mag_objs[key].survey_points}')
+
+    def get_offsets(self):
 
         #need to start to align the survey data to the nominal beamline, let's take BPV1 and QPQ2 (the most extreme magnets in the first straight stretch)
         bpv1_estimate = self.mag_objs['BPV1'].survey_points[0] - np.array([0., 0., self.mag_objs['BPV1'].nominal_offset[0,2]]) #subtract just the vertical component
@@ -340,30 +379,75 @@ class nominalBeamline:
         bpv1_estimate = self.mag_objs['BPV1'].survey_points[0] - np.array([0., 0., self.mag_objs['BPV1'].nominal_offset[0,2]]) #subtract just the vertical component
 
         s_estimate = qpq2_estimate - bpv1_estimate
-        #rotate in xy
+        #approximate rotatation in xy, technically not necessary but makes understanding/debug so much easier
         angle = np.pi+np.atan(s_estimate[1]/s_estimate[0]) #we know its in the bottom left quadrant
 #        print(f'angle = {angle} for direction {s_estimate}')
         for mag in self.mag_objs.values():
             mag.rotate_survey('xy', -angle)
-            mag.calculate_survey_center(mag.segment[1])
-#            print(f'rotated survey data to {mag.survey_points}')
+            mag.calculate_survey_center()
 
-        #almost perfect at this point ~ 1mm precision over 50m of beamline
-        #optional: repeat this rotation using the xz plane
+        #almost perfect at this point ~ 2-3mm precision over 50m of beamline
+        #repeat this rotation using the xz plane and using the survey centers rather than the survey points themselves
+        #use largest lever arm possible, in the vertical this is BPV1 and QPQ5
+        angle = np.atan((self.mag_objs['QPQ5'].survey_center[2]-self.mag_objs['BPV1'].survey_center[2])/(self.mag_objs['QPQ5'].survey_center[0]-self.mag_objs['BPV1'].survey_center[0]))
+        for mag in self.mag_objs.values():
+            mag.rotate_survey('xz', -angle)
+            mag.calculate_survey_center()
+        #and again for xy in y there are bending magnets BPD1,2 so can only use the line to QPQ2 for the zero direction
+        angle = np.atan((self.mag_objs['QPQ2'].survey_center[1]-self.mag_objs['BPV1'].survey_center[1])/(self.mag_objs['QPQ2'].survey_center[0]-self.mag_objs['BPV1'].survey_center[0]))
+        for mag in self.mag_objs.values():
+            mag.rotate_survey('xy', -angle)
+            mag.calculate_survey_center()
+
+        #sadly BPD1 doesn't bend by the correct amount relative to the survey, while we could technically offset everything its better to just adjust BPD2 bending magnitude
+        dr = self.mag_objs['QPQ5'].survey_center - self.mag_objs['QPQ3'].survey_center 
+        survey_angle = np.atan(dr[1]/dr[0])
+        print(f'survey angle is {survey_angle}')
+        nominal_angle = np.atan(self.mag_objs['QPQ3'].segment[1][1] / self.mag_objs['QPQ3'].segment[1][0])
+        print(f'nominal angle is {nominal_angle}')
+        print(f'Taking bpv2 angle {self.mag_objs["BPD2"].angle}')
+        self.mag_objs['BPD2'].angle += nominal_angle - survey_angle
+        print(f'To {self.mag_objs["BPD2"].angle}')
+        #now change the segment angle do not change the segment start position 
+
+        for key, val in self.mag_objs.items():
+            if(val.magnum > self.mag_objs['BPD2'].magnum): #after BPD2
+                self.mag_objs[key].segment[1] = np.linalg.norm(val.segment[1]) * normvec(np.array([np.cos(survey_angle), np.sin(survey_angle), 0.0]))
+                #need to recalculate nominal center
+                self.mag_objs[key].nominal_center = val.segment[0] + (val.s_nom - val.segment_start_s) * normvec(val.segment[1])
 
         #now need to define a zero position, use BPV1 center from the survey and set it to the nominal position
         bpv1_survey_center = cp.deepcopy(self.mag_objs['BPV1'].survey_center)
-        bpv1_nominal_center = self.mag_objs['BPV1'].nominal_center
+        bpv1_nominal_center = cp.deepcopy(self.mag_objs['BPV1'].nominal_center)
+        vertical = np.array([0., 0., 1.])
         for mag in self.mag_objs.values():
             mag.shift_survey(bpv1_nominal_center - bpv1_survey_center)
             print(f'misalign for {mag.name} is {mag.survey_center - mag.nominal_center}')
+            #now need misalignment in beamline coords
+            #along beamline
+            offset = mag.survey_center - mag.nominal_center
+            along_segment = (mag.survey_center - mag.segment[0]).dot(normvec(mag.segment[1])) 
+            offset_s = along_segment - mag.s_nom + mag.segment_start_s 
+            vertical_offset = offset.dot(vertical)
+            horisontal_vector = -normvec(np.cross(mag.segment[1], vertical))
+            horisontal_offset = horisontal_vector.dot(offset)
+
+            print(f'magnet {mag.name} is offset along the beamline direction by {offset_s}')
+            print(f'with vertical misalignment {vertical_offset} and horisontal offset {horisontal_offset}')
+            mag.offsets = [offset_s, horisontal_offset, vertical_offset]
         
-        self.bline = beamline()
-        print(self.bline.bpds[0].center, self.mag_objs['BPV1'].nominal_center)
+    def match_misalignments(self):
+        self.line['misalign'] = np.nan
 
+        for key, value in self.mag_objs.items():
+            self.line['misalign'] = self.line.apply(lambda row: value.offsets if row['element'] == key else row['misalign'], axis=1)
+            self.line['angle'] = self.line.apply(lambda row: value.angle if row['element'] == key else row['angle'], axis=1)
 
+        print(self.line['angle']) 
 
-
+    def print_beamline(self, kv, filename):
+        self.printer = BeamlinePrinter(self.line, kv, filename)
+        self.printer.print()
 
 
 
@@ -755,12 +839,15 @@ class BeamlinePrinter:
     #now the physical elements
     ######################################################
 
-    def print_aperture(self, row):
+    def print_aperture(self, row, vertical=False):
         self.file.write(', apertureType="'+str(row.aperture_type)+'"')
         if(row.aperture_type == 'circular'): 
             self.file.write(', aper1=' + str(0.5*row.aperture_x) + '*mm')
         elif(row.aperture_type == 'rectangular'):
-            self.file.write(', aper1=' + str(0.5*row.aperture_x) + '*mm, aper2=' + str(0.5*row.aperture_y) + '*mm')
+            if(vertical):
+                self.file.write(', aper1=' + str(0.5*row.aperture_y) + '*mm, aper2=' + str(0.5*row.aperture_x) + '*mm')
+            else:
+                self.file.write(', aper1=' + str(0.5*row.aperture_x) + '*mm, aper2=' + str(0.5*row.aperture_y) + '*mm')
 
     def print_drift(self, row, name, driftlen):
         self.line.append(name)
@@ -772,10 +859,14 @@ class BeamlinePrinter:
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
         if(misalignments):
-            self.file.write(', offsetX='+str(row.misalign[1])+', offsetY='+str(row.misalign[2])+', offsetZ='+str(row.misalign[0]))
+            self.file.write(', offsetX='+str(row.misalign[1])+'*mm, offsetY='+str(row.misalign[2])+'*mm')
         if(not geometry):
             self.file.write(', magnetGeometryType="none"')
-        self.print_aperture(row)
+        vertical = False
+        print(f'Magnet tilt {np.abs(row.tilt-np.pi/2.0)}')
+        if(np.abs(row.tilt-np.pi/2.0) <0.01):
+            vertical=True
+        self.print_aperture(row, vertical)
         self.print_xsec_bias('vacuum')
         self.endl()
 
@@ -783,10 +874,13 @@ class BeamlinePrinter:
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(self.kvals[row.element]))
         if(misalignments):
-            self.file.write(', offsetX='+str(row.misalign[1])+', offsetY='+str(row.misalign[2])+', offsetZ='+str(row.misalign[0]))
+            self.file.write(', offsetX='+str(row.misalign[1])+'*mm, offsetY='+str(row.misalign[2])+'*mm')
         if(not geometry):
             self.file.write(', magnetGeometryType="none"')
-        self.print_aperture(row)
+        vertical = False
+        if(np.abs(row.tilt-np.pi/2.0) <0.01):
+            vertical=True
+        self.print_aperture(row, vertical)
         self.print_xsec_bias('vacuum')
         self.endl()
 
@@ -806,7 +900,7 @@ class BeamlinePrinter:
     def print_target(self, name, length, material, hWidth, misalign):
         self.line.append(name)
         if(misalignments):
-            self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm, offsetX="+str(misalign[1])+"*mm, offsetY="+str(misalign[2])+"*mm, offsetZ="+str(misalign[0])+"*mm")
+            self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm, offsetX="+str(misalign[1])+"*mm, offsetY="+str(misalign[2])+"*mm")
         else:
             self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm")
         self.print_xsec_bias('material')
@@ -874,7 +968,8 @@ tunnelSoilThickness = 2*m;\n\n''')
         dx = string_to_list(row.blm_offset_x)
         dy = string_to_list(row.blm_offset_y)
         ds = [str(float(entry)+row.polelength/2.0) for entry in string_to_list(row.blm_offset_s)]  #TODO THIS ONLY WORKS FOR PURE QUAD/DIPOLE FIELDMAP WILL BREAK THIS
-        orientation = string_to_list(row.blm_orientation)
+        print(row.blm_orientation)
+        orientation = string_to_string_list(row.blm_orientation)
         for i in range(len(dx)):
             self.print_blm(row.element, dx[i], dy[i], ds[i], orientation[i])
 
@@ -906,13 +1001,13 @@ tunnelSoilThickness = 2*m;\n\n''')
 
             if(row.type in ['rbend', 'sbend', 'quadrupole']):
                 self.file.write('\n') #give some breathing room
-                self.print_drift(row, row.element+'_driftu', float(row.mark)-row.polelength/2.)
+                self.print_drift(row, row.element+'_driftu', float(row.mark)-row.polelength/2.+row.misalign[0])
                 self.endl()
                 if(row.type == 'quadrupole'):
                     self.print_quad_magnet(row)
                 else:
                     self.print_bend_magnet(row)
-                self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.))
+                self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.)-row.misalign[0])
                 self.endl()
                 self.file.write('\n') #give some breathing room
 
@@ -1174,11 +1269,12 @@ def plot_centers(hld, lab, xcomp, ycomp, zcomp=None, ax=None):
 if __name__ == '__main__':
 
     nom = nominalBeamline()
-    nom.draw_beamline()
-    exit(1)
+#    nom.draw_beamline(0, 1)
+#    nom.draw_beamline(0, 2)
 
-    beamline_with_misalign = beamline()
-    bline = beamline_with_misalign.line
+
+#    beamline_with_misalign = beamline()
+#    bline = beamline_with_misalign.line
 
     #run 910216
     vec_magset = [0 ,
@@ -1220,11 +1316,11 @@ if __name__ == '__main__':
         kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
         zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
         if magnet[0] == 'B': #bending magnets
-            kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*bline.loc[bline['element'] == magnet].iloc[0]['polelength'])
+            kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
         else:
-            kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*bline.loc[bline['element'] == magnet].iloc[0]['polelength'])
-        if abs(kvals[magnet]) < 1e-8: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero
-            kvals[magnet] = 1e-8
+            kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
+        if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
+            kvals[magnet] = 1e-3
     
     
     #kvals['BPD1'] = -1.15329
@@ -1239,6 +1335,9 @@ if __name__ == '__main__':
     #df_tmp = magnet_response[magnet_response['element'] == row.element]
     
     
+    nom.print_beamline(kvals, "test.gmad")
+    exit(0)
+
     prnt = BeamlinePrinter(bline, kvals, "test.gmad", primaries_only=generate_primaries)
     prnt.print()
 
