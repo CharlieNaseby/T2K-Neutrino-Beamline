@@ -34,7 +34,7 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
 int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
 
-  std::string baseBeamlineFile="../gmad/optimised_test.gmad";
+  std::string baseBeamlineFile="../survey/test.gmad";
   std::string ssemDataFile="./ssem_data/run0910216_gen.root";
 
   const int nMagnetPars = 11;
