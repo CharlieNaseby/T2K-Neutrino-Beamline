@@ -33,6 +33,7 @@
 #include "Math/Minimizer.h"
 #include "Math/Functor.h"
 #include "Math/Factory.h"
+#include "TRandom3.h"
 
 
 #define NSSEM 9
@@ -59,7 +60,7 @@ public:
  
   Interface(std::string dataFile, std::string baseBeamlineFile, int npars, int nmagnetpars, int nbeampars);
   ~Interface();
-  void SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double* pars);
+  void SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double* pars, double noise=0.0);
   void SetInternalPars(const double *pars);
   std::map<std::string, double> GetNominalPars();
   void ParamScan(int param, TH1D *hist);
@@ -71,7 +72,10 @@ public:
   void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);
   std::vector<std::array<double, 4> > GetBeamPars();
+  double FitToPhysical(int i, double fitval);
+  double PhysicalToFit(int i, double physval);
   double CalcChisq(const double *pars);
+  std::map<std::string, double> GetParmap(const double *pars);
   double CalcPrior(std::map<std::string, double> pars);
   void TestBdsim();
   void SetChisqMode(int mode){fitMode=mode;};

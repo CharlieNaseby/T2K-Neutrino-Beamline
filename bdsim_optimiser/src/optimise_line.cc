@@ -13,8 +13,9 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
   min->SetMaxFunctionCalls(10000);
   min->SetTolerance(1000);
 
-  for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], pars[i], 0.1);
- 
+//  for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], pars[i], 0.1);
+   for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], inter->PhysicalToFit(i, pars[i]), 0.1);
+
 
   for(auto fixedvec : fixedVars)
     for(auto fixed : fixedvec) 
@@ -27,9 +28,69 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
   min->FixVariable(10);
   min->Minimize();
   min->PrintResults();
-  for(int i=0; i<nPars; i++) pars[i] = min->X()[i];
+  for(int i=0; i<nPars; i++) pars[i] = inter->FitToPhysical(i, min->X()[i]);
   return min->MinValue();
 }
+
+void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, char *filename){
+  double fcnmin = inter->fcn_wrapper(min->X());
+  std::cout<<"savinf minimum at fcn "<<fcnmin<<std::endl;
+  TFile *outf = new TFile(filename, "RECREATE");
+ 
+  double *covarray = new double[nPars*nPars];
+  min->GetCovMatrix(covarray);
+  TMatrixD *cov = new TMatrixD(nPars, nPars, covarray);
+  cov->Write("postfit_covariance");
+  const double *errors = min->Errors();
+  const double *bestFit = min->X();
+ 
+  TVectorD nom(nPars);
+  TVectorD pre(nPars);
+  TVectorD pos(nPars);
+  TVectorD posError(nPars);
+  TVectorD posFitBasis(nPars);
+  TVectorD posErrorFitBasis(nPars);
+  TVectorD posFcn(2);
+  posFcn[0] = fcnmin;
+  posFcn[1] = inter->CalcPrior(inter->GetParmap(min->X()));
+
+  for(int i=0; i<nPars; i++){
+    nom[i] = inter->nominalPars[inter->parNames[i]];
+    pre[i] = inter->preFit[i];
+    pos[i] = inter->FitToPhysical(i, bestFit[i]);
+    posError[i] = inter->FitToPhysical(i, errors[i]);
+    posFitBasis[i] = bestFit[i];
+    posErrorFitBasis[i] = errors[i];
+  }
+
+  std::vector<std::array<double, 4> > allSSEMSimulation = inter->GetBeamPars();
+  std::vector<std::array<double, 4> > dat = inter->dat;
+
+
+  for(int i=0; i<4; i++){
+    TVectorD SSEM_data(NSSEM);
+    TVectorD SSEM_sim(NSSEM);
+    char *dataNames[4] = {"xmean_data", "ymean_data", "xwidth_data", "ywidth_data"};
+    char *simNames[4] = {"xmean_sim", "ymean_sim", "xwidth_sim", "ywidth_sim"};
+    for(int j=0; j<NSSEM; j++){
+      SSEM_data[j] = dat[j][i];
+      SSEM_sim[j] = allSSEMSimulation[j][i];
+    }
+    SSEM_data.Write(dataNames[i]);
+    SSEM_sim.Write(simNames[i]);
+  }
+
+
+  nom.Write("nominal");
+  pre.Write("preFit");
+  pos.Write("postFit");
+  posError.Write("postFitError");
+  posFitBasis.Write("postFitFitBasis");
+  posErrorFitBasis.Write("postFitErrorFitBasis");
+  posFcn.Write("chisq");
+  outf->Close();
+}
+
 
 int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
@@ -45,29 +106,30 @@ int main(int argc, char **argv){
 
   double pars[nPars];
 
-  bool usePrevBestFit = false;
+  //options for the initial magnet field strengths, all false means use ssem data file and estimates of magnet strengths
+  char *usePrevBestFit = "./mar_2025_cm_fits/fit_910216_with_misalignments_no_noise_5pc_constraint.root";//nullptr;
   bool useFieldMaps = false; //currently unsupported
   bool useFudgeFactor = false;
-  bool useInputFile = true;
+  bool useInputFile = false;
 
 
-  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars);
+  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars, 0); //last arg is noise
 
   //set prior constraints
   //negative values are a fractional uncertainty on the nominal value
   //positive values are an absolute uncertainty in the same units as the parameter
 
-  inter.priorErrors["BPV1"] = 0.00001; //nominal current is 0 maybe there should actually be no freedom here..
-  inter.priorErrors["BPH2"] = -0.2;
-  inter.priorErrors["QPQ1"] = -0.2;
-  inter.priorErrors["QPQ2"] = -0.2;
-  inter.priorErrors["BPD1"] = -0.2;
-  inter.priorErrors["BPD2"] = -0.2;
-  inter.priorErrors["QPQ3"] = -0.2;
-  inter.priorErrors["BPV2"] = -0.2;
-  inter.priorErrors["QPQ4"] = -0.2;
-  inter.priorErrors["BPH3"] = -0.2;
-  inter.priorErrors["QPQ5"] = -0.2;
+//  inter.priorErrors["BPV1"] = 0.00001; //nominal current is 0 maybe there should actually be no freedom here..
+  inter.priorErrors["BPH2"] = -0.05;
+  inter.priorErrors["QPQ1"] = -0.05;
+  inter.priorErrors["QPQ2"] = -0.05;
+  inter.priorErrors["BPD1"] = -0.05;
+  inter.priorErrors["BPD2"] = -0.05;
+  inter.priorErrors["QPQ3"] = -0.05;
+  inter.priorErrors["BPV2"] = -0.05;
+  inter.priorErrors["QPQ4"] = -0.05;
+//  inter.priorErrors["BPH3"] = -0.05;
+//  inter.priorErrors["QPQ5"] = -0.05;
 
   //really lose constraints on beam parameters, but does really help with them not exploding 
   inter.priorErrors["X0"] = 2;
@@ -95,8 +157,6 @@ int main(int argc, char **argv){
   auto iterendtime = std::chrono::high_resolution_clock::now();
   auto itertime = std::chrono::duration_cast<std::chrono::microseconds>(iterendtime-iterstarttime).count();
   std::cout<<"Took "<<itertime*1e-6<<"s to run a single iteration"<<std::endl;
- 
- 
  
 //now for fitting
  
@@ -134,21 +194,14 @@ int main(int argc, char **argv){
 //  result->Close();
 
 
-
-//  performFit(min, &inter, nPars, pars, {qMagVars}, 1+2);
-//  performFit(min, &inter, nPars, pars, {bMagVars}, 4+8);
-//
-//  performFit(min, &inter, nPars, pars, {qMagVars}, 1+2);
-//  performFit(min, &inter, nPars, pars, {bMagVars}, 4+8);
-
-//  performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
-
 //  std::cout << "about to call perform fit with B magnets only"<<std::endl;
 //  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
 //  std::cout << "about to call perform fit with Q magnets only"<<std::endl;
 //  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
 //  std::cout << "about to call perform fit with beam only"<<std::endl;
 //  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+// 
+//  saveResult(min, &inter, nPars, "fit_results_after_first_split_optimisation.root");
 //
 //  std::cout << "about to call perform fit with B magnets only take 2"<<std::endl;
 //  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
@@ -156,59 +209,18 @@ int main(int argc, char **argv){
 //  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
 //  std::cout << "about to call perform fit with beam only take 2"<<std::endl;
 //  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+// 
+//  saveResult(min, &inter, nPars, "fit_results_after_second_split_optimisation.root");
+
   std::cout << "about to call perform fit with all parameters free (this may take a while)"<<std::endl;
   performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
 
 
+  saveResult(min, &inter, nPars, "fit_results.root");
+  if(argc > 1) saveResult(min, &inter, nPars, argv[1]);
 
+  inter.GenerateInputFile(min->X());
 
-
-//  for(auto fixed : qMagVars) min->FixVariable(fixed);
-//  for(auto fixed : bMagVars) min->FixVariable(fixed);
- 
-//  for(int i=0; i<nPars; i++) min->FixVariable(i);
-//  min->SetPrintLevel(2);
- 
-//  min->ReleaseVariable(0); 
-  // min->FixVariable(9); //BPH3 and QPQ5 do not have and SSEMs afterwards in the sim so would have no data constraint
-  // min->FixVariable(10);
-  // min->Minimize();
-  // min->PrintResults();
-
- 
- 
-  TFile *outf = new TFile("fit_results.root", "RECREATE");
- 
-  double *covarray = new double[nPars*nPars];
-  min->GetCovMatrix(covarray);
-  TMatrixD *cov = new TMatrixD(nPars, nPars, covarray);
-  cov->Write("postfit_covariance");
-  const double *errors = min->Errors();
-  const double *bestFit = min->X();
- 
-  TVectorD nom(nPars);
-  TVectorD pre(nPars);
-  TVectorD pos(nPars);
-  TVectorD posError(nPars);
-  
-  for(int i=0; i<nPars; i++){
-    nom[i] = inter.nominalPars[inter.parNames[i]];
-    pre[i] = inter.preFit[i];
-    pos[i] = bestFit[i];
-    posError[i] = errors[i];
-  }
- 
-  nom.Write("nominal");
-  pre.Write("preFit");
-  pos.Write("postFit");
-  posError.Write("postFitError");
-  outf->Close();
- 
-//  for(int i=0; i<nPars; i++) min->ReleaseVariable(i);
-//  for(auto fixed : bMagVars) min->FixVariable(fixed);
- 
-  
- 
   auto endtime = std::chrono::high_resolution_clock::now();
   auto time = std::chrono::duration_cast<std::chrono::microseconds>(endtime-starttime).count();
   std::cout<<"Took "<<time*1e-6<<"s to run"<<std::endl;

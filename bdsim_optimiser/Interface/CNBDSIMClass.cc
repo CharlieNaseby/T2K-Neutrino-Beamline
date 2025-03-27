@@ -566,7 +566,7 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
 
 std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
     std::vector<std::array<double, 4> > ssemPred;
-    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->x.size() <<std::endl;
+//    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->x.size() <<std::endl;
     ssemPred.reserve(bdsOutput->samplerTrees.size());
     for(int i=0; i<bdsOutput->samplerTrees.size(); i++){ //loop over ssems
       std::vector<float> x = (*bdsOutput->samplerTrees[i]).xcache;

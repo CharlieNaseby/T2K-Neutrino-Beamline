@@ -116,7 +116,7 @@ loopend:;
 
 Interface::~Interface(){};
 
-void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double *pars){
+void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double *pars, double noise){
 
 
   std::map<std::string, double> beamPars;
@@ -166,7 +166,7 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
   kScaling["BPV2"] = -0.12654858254158613;
   kScaling["BPH3"] = -0.12432151082458207;
 
-  for(auto &val : magCurrent) val += 1e-3; //annoyingly magnets with 0 strength create issues
+  for(auto &val : magCurrent) val += 1e-1; //annoyingly magnets with 0 strength create issues
 
   nominalPars["BPV1"] = magCurrent[0]/100.;
   nominalPars["BPH2"] = magCurrent[1]/100.;
@@ -254,7 +254,7 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
   }
   if(usePrevBestFit){
     std::cout << "Using previous fit result contained in file previous_fit.root" << std::endl;
-    TFile inf("previous_fit.root", "READ");
+    TFile inf(usePrevBestFit, "READ");
     TVectorT<double> filePostFit = *(TVectorT<double>*)inf.Get("postFit");
     TVectorT<double> filePreFit = *(TVectorT<double>*)inf.Get("preFit");
     TVectorT<double> fileNominal = *(TVectorT<double>*)inf.Get("nominal");
@@ -277,8 +277,14 @@ void Interface::SetInitialValues(bool usePrevBestFit, bool useFieldMaps, bool us
       nominalPars[parNames[i]] = pars[i];
     }
   }
-  for(int i=0; i<nPars; i++) std::cout << parNames[i] << " is set to " << pars[i] << std::endl;
 
+
+  TRandom3 rand(1987);
+
+  for(int i=1; i<nPars; i++){ //CERN TODO start at 1 to avoid changing BPV1, really needs a way of not throwing fixed values
+    pars[i]*=rand.Gaus(1.0, noise);
+    std::cout << parNames[i] << " is set to " << pars[i] << std::endl;
+  }
 
 }
 void Interface::ParamScan(int param, TH1D *hist){
@@ -357,7 +363,7 @@ void Interface::GenerateInputFile(const double *pars){
   std::fstream out;
   out.open("../gmad/optimised.gmad", std::ios::out);
   for(int i=0; i<beamline.size()-1; i++){
-    out<<beamline[i].c_str()<<std::setprecision(14)<<pars[i];
+    out<<beamline[i].c_str()<<std::setprecision(14)<<FitToPhysical(i, pars[i]);
   }
   out<<beamline[beamline.size()-1];
   out.close();
@@ -421,12 +427,31 @@ void Interface::TestBdsim(){
   bds->BeamOn();
 }
 
+double Interface::FitToPhysical(int i, double fitval){
+  return fitval*preFit[i];
+}
+
+double Interface::PhysicalToFit(int i, double physval){
+  return physval/preFit[i];
+}
+
+std::map<std::string, double> Interface::GetParmap(const double *pars){
+  std::map<std::string, double> parmap;
+  int i=0;
+  for(auto key : parNames){
+    parmap[key] = FitToPhysical(i, pars[i]);
+    i++;
+  }
+  return parmap;
+}
+
+
 double Interface::CalcChisq(const double *pars){
 
   std::map<std::string, double> parmap;
   int i=0;
   for(auto key : parNames){
-    parmap[key] = pars[i];
+    parmap[key] = FitToPhysical(i, pars[i]);
     i++;
   }
 
@@ -451,8 +476,8 @@ double Interface::CalcChisq(const double *pars){
     std::array<double, 4> simulation = allSSEMSimulation[i];
 //    beamOptics.fChain->GetEntry(i+1);
 //    std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
-    std::cout<<"SSEM"<<i+1<<" beam sim postion = \t"<<simulation[0]<<", \t"<<simulation[1]<<" data \t"<<dat[i][0]<<", \t"<<dat[i][1]<<std::endl;
-    std::cout<<"SSEM"<<i+1<<" beam sim width   = \t"<<simulation[2]<<", \t"<<simulation[3]<<" data \t"<<dat[i][2]<<", \t"<<dat[i][3]<<std::endl;
+//    std::cout<<"SSEM"<<i+1<<" beam sim postion = \t"<<simulation[0]<<", \t"<<simulation[1]<<" data \t"<<dat[i][0]<<", \t"<<dat[i][1]<<std::endl;
+//    std::cout<<"SSEM"<<i+1<<" beam sim width   = \t"<<simulation[2]<<", \t"<<simulation[3]<<" data \t"<<dat[i][2]<<", \t"<<dat[i][3]<<std::endl;
     chisqx += (dat[i][0]-simulation[0])*(dat[i][0]-simulation[0])/(0.2*0.2);  //CERN 0.2mm uncert on ssem position x
     chisqy += (dat[i][1]-simulation[1])*(dat[i][1]-simulation[1])/(0.2*0.2);  //position y
     chisqwx += (dat[i][2]-simulation[2])*(dat[i][2]-simulation[2])/(0.2*0.2);  //CERN width with 0.2mm precision x
@@ -466,10 +491,10 @@ double Interface::CalcChisq(const double *pars){
   if(fitMode & 0x08) chisq += chisqwy;
   chisq += prior;
 
-  std::cout<<"returning chisq = "<<chisq<<std::endl;
+//  std::cout<<"returning chisq = "<<chisq<<std::endl;
 
-  std::cout<<"xpos chisq \t ypos chisq \t xwid chisq \t ywid chisq \t prior"<<std::endl;
-  std::cout<<std::setprecision(4)<<chisqx<<"\t"<<chisqy<<"\t"<<chisqwx<<"\t"<<chisqwy<<"\t"<<prior<<std::endl;
+//  std::cout<<"xpos chisq \t ypos chisq \t xwid chisq \t ywid chisq \t prior"<<std::endl;
+//  std//::cout<<std::setprecision(4)<<chisqx<<"\t"<<chisqy<<"\t"<<chisqwx<<"\t"<<chisqwy<<"\t"<<prior<<std::endl;
   if(std::isnan(chisq)) return 123456789.0;
   return chisq;
 }

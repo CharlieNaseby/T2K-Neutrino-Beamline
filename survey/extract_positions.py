@@ -41,10 +41,10 @@ beam_from_file = False
 beam_halo = False
 enable_blms = False
 geometry = False
-misalignments=False
+misalignments=True
 bias_physics=False
 print_vacuum=False
-merge_drifts=True
+merge_drifts=False
 
 ##beam loss configuration
 #print_tunnel=False
@@ -149,7 +149,6 @@ class survey_element:
     def __init__(self, nom_normvec):
         self.nominal_normvec = cp.deepcopy(nom_normvec)
         self.s_nom = 0.
-        self.s_surv = 0.
         self.segment = []
         self.segment_id = -1.
         self.nominal_center = []
@@ -251,6 +250,11 @@ class nominalBeamline:
     def __init__(self): #a bunch of vectors extraced from the .dwg files provided by Fujii-san
         self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
         self.line['s_start'] = self.line['length'].shift().cumsum()
+        for element in self.line.itertuples():
+#            print(element)
+            if(re.match('SSEM[0-9]', element.element)):
+                print(element.element, element.s_start+float(element.mark))
+
 
 
         self.nuin_to_bpd1 = np.array([[27711.320296225927,10246.557442498312,0.0], [8826.078822922398,10998.629426709593,0.0]])
@@ -305,7 +309,25 @@ class nominalBeamline:
         self.get_offsets()
         self.match_misalignments()
 
+
+    def draw_beamline_s(self, axis):
+        vars = ['s (m)', 'Horisontal (mm)', 'Vertical (mm)']
+        nom_s = []
+        for key, val in self.mag_objs.items():
+            plt.scatter((val.s_nom+val.offsets[0])/1000., val.offsets[axis], label=val.name+' survey')
+
+            nom_s.append(val.s_nom/1000.)
+        plt.plot(nom_s, np.zeros(len(nom_s)), label='Nominal')
+        plt.xlabel(vars[0])
+        plt.xlim(0, 1.05*np.max(nom_s))
+        plt.ylabel(vars[axis])
+        plt.legend(loc='upper right')
+        plt.show()
+
+       
+
     def draw_beamline(self, axis1, axis2):
+        labels = ['x (mm)', 'y (mm)', 'z(mm)']
 
         nuin_to_bpd1_3d = np.hstack((self.nuin_to_bpd1, np.zeros((self.nuin_to_bpd1.shape[0], 1))))
         bpd1_to_bpd2_3d = np.hstack((self.bpd1_to_bpd2, np.zeros((self.bpd1_to_bpd2.shape[0], 1))))
@@ -317,10 +339,12 @@ class nominalBeamline:
         for key, val in self.mag_objs.items():
             nominal_normvec_3d = np.hstack((val.nominal_normvec, np.zeros((val.nominal_normvec.shape[0], 1))))
 
-            plt.plot(nominal_normvec_3d[:,axis1], nominal_normvec_3d[:,axis2], label=val.name)
+#            plt.plot(nominal_normvec_3d[:,axis1], nominal_normvec_3d[:,axis2], label=val.name)
             plt.scatter(val.survey_points[:,axis1], val.survey_points[:,axis2], label=val.name)
             plt.scatter(val.survey_center[axis1], val.survey_center[axis2], label=val.name)
-        plt.legend()
+        plt.legend(loc='upper right')
+        plt.xlabel(labels[axis1])
+        plt.ylabel(labels[axis2])
         plt.show()
     
     def rotate(self, theta):
@@ -430,7 +454,8 @@ class nominalBeamline:
 
         for key, value in self.mag_objs.items():
             self.line['misalign'] = self.line.apply(lambda row: value.offsets if row['element'] == key else row['misalign'], axis=1)
-            self.line['angle'] = self.line.apply(lambda row: value.angle if row['element'] == key else row['angle'], axis=1)
+            if(misalignments):
+                self.line['angle'] = self.line.apply(lambda row: value.angle if row['element'] == key else row['angle'], axis=1)
 
 
     def print_beamline(self, kv, filename):
@@ -916,5 +941,7 @@ if __name__ == '__main__':
     nom.print_beamline(kvals, "test.gmad")
 
 
-#    nom.draw_beamline(0, 1)
-#    nom.draw_beamline(0, 2)
+    nom.draw_beamline_s(1)
+    nom.draw_beamline_s(2)
+    nom.draw_beamline(0, 1)
+    nom.draw_beamline(0, 2)

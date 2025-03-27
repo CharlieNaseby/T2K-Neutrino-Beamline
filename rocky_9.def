@@ -12,7 +12,7 @@ From: rockylinux/rockylinux:9.5
     yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
 
 #get CLHEP
-    cd /home
+    cd /opt
     mkdir clhep
     cd clhep
     wget https://proj-clhep.web.cern.ch/proj-clhep/dist1/clhep-2.4.7.1.tgz
@@ -23,7 +23,7 @@ From: rockylinux/rockylinux:9.5
     cmake ../CLHEP
     make
     sudo make install
-    cd /home
+    cd /opt
     
 
     yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel libXpm-devel libXft-devel libXext-devel
@@ -31,13 +31,13 @@ From: rockylinux/rockylinux:9.5
 
 
     #our own install of root so minuit works
-    cd /home
+    cd /opt
     mkdir root
     cd root
     wget https://root.cern/download/root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
     tar -xzf root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
     source root/bin/thisroot.sh
-    cd /home
+    cd /opt
 
 
 #geant4 time
@@ -55,7 +55,7 @@ From: rockylinux/rockylinux:9.5
     source /usr/local/bin/geant4.sh
     yum -y install HepMC3
 
-    cd /home
+    cd /opt
     mkdir bdsim
     cd bdsim
     wget https://www.hep.ph.ic.ac.uk/~cn4018/bdsim/c725b23739b8548a7a8edffb26e3b33ee49be1e7.tar.gz
@@ -66,8 +66,8 @@ From: rockylinux/rockylinux:9.5
     make
     make install
 
-    echo "source /home/root/root/bin/thisroot.sh" > /home/setup.sh
-    echo "source /usr/local/bin/geant4.sh" >> /home/setup.sh
+    echo "source /opt/root/root/bin/thisroot.sh" > /opt/setup.sh
+    echo "source /usr/local/bin/geant4.sh" >> /opt/setup.sh
 
 
     yum -y install pip gperftools

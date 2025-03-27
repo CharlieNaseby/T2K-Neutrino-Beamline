@@ -1,11 +1,15 @@
 
 
-void plot_fit_result(){
-    TFile *inf = new TFile("fit_results.root", "READ");
+void plot_fit_result(TString infilename){
+    TFile *inf = new TFile(infilename+".root", "READ");
     TVectorD nom = *(TVectorD*)(inf->Get("nominal"));
     TVectorD pre = *(TVectorD*)(inf->Get("preFit"));
     TVectorD pos = *(TVectorD*)(inf->Get("postFit"));
     TVectorD posError = *(TVectorD*)(inf->Get("postFitError"));
+
+    TVectorD posFitFitBasis = *(TVectorD*)(inf->Get("postFitFitBasis"));
+    TVectorD posFitErrorFitBasis = *(TVectorD*)(inf->Get("postFitErrorFitBasis"));
+
     TMatrixT<double> cov = *(TMatrixT<double>*)(inf->Get("postfit_covariance"));
 
     char *names[21] = {"BPV1",
@@ -21,7 +25,7 @@ void plot_fit_result(){
 		       "QPQ5",
 		       "X0", "Xp0", "emitx", "betx", "alfx", "Y0", "Yp0", "emity", "bety", "alfy"};
 
-    TFile *outf = new TFile("fit_result_plots.root", "RECREATE");
+    TFile *outf = new TFile(infilename+"_par_plots.root", "RECREATE");
     outf->cd();
     int nPars = pos.GetNrows();
 
@@ -43,6 +47,9 @@ void plot_fit_result(){
   TH1D *post_minus_nom_div_nom = new TH1D("post_minus_nom_div_nom", "(Post - Nominal)/Nominal", nPars, 0, nPars);
   TH1D *pull_vs_prefit = new TH1D("pull_vs_prefit", "(Post - Pre)/#sigma_{post}", nPars, 0, nPars);
 
+  TH1D *postFitFitBasisth1 = new TH1D("postfit_fit_basis", "PostFit Fit Basis", nPars, 0, nPars);
+
+
   TH2D corrth2(corr);
 
 
@@ -54,6 +61,10 @@ void plot_fit_result(){
     fitResult->SetBinContent(i+1, pos[i]);
     fitResult->SetBinError(i+1, posError[i]);
     fitResult->GetXaxis()->SetBinLabel(i+1, names[i]);
+
+    postFitFitBasisth1->SetBinContent(i+1, posFitFitBasis[i]);
+    postFitFitBasisth1->SetBinError(i+1, posFitErrorFitBasis[i]);
+    postFitFitBasisth1->GetXaxis()->SetBinLabel(i+1, names[i]);
 
     post_minus_pred_div_pred->GetXaxis()->SetBinLabel(i+1, names[i]);
     post_minus_nom_div_nom->GetXaxis()->SetBinLabel(i+1, names[i]);
@@ -81,7 +92,7 @@ void plot_fit_result(){
   nominalhist->Write("nominalhist");
   post_minus_pred_div_pred->Write("post_minus_pre_div_pre");
   post_minus_nom_div_nom->Write("post_minus_nom_div_nom");
-
+  postFitFitBasisth1->Write("post_fit_fit_basis");
 
   outf->Write();
 
