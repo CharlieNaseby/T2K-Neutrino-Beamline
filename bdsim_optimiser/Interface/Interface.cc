@@ -11,7 +11,7 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   bds = new CNBDSIM();
 
   char *dargv[6];
-  char path[256] = "--file=/home/T2K-Neutrino-Beamline/gmad/optimised_test.gmad";
+  char path[256] = "--file=/home/T2K-Neutrino-Beamline/survey/test.gmad";
   char batch[256] = "--batch";
   char ngen[256] = "--ngenerate=100";
   char outfile[256] = "--outfile=/home/bdsim_output";
@@ -24,8 +24,6 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   dargv[5] = seed;
 //  dargv[6] = verbose;
   bds->Initialise(5, dargv);
-
-
 
   internalPars.resize(nPars); //point about which LLH scans will be conducted
 //  nominalPars.resize(nPars); //the values of the parameters expected based on true magnet current
@@ -84,7 +82,7 @@ loopend:;
   }
 
   dat.resize(NSSEM);
-  for(int i=0; i<dat.size(); i++){
+  for(unsigned int i=0; i<dat.size(); i++){
     dat[i][0] = ssemxMean[i];
     dat[i][1] = ssemyMean[i];
     dat[i][2] = ssemwxMean[i];
@@ -120,10 +118,10 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
 
 
   std::map<std::string, double> beamPars;
-  beamPars["X0"]=-0.5e-3;
+  beamPars["X0"]=-0.5e-3; //units of m
   beamPars["Xp0"]=3.5e-5;
-  beamPars["emitx"]=0.0610768e-6;
-  beamPars["betx"]=37.098;
+  beamPars["emitx"]=0.0610768e-6; //m rad
+  beamPars["betx"]=37.098; //m
   beamPars["alfx"]=-2.4187;
   beamPars["dispx"]=0.42373,
   beamPars["dispxp"]=0.07196,
@@ -134,9 +132,6 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
   beamPars["alfy"]=0.178;
   beamPars["dispy"]=0.;
   beamPars["dispyp"]=0.0;
-
-
-
 
 
   std::map<std::string, double> kScaling;
@@ -194,37 +189,17 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
   fudgeFactor[9] = 1;
   fudgeFactor[10] = 1;
 
-
   for(auto mag : magNames){
     nominalPars[mag] *= kScaling[mag];//nominal is always the expected value for the parameters based on the currents
     preFit[magMap[mag]] = nominalPars[mag];
     if(useFudgeFactor) preFit[magMap[mag]] *= fudgeFactor[magMap[mag]];
   }
 
-//  if(usePrevBestFit){
-//    std::ifstream infile;
-//    infile.open("bestFitHardEdge.txt");
-//    std::string line;
-//
-//    while(std::getline(infile, line)){ //TODO broken with addition of beam parameters
-//      size_t strpos = line.find(" =");
-//      std::string mag = line.substr(0, strpos);
-//      std::string val = line.substr(strpos+3);
-//      pars[magMap[mag]] = std::stof(val);
-//      std::cout<<"setting "<<magMap[mag]<<" magname "<<mag<<" to "<<std::stof(val)<<std::endl;
-//    }
-//  }
-
   if(useFieldMaps){
     std::cerr << "Using field maps for the fit CURRENTLY UNSUPPORTED" << std::endl;
     throw;
     for(int i=0; i<nMagnetPars; i++) fudgeFactor[i] = 1.0;
   
-//    fudgeFactor[1] = 1.402333;
-//    fudgeFactor[4] = 0.851299;
-//    fudgeFactor[5] = 0.830461;
-//    fudgeFactor[7] = 1.023666;
-
     pars[0] = magCurrent[0]/100.;
     pars[1] = -magCurrent[1]/100.;
     pars[2] = magCurrent[2]/100.;
@@ -279,7 +254,7 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
   }
 
 
-  TRandom3 rand(1987);
+  TRandom3 rand(1989);
 
   for(int i=1; i<nPars; i++){ //CERN TODO start at 1 to avoid changing BPV1, really needs a way of not throwing fixed values
     pars[i]*=rand.Gaus(1.0, noise);
@@ -337,9 +312,7 @@ bool Interface::CheckBounds(std::map<std::string, double> pars){
 
 
 double Interface::fcn(const double *pars){
-
   SetInternalPars(pars);
-//  GenerateInputFile(pars);
   return CalcChisq(pars);
 }
 
@@ -355,14 +328,12 @@ double Interface::CalcPrior(std::map<std::string, double> pars){
   return chisq;
 }
 
-//I hate that this is the way to do this just as much as you do, not anymore!! :D
-
-//first need to write a gmad input file with the magnet strengths implied by pars
+//if we want to write a gmad input file with the best-fit parameters
 void Interface::GenerateInputFile(const double *pars){
 
   std::fstream out;
-  out.open("../gmad/optimised.gmad", std::ios::out);
-  for(int i=0; i<beamline.size()-1; i++){
+  out.open("../survey/optimised.gmad", std::ios::out);
+  for(unsigned int i=0; i<beamline.size()-1; i++){
     out<<beamline[i].c_str()<<std::setprecision(14)<<FitToPhysical(i, pars[i]);
   }
   out<<beamline[beamline.size()-1];
@@ -370,8 +341,7 @@ void Interface::GenerateInputFile(const double *pars){
 }
 
 
-//read an input file, splitting the file every time theres the string "bScaling=" 
-//this indicates the start of a variable of out fit
+//read an input file, splitting the file every time theres a string indicative of a parameter 
 
 void Interface::ParseInputFile(std::string baseBeamlineFile){
   std::cout<<"parsing input file "<<baseBeamlineFile<<std::endl;
@@ -427,8 +397,24 @@ void Interface::TestBdsim(){
   bds->BeamOn();
 }
 
+std::vector<double> Interface::FitToPhysical(double *fitval){
+  std::vector<double> retval;
+  for(unsigned int i=0; i<parNames.size(); i++){
+    retval.push_back(FitToPhysical(i, fitval[i]));
+  }
+  return retval;
+}
+
 double Interface::FitToPhysical(int i, double fitval){
   return fitval*preFit[i];
+}
+
+std::vector<double> Interface::PhysicalToFit(double *physval){
+  std::vector<double> retval;
+  for(unsigned int i=0; i<parNames.size(); i++){
+    retval.push_back(PhysicalToFit(i, physval[i]));
+  }
+  return retval;
 }
 
 double Interface::PhysicalToFit(int i, double physval){
@@ -458,12 +444,7 @@ double Interface::CalcChisq(const double *pars){
   if(CheckBounds(parmap) == false) return 1234567891.0;
   bds->BeamOn(100, parmap);
 
-//  std::system("bdsim --file=../gmad/optimised.gmad --batch --ngenerate=100 --outfile=/home/bdsim_output --seed=1989 > /dev/null");
-//  std::system("rebdsimOptics /home/bdsim_output.root /home/bdsim_output_optics.root > /dev/null");
-
   std::vector<std::array<double, 4> > allSSEMSimulation = GetBeamPars();
-
-  //Optics beamOptics("/home/bdsim_output_optics.root");
 
 
   double chisq = 0;
@@ -472,10 +453,8 @@ double Interface::CalcChisq(const double *pars){
   double chisqwx = 0;
   double chisqwy = 0;
 
-  for(int i=0; i<dat.size(); i++){
+  for(unsigned int i=0; i<dat.size(); i++){
     std::array<double, 4> simulation = allSSEMSimulation[i];
-//    beamOptics.fChain->GetEntry(i+1);
-//    std::array<double, 4> simulation = {1000.*beamOptics.Mean_x, 1000.*beamOptics.Mean_y, 2000.*beamOptics.Sigma_x, 2000.*beamOptics.Sigma_y};
 //    std::cout<<"SSEM"<<i+1<<" beam sim postion = \t"<<simulation[0]<<", \t"<<simulation[1]<<" data \t"<<dat[i][0]<<", \t"<<dat[i][1]<<std::endl;
 //    std::cout<<"SSEM"<<i+1<<" beam sim width   = \t"<<simulation[2]<<", \t"<<simulation[3]<<" data \t"<<dat[i][2]<<", \t"<<dat[i][3]<<std::endl;
     chisqx += (dat[i][0]-simulation[0])*(dat[i][0]-simulation[0])/(0.2*0.2);  //CERN 0.2mm uncert on ssem position x
@@ -491,7 +470,7 @@ double Interface::CalcChisq(const double *pars){
   if(fitMode & 0x08) chisq += chisqwy;
   chisq += prior;
 
-//  std::cout<<"returning chisq = "<<chisq<<std::endl;
+//  std::cout<<"returning chisq = "<<chisq<<" of which prior contributes "<<prior<<std::endl;
 
 //  std::cout<<"xpos chisq \t ypos chisq \t xwid chisq \t ywid chisq \t prior"<<std::endl;
 //  std//::cout<<std::setprecision(4)<<chisqx<<"\t"<<chisqy<<"\t"<<chisqwx<<"\t"<<chisqwy<<"\t"<<prior<<std::endl;

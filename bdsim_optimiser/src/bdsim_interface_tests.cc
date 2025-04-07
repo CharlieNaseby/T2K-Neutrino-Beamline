@@ -9,7 +9,7 @@
 #include "BDSIMClass.hh"
 #include <gperftools/profiler.h>
 
-int main(int argc, char **argv){
+int main(){
   auto starttime = std::chrono::high_resolution_clock::now();
 
   std::string baseBeamlineFile="../gmad/test.gmad";

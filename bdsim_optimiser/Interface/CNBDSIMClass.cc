@@ -255,7 +255,7 @@ int CNBDSIM::Initialise()
   // query the geometry directly using our BDSAuxiliaryNavigator class.
   auto parallelWorldPhysics = BDS::ConstructParallelWorldPhysics(parallelWorldsRequiringPhysics);
   G4int physicsVerbosity = globals->PhysicsVerbosity();
-  physList;
+  //physList;
   if (userPhysicsList)
     {
       G4cout << "Using externally registered user defined physics list" << G4endl;
@@ -437,7 +437,7 @@ double CNBDSIM::GetParameterValue(std::string key){
     else if(key == "bety") return parser->GetBeam().bety;
     else if(key == "alfy") return parser->GetBeam().alfy;
     else{
-      for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
+      for(unsigned int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
         auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
         std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
         if(name.find(key) != std::string::npos){
@@ -458,7 +458,7 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
   for(auto tr : bdsOutput->samplerTrees) tr->FlushCache();  //clear the storage for the samplers
   for(auto tr : bdsOutput->samplerTrees) tr->FlushLocal();  //clear the storage for the samplers
 
-  for(int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
+  for(unsigned int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
     auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
     std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
     for(auto [key, value] : pars){
@@ -568,7 +568,7 @@ std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
     std::vector<std::array<double, 4> > ssemPred;
 //    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->x.size() <<std::endl;
     ssemPred.reserve(bdsOutput->samplerTrees.size());
-    for(int i=0; i<bdsOutput->samplerTrees.size(); i++){ //loop over ssems
+    for(unsigned int i=0; i<bdsOutput->samplerTrees.size(); i++){ //loop over ssems
       std::vector<float> x = (*bdsOutput->samplerTrees[i]).xcache;
       for(auto &ele : x) ele*=1000;  //convert to mm
       double meanx = std::accumulate(x.begin(), x.end(), 0.0) / x.size();

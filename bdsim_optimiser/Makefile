@@ -1,13 +1,11 @@
 
-##BDSIM_DIR=/home/bdsim/jairhul-bdsim-c725b23739b8
 BDSIM_DIR=/usr/local/include/bdsim
-##G4_DIR=/home/geant4-v10.7.4/source
 G4_DIR=/usr/local/include/Geant4
 BASE_DIR=${PWD}
 
 CXX = g++
 INCLUDES=-I$(BASE_DIR)/include -I$(BDSIM_DIR) -I$(BDSIM_DIR)/analysis -I$(BDSIM_DIR)/parser -I$(G4_DIR) `root-config --glibs --cflags`
-CXXFLAGS = -fPIC -Wall -Wextra -g
+CXXFLAGS = -fPIC -Wall -Wextra -g -Wno-sign-compare
 LDFLAGS = -shared
 
 BDSIM_LIBS=-lbdsim -lrebdsim

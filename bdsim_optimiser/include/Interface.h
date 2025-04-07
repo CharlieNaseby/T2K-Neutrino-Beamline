@@ -72,16 +72,14 @@ public:
   void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);
   std::vector<std::array<double, 4> > GetBeamPars();
+  std::vector<double> FitToPhysical(double *fitval);
   double FitToPhysical(int i, double fitval);
+  std::vector<double> PhysicalToFit(double *physval);
   double PhysicalToFit(int i, double physval);
   double CalcChisq(const double *pars);
   std::map<std::string, double> GetParmap(const double *pars);
   double CalcPrior(std::map<std::string, double> pars);
   void TestBdsim();
   void SetChisqMode(int mode){fitMode=mode;};
-  double PrintTestVal(const double *pars){
-    std::cout<<"testval = "<<testval<<std::endl;
-    return 1.0;
-  }
 
 };

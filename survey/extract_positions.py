@@ -6,6 +6,8 @@ import re
 import copy as cp
 import sys
 import ast
+import ROOT
+from array import array 
 #sys.path.append('../')
 #import create_beamline
 #matplotlib.use('qtagg')
@@ -32,39 +34,42 @@ vacuum_pressure = 1e-4 #vacuum pressure in bar
 #bias_physics=True
 
 #fit configuration
-print_tunnel=False
-print_physics=False
-sample_all=False
-sample_ssem=True
-sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
-beam_from_file = False
-beam_halo = False
-enable_blms = False
-geometry = False
-misalignments=True
-bias_physics=False
-print_vacuum=False
-merge_drifts=False
+if(True):
+    print_tunnel=False
+    print_physics=False
+    sample_all=False
+    sample_ssem=True
+    sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
+    beam_from_file = False
+    beam_halo = False
+    use_previous_best_fit = False
+    enable_blms = False
+    geometry = False
+    misalignments=True
+    bias_physics=False
+    print_vacuum=False
+    merge_drifts=True
 
-##beam loss configuration
-#print_tunnel=False
-#print_physics=False
-#sample_all=True
-#sample_ssem=True
-#sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
-#beam_from_file = False
-#beam_halo = False
-#enable_blms = True
-#geometry = True
-#misalignments=True
-#bias_physics=False
-#print_vacuum=False
-#merge_drifts=False
+##beam orbit plot configuration
+if(False):
+    print_tunnel=False
+    print_physics=False
+    sample_all=True
+    sample_ssem=False
+    sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
+    beam_from_file = False
+    beam_halo = False
+    use_previous_best_fit = True
+    enable_blms = False
+    geometry = False
+    misalignments=False
+    bias_physics=False
+    print_vacuum=False
+    merge_drifts=True
 
 
-generate_primaries=False
-
-if(generate_primaries):
+#generate primaries configuration
+if(False):
     sample_entry = True
     sample_ssem = False
     sample_all = False
@@ -454,8 +459,8 @@ class nominalBeamline:
 
         for key, value in self.mag_objs.items():
             self.line['misalign'] = self.line.apply(lambda row: value.offsets if row['element'] == key else row['misalign'], axis=1)
-            if(misalignments):
-                self.line['angle'] = self.line.apply(lambda row: value.angle if row['element'] == key else row['angle'], axis=1)
+#            if(misalignments): #CERN TODO
+            self.line['angle'] = self.line.apply(lambda row: value.angle if row['element'] == key else row['angle'], axis=1)
 
 
     def print_beamline(self, kv, filename):
@@ -499,27 +504,27 @@ class BeamlinePrinter:
 
       kineticEnergy=30*GeV;\n\n''')
 
-    def print_beam(self):
-        self.file.write('''\n\nbeam, particle="proton",
-      distrType="gausstwiss",
-
-      X0=-0.0004542861867420988*m,
-      Xp0=2.5505774863429934e-05,
-      emitx=0.084015*mm*mrad,
-      betx=39.8775555502868*m,
-      alfx=-0.568424785315,
-      dispx=0.423734*m,
-      dispxp=0.0719639,
-
-      Y0=-0.00023643145922826628*m,
-      Yp0=7.751587096049882e-05,
-      emity=0.0695782*mm*mrad,
-      bety=6.4519061397745*m,
-      alfy=0.35934594606,
-      dispy=0.0*m,
-      dispyp=0.,
-
-      kineticEnergy=30*GeV;\n\n''')
+#    def print_beam(self):
+#        self.file.write('''\n\nbeam, particle="proton",
+#      distrType="gausstwiss",
+#
+#      X0=-0.0004542861867420988*m,
+#      Xp0=2.5505774863429934e-05,
+#      emitx=0.084015*mm*mrad,
+#      betx=39.8775555502868*m,
+#      alfx=-0.568424785315,
+#      dispx=0.423734*m,
+#      dispxp=0.0719639,
+#
+#      Y0=-0.00023643145922826628*m,
+#      Yp0=7.751587096049882e-05,
+#      emity=0.0695782*mm*mrad,
+#      bety=6.4519061397745*m,
+#      alfy=0.35934594606,
+#      dispy=0.0*m,
+#      dispyp=0.,
+#
+#      kineticEnergy=30*GeV;\n\n''')
 
     def print_beam_0910580(self):
         self.file.write('''\n\nbeam, particle="proton",
@@ -549,7 +554,7 @@ class BeamlinePrinter:
 
       X0=0.0*m,
       Xp0=0.0,
-      emitx=0.075116*mm*mrad,
+      emitx=0.075116e-6*m*rad,
       betx=37.75916*m,
       alfx=-2.33673231,
       dispx=0.033185*m,
@@ -557,11 +562,13 @@ class BeamlinePrinter:
 
       Y0=0.0*m,
       Yp0=0.0,
-      emity=0.06006*mm*mrad,
+      emity=0.06006e-6*m*rad,
       bety=5.5537*m,
       alfy=0.19780927,
       dispy=0.0*m,
       dispyp=0.,
+
+      sigmaE=0.3e-2,
 
       kineticEnergy=30*GeV;\n\n''')
 
@@ -569,22 +576,24 @@ class BeamlinePrinter:
         self.file.write('''\n\nbeam, particle="proton",
       distrType="gausstwiss",
 
-      X0=-0.5*mm,
+      X0=-0.0005*m,
       Xp0=3.5e-5,
-      emitx=0.0610768*mm*mrad,
+      emitx=0.0610768e-6*m*rad,
       betx=37.098*m,
       alfx=-2.4187,
       dispx=0.42373*m,
       dispxp=0.07196,
                         
-      Y0=-0.2*mm,
+      Y0=-0.0002*m,
       Yp0=7.8e-5,
-      emity=0.05976*mm*mrad,
+      emity=0.05976e-6*m*rad,
       bety=5.45*m,
       alfy=0.178,
       dispy=0.0*m,
       dispyp=0.,
 
+      sigmaE=0.3e-2,
+                        
       kineticEnergy=30*GeV;\n\n''')
         
     def print_beam_from_file(self, filename):
@@ -617,7 +626,31 @@ class BeamlinePrinter:
       kineticEnergy=30*GeV;\n\n
         ''')
 
+    def print_beam(self):
 
+      self.file.write(f'''\n\nbeam, particle="proton",
+      distrType="gausstwiss",
+
+      X0={kvals["X0"]}*m,
+      Xp0={kvals["Xp0"]},
+      emitx={kvals["emitx"]}*m*rad,
+      betx={kvals["betx"]}*m,
+      alfx={kvals["alfx"]},
+      dispx=0.423734*m,
+      dispxp=0.0719639,
+
+      Y0={kvals["Y0"]}*m,
+      Yp0={kvals["Yp0"]},
+      emity={kvals["emity"]}*m*rad,
+      bety={kvals["bety"]}*m,
+      alfy={kvals["alfy"]},
+      dispy=0.0*m,
+      dispyp=0.,
+
+      sigmaE=0.3e-2,
+
+      kineticEnergy=30*GeV;\n\n''')
+      
     def endl(self):
         self.file.write(";\n")
 
@@ -777,7 +810,6 @@ tunnelSoilThickness = 2*m;\n\n''')
         prev_row = []
         driftlen = 0.0
         for row in self.beamline.itertuples():
-            
             if(row.type != 'drift' and previously_drift and merge_drifts):
                 #we have reached a non-drift element, so flush the drift components to the file
                 self.print_drift(prev_row, prev_row.element, driftlen)
@@ -862,6 +894,8 @@ tunnelSoilThickness = 2*m;\n\n''')
             self.print_beam_from_file("../run_sadfit_0910216_10k.root")
         elif(beam_halo):
             self.print_halo()
+        elif(use_previous_best_fit):
+            self.print_beam()
         else:
             self.print_beam_sadfit_0910216()
 
@@ -882,7 +916,7 @@ tunnelSoilThickness = 2*m;\n\n''')
             self.file.write('vacBias: xsecBias, particle="proton", proc="all", xsecfact=1, flag=2;\n')
             self.file.write('matBias: xsecBias, particle="proton", proc="all", xsecfact=1, flag=2;\n')
 
-
+        self.file.close()
 
 if __name__ == '__main__':
 
@@ -923,25 +957,39 @@ if __name__ == '__main__':
     
     kvals = {}
     
-    for magnet in magset:
-        mag_df = magnet_response[magnet_response['element'] == magnet]
-        kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
-        zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
-        if magnet[0] == 'B': #bending magnets
-            kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
-        else:
-            kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
-        if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
-            kvals[magnet] = 1e-3
-    
-    
-    #kvals['BPD1'] = -1.15329
-    
-    
+    if(use_previous_best_fit):
+        #use a previous fit as the parameters
+        file = ROOT.TFile("../bdsim_optimiser/fit_results.root", "READ")
+        tree = file.Get("parameters")
+        name = ROOT.TString()
+        physical_value = array("d", [0])
+
+        tree.SetBranchAddress("name", name)
+        tree.SetBranchAddress("physical_value", physical_value)
+
+        for i in range(tree.GetEntries()):
+            tree.GetEntry(i)
+            kvals[name.Data()] = physical_value[0]
+
+        file.Close()
+
+    else:
+        for magnet in magset:
+            mag_df = magnet_response[magnet_response['element'] == magnet]
+            kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
+            zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
+            if magnet[0] == 'B': #bending magnets
+                kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
+            else:
+                kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
+            if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
+                kvals[magnet] = 1e-3
+
     nom.print_beamline(kvals, "test.gmad")
+    
 
 
-    nom.draw_beamline_s(1)
-    nom.draw_beamline_s(2)
-    nom.draw_beamline(0, 1)
-    nom.draw_beamline(0, 2)
+#    nom.draw_beamline_s(1)
+#    nom.draw_beamline_s(2)
+#    nom.draw_beamline(0, 1)
+#    nom.draw_beamline(0, 2)

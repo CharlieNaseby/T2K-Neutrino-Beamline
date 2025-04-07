@@ -32,11 +32,21 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
   return min->MinValue();
 }
 
-void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, char *filename){
+void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, const char *filename){
   double fcnmin = inter->fcn_wrapper(min->X());
-  std::cout<<"savinf minimum at fcn "<<fcnmin<<std::endl;
+  std::cout<<"saving minimum at fcn "<<fcnmin<<std::endl;
   TFile *outf = new TFile(filename, "RECREATE");
- 
+  TTree *paramtree = new TTree("parameters", "parameters");
+  double parameter_fit, parameter_physical, error_fit, error_physical;
+  int param_num;
+  TString name;
+  paramtree->Branch("fit_value", &parameter_fit, "fit_value/D");
+  paramtree->Branch("physical_value", &parameter_physical, "physical_value/D");
+  paramtree->Branch("name", &name);
+  paramtree->Branch("param_num", &param_num, "param_num/I");
+  paramtree->Branch("fit_error", &error_fit, "fit_error/D");
+  paramtree->Branch("physical_error", &error_physical, "physical_error/D");
+
   double *covarray = new double[nPars*nPars];
   min->GetCovMatrix(covarray);
   TMatrixD *cov = new TMatrixD(nPars, nPars, covarray);
@@ -61,17 +71,25 @@ void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, char *f
     posError[i] = inter->FitToPhysical(i, errors[i]);
     posFitBasis[i] = bestFit[i];
     posErrorFitBasis[i] = errors[i];
+
+    param_num = i;
+    parameter_fit = bestFit[i];
+    parameter_physical = inter->FitToPhysical(i, bestFit[i]);
+    error_fit = errors[i];
+    error_physical = inter->FitToPhysical(i, errors[i]);
+    name = TString(inter->parNames[i]);
+    paramtree->Fill();
   }
 
+  paramtree->Write();
   std::vector<std::array<double, 4> > allSSEMSimulation = inter->GetBeamPars();
   std::vector<std::array<double, 4> > dat = inter->dat;
-
 
   for(int i=0; i<4; i++){
     TVectorD SSEM_data(NSSEM);
     TVectorD SSEM_sim(NSSEM);
-    char *dataNames[4] = {"xmean_data", "ymean_data", "xwidth_data", "ywidth_data"};
-    char *simNames[4] = {"xmean_sim", "ymean_sim", "xwidth_sim", "ywidth_sim"};
+    const char *dataNames[4] = {"xmean_data", "ymean_data", "xwidth_data", "ywidth_data"};
+    const char *simNames[4] = {"xmean_sim", "ymean_sim", "xwidth_sim", "ywidth_sim"};
     for(int j=0; j<NSSEM; j++){
       SSEM_data[j] = dat[j][i];
       SSEM_sim[j] = allSSEMSimulation[j][i];
@@ -79,7 +97,6 @@ void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, char *f
     SSEM_data.Write(dataNames[i]);
     SSEM_sim.Write(simNames[i]);
   }
-
 
   nom.Write("nominal");
   pre.Write("preFit");
@@ -107,7 +124,7 @@ int main(int argc, char **argv){
   double pars[nPars];
 
   //options for the initial magnet field strengths, all false means use ssem data file and estimates of magnet strengths
-  char *usePrevBestFit = "./mar_2025_cm_fits/fit_910216_with_misalignments_no_noise_5pc_constraint.root";//nullptr;
+  char *usePrevBestFit = nullptr; //"./mar_2025_cm_fits/fit_910216_with_misalignments_no_noise_5pc_constraint.root";
   bool useFieldMaps = false; //currently unsupported
   bool useFudgeFactor = false;
   bool useInputFile = false;
@@ -177,7 +194,7 @@ int main(int argc, char **argv){
   min->SetVariableLowerLimit(18, 0); //emity
   min->SetVariableLowerLimit(19, 0); //betay
 
-  for(int i=0; i<inter.parNames.size(); i++) std::cout<< i<<"  " << inter.parNames[i] <<std::endl;
+  for(unsigned int i=0; i<inter.parNames.size(); i++) std::cout<< i<<"  " << inter.parNames[i] <<std::endl;
 //  TFile *result = new TFile("result.root", "RECREATE");
 //  TH1D *hist;
 //  for(int i=0; i<nPars; i++){
@@ -194,23 +211,23 @@ int main(int argc, char **argv){
 //  result->Close();
 
 
-//  std::cout << "about to call perform fit with B magnets only"<<std::endl;
-//  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
-//  std::cout << "about to call perform fit with Q magnets only"<<std::endl;
-//  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
-//  std::cout << "about to call perform fit with beam only"<<std::endl;
-//  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
-// 
-//  saveResult(min, &inter, nPars, "fit_results_after_first_split_optimisation.root");
-//
-//  std::cout << "about to call perform fit with B magnets only take 2"<<std::endl;
-//  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
-//  std::cout << "about to call perform fit with Q magnets only take 2"<<std::endl;
-//  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
-//  std::cout << "about to call perform fit with beam only take 2"<<std::endl;
-//  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
-// 
-//  saveResult(min, &inter, nPars, "fit_results_after_second_split_optimisation.root");
+  std::cout << "about to call perform fit with B magnets only"<<std::endl;
+  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+  std::cout << "about to call perform fit with Q magnets only"<<std::endl;
+  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+  std::cout << "about to call perform fit with beam only"<<std::endl;
+  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+ 
+  saveResult(min, &inter, nPars, "fit_results_after_first_split_optimisation.root");
+
+  std::cout << "about to call perform fit with B magnets only take 2"<<std::endl;
+  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+  std::cout << "about to call perform fit with Q magnets only take 2"<<std::endl;
+  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+  std::cout << "about to call perform fit with beam only take 2"<<std::endl;
+  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+ 
+  saveResult(min, &inter, nPars, "fit_results_after_second_split_optimisation.root");
 
   std::cout << "about to call perform fit with all parameters free (this may take a while)"<<std::endl;
   performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
