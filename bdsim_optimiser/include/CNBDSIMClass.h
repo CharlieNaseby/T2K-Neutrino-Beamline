@@ -102,7 +102,7 @@ public:
 //private:
   /// The main function where everything is constructed.
   int Initialise();
-
+  void SetFileWriting(bool write);
   G4String randomState; 
   bool   ignoreSIGINT;         ///< For cmake testing.
   bool   usualPrintOut;        ///< Whether to allow the usual cout output.

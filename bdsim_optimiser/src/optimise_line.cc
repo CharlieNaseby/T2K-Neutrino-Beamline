@@ -112,7 +112,7 @@ void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, const c
 int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
 
-  std::string baseBeamlineFile="../survey/test.gmad";
+  std::string baseBeamlineFile="../survey/unoptimised.gmad";
   std::string ssemDataFile="./ssem_data/run0910216_gen.root";
 
   const int nMagnetPars = 11;
@@ -120,6 +120,7 @@ int main(int argc, char **argv){
   const int nPars = nMagnetPars + nBeamPars;
 
   Interface inter(ssemDataFile, baseBeamlineFile, nPars, nMagnetPars, nBeamPars);
+  inter.bds->SetFileWriting(false); //dont want to save a file for every simulation run, realllly slows things down
 
   double pars[nPars];
 
@@ -170,16 +171,17 @@ int main(int argc, char **argv){
 //just see how long a single iteration takes
  
   auto iterstarttime = std::chrono::high_resolution_clock::now();
-  inter.fcn(pars);
+//  inter.fcn(pars);
   auto iterendtime = std::chrono::high_resolution_clock::now();
   auto itertime = std::chrono::duration_cast<std::chrono::microseconds>(iterendtime-iterstarttime).count();
   std::cout<<"Took "<<itertime*1e-6<<"s to run a single iteration"<<std::endl;
- 
+
 //now for fitting
- 
+
   std::vector<int> bMagVars = {0, 1, 4, 5, 7, 9};
   std::vector<int> qMagVars = {2, 3, 6, 8, 10};
-  std::vector<int> beamParVars = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+  std::vector<int> beamTwissVars = {13, 14, 15, 18, 19, 20};
+  std::vector<int> beamPosVars = {11, 12, 16, 17};
 
   auto wrappedFcn = [&inter](const double* pars) {
       return inter.fcn_wrapper(pars);
@@ -211,19 +213,19 @@ int main(int argc, char **argv){
 //  result->Close();
 
 
-  std::cout << "about to call perform fit with B magnets only"<<std::endl;
-  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
-  std::cout << "about to call perform fit with Q magnets only"<<std::endl;
-  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+  std::cout << "about to call perform fit with B magnets and beam position only"<<std::endl;
+  performFit(min, &inter, nPars, pars, {qMagVars, beamTwissVars}, 1+2);
+  std::cout << "about to call perform fit with Q magnets and beam twiss parameters only"<<std::endl;
+  performFit(min, &inter, nPars, pars, {bMagVars, beamPosVars}, 4+8);
   std::cout << "about to call perform fit with beam only"<<std::endl;
   performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
  
   saveResult(min, &inter, nPars, "fit_results_after_first_split_optimisation.root");
 
   std::cout << "about to call perform fit with B magnets only take 2"<<std::endl;
-  performFit(min, &inter, nPars, pars, {qMagVars, beamParVars}, 1+2);
+  performFit(min, &inter, nPars, pars, {qMagVars, beamTwissVars}, 1+2);
   std::cout << "about to call perform fit with Q magnets only take 2"<<std::endl;
-  performFit(min, &inter, nPars, pars, {bMagVars, beamParVars}, 4+8);
+  performFit(min, &inter, nPars, pars, {bMagVars, beamPosVars}, 4+8);
   std::cout << "about to call perform fit with beam only take 2"<<std::endl;
   performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
  

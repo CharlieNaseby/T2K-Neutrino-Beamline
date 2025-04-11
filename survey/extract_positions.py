@@ -13,7 +13,8 @@ from array import array
 #matplotlib.use('qtagg')
 pd.set_option('display.max_rows', 500000)
 #pd.set_option('display.max_columns', 500000)
-
+false=False
+true=True
 
 #known constants
 
@@ -34,7 +35,7 @@ vacuum_pressure = 1e-4 #vacuum pressure in bar
 #bias_physics=True
 
 #fit configuration
-if(True):
+if(False):
     print_tunnel=False
     print_physics=False
     sample_all=False
@@ -51,7 +52,7 @@ if(True):
     merge_drifts=True
 
 ##beam orbit plot configuration
-if(False):
+if(True):
     print_tunnel=False
     print_physics=False
     sample_all=True
@@ -62,11 +63,27 @@ if(False):
     use_previous_best_fit = True
     enable_blms = False
     geometry = False
-    misalignments=False
+    misalignments=True
     bias_physics=False
     print_vacuum=False
-    merge_drifts=True
+    merge_drifts=False
 
+##beam loss configuration
+if(False):
+    print_tunnel=False
+    print_physics=True
+    sample_all=True
+    sample_ssem=False
+    sample_entry=False  #####WARNING MUST BE FALSE WHEN FITTING OTHERWISE ENTRY WILL BE TREATED AS SSEM1!!!
+    beam_from_file = False
+    beam_halo = False
+    use_previous_best_fit = False
+    enable_blms = True
+    geometry = True
+    misalignments=True
+    bias_physics=False
+    print_vacuum=True
+    merge_drifts=False
 
 #generate primaries configuration
 if(False):
@@ -396,15 +413,15 @@ class nominalBeamline:
 
     def get_offsets(self):
 
-        #need to start to align the survey data to the nominal beamline, let's take BPV1 and QPQ2 (the most extreme magnets in the first straight stretch)
-        bpv1_estimate = self.mag_objs['BPV1'].survey_points[0] - np.array([0., 0., self.mag_objs['BPV1'].nominal_offset[0,2]]) #subtract just the vertical component
+        #need to start to align the survey data to the nominal beamline, let's take QPQ1 and QPQ2 (the most extreme quads in the first straight stretch)
+        QPQ1_estimate = self.mag_objs['QPQ1'].survey_points[0] - np.array([0., 0., self.mag_objs['QPQ1'].nominal_offset[0,2]]) #subtract just the vertical component
         for mag in self.mag_objs.values():
-            mag.survey_points = mag.survey_points - np.array([bpv1_estimate, bpv1_estimate])
+            mag.survey_points = mag.survey_points - np.array([QPQ1_estimate, QPQ1_estimate])
 
         qpq2_estimate = self.mag_objs['QPQ2'].survey_points[0] - np.array([0., 0., self.mag_objs['QPQ2'].nominal_offset[0,2]]) #subtract just the vertical component
-        bpv1_estimate = self.mag_objs['BPV1'].survey_points[0] - np.array([0., 0., self.mag_objs['BPV1'].nominal_offset[0,2]]) #subtract just the vertical component
+        QPQ1_estimate = self.mag_objs['QPQ1'].survey_points[0] - np.array([0., 0., self.mag_objs['QPQ1'].nominal_offset[0,2]]) #subtract just the vertical component
 
-        s_estimate = qpq2_estimate - bpv1_estimate
+        s_estimate = qpq2_estimate - QPQ1_estimate
         #approximate rotatation in xy, technically not necessary but makes understanding/debug so much easier
         angle = np.pi+np.atan(s_estimate[1]/s_estimate[0]) #we know its in the bottom left quadrant
         for mag in self.mag_objs.values():
@@ -413,13 +430,13 @@ class nominalBeamline:
 
         #almost perfect at this point ~ 2-3mm precision over 50m of beamline
         #repeat this rotation using the xz plane and using the survey centers rather than the survey points themselves
-        #use largest lever arm possible, in the vertical this is BPV1 and QPQ5
-        angle = np.atan((self.mag_objs['QPQ5'].survey_center[2]-self.mag_objs['BPV1'].survey_center[2])/(self.mag_objs['QPQ5'].survey_center[0]-self.mag_objs['BPV1'].survey_center[0]))
+        #use largest lever arm possible, in the vertical this is QPQ1 and QPQ5
+        angle = np.atan((self.mag_objs['QPQ5'].survey_center[2]-self.mag_objs['QPQ1'].survey_center[2])/(self.mag_objs['QPQ5'].survey_center[0]-self.mag_objs['QPQ1'].survey_center[0]))
         for mag in self.mag_objs.values():
             mag.rotate_survey('xz', -angle)
             mag.calculate_survey_center()
         #and again for xy in y there are bending magnets BPD1,2 so can only use the line to QPQ2 for the zero direction
-        angle = np.atan((self.mag_objs['QPQ2'].survey_center[1]-self.mag_objs['BPV1'].survey_center[1])/(self.mag_objs['QPQ2'].survey_center[0]-self.mag_objs['BPV1'].survey_center[0]))
+        angle = np.atan((self.mag_objs['QPQ2'].survey_center[1]-self.mag_objs['QPQ1'].survey_center[1])/(self.mag_objs['QPQ2'].survey_center[0]-self.mag_objs['QPQ1'].survey_center[0]))
         for mag in self.mag_objs.values():
             mag.rotate_survey('xy', -angle)
             mag.calculate_survey_center()
@@ -438,11 +455,11 @@ class nominalBeamline:
                 self.mag_objs[key].nominal_center = val.segment[0] + (val.s_nom - val.segment_start_s) * normvec(val.segment[1])
 
         #now need to define a zero position, use BPV1 center from the survey and set it to the nominal position
-        bpv1_survey_center = cp.deepcopy(self.mag_objs['BPV1'].survey_center)
-        bpv1_nominal_center = cp.deepcopy(self.mag_objs['BPV1'].nominal_center)
+        qpq1_survey_center = cp.deepcopy(self.mag_objs['QPQ1'].survey_center)
+        qpq1_nominal_center = cp.deepcopy(self.mag_objs['QPQ1'].nominal_center)
         vertical = np.array([0., 0., 1.])
         for mag in self.mag_objs.values():
-            mag.shift_survey(bpv1_nominal_center - bpv1_survey_center)
+            mag.shift_survey(qpq1_nominal_center - qpq1_survey_center)
             #now need misalignment in beamline coords
             #along beamline
             offset = mag.survey_center - mag.nominal_center
@@ -503,28 +520,6 @@ class BeamlinePrinter:
       dispyp=0.,
 
       kineticEnergy=30*GeV;\n\n''')
-
-#    def print_beam(self):
-#        self.file.write('''\n\nbeam, particle="proton",
-#      distrType="gausstwiss",
-#
-#      X0=-0.0004542861867420988*m,
-#      Xp0=2.5505774863429934e-05,
-#      emitx=0.084015*mm*mrad,
-#      betx=39.8775555502868*m,
-#      alfx=-0.568424785315,
-#      dispx=0.423734*m,
-#      dispxp=0.0719639,
-#
-#      Y0=-0.00023643145922826628*m,
-#      Yp0=7.751587096049882e-05,
-#      emity=0.0695782*mm*mrad,
-#      bety=6.4519061397745*m,
-#      alfy=0.35934594606,
-#      dispy=0.0*m,
-#      dispyp=0.,
-#
-#      kineticEnergy=30*GeV;\n\n''')
 
     def print_beam_0910580(self):
         self.file.write('''\n\nbeam, particle="proton",
@@ -985,8 +980,11 @@ if __name__ == '__main__':
             if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
                 kvals[magnet] = 1e-3
 
-    nom.print_beamline(kvals, "test.gmad")
-    
+    if(use_previous_best_fit):
+        nom.print_beamline(kvals, "optimised.gmad")
+    else:
+        nom.print_beamline(kvals, "unoptimised.gmad")
+   
 
 
 #    nom.draw_beamline_s(1)

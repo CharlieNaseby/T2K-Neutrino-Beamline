@@ -1,6 +1,6 @@
-diff -crB jairhul-bdsim-c725b23739b8/include/BDSAcceleratorModel.hh jairhul-bdsim-minimally_modified_backup/include/BDSAcceleratorModel.hh
+diff -crB jairhul-bdsim-c725b23739b8/include/BDSAcceleratorModel.hh jairhul-bdsim-modified/include/BDSAcceleratorModel.hh
 *** jairhul-bdsim-c725b23739b8/include/BDSAcceleratorModel.hh	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/include/BDSAcceleratorModel.hh	2025-02-07 14:55:28.887558087 +0000
+--- jairhul-bdsim-modified/include/BDSAcceleratorModel.hh	2025-02-24 17:46:10.626397095 +0000
 ***************
 *** 198,205 ****
     BDSBeamline* tunnelBeamline;            ///< Tunnel segments beam line.
@@ -21,9 +21,10 @@ diff -crB jairhul-bdsim-c725b23739b8/include/BDSAcceleratorModel.hh jairhul-bdsi
     std::map<G4String, BDSRegion*>        regions;
     std::set<BDSRegion*>                  regionStorage; ///< Unique storage of regions.
     std::map<G4String, BDSApertureInfo*>  apertures; ///< All apertures.
-diff -crB jairhul-bdsim-c725b23739b8/include/BDSFieldBuilder.hh jairhul-bdsim-minimally_modified_backup/include/BDSFieldBuilder.hh
+Only in jairhul-bdsim-modified/include: BDSAcceleratorModel.hh.rej
+diff -crB jairhul-bdsim-c725b23739b8/include/BDSFieldBuilder.hh jairhul-bdsim-modified/include/BDSFieldBuilder.hh
 *** jairhul-bdsim-c725b23739b8/include/BDSFieldBuilder.hh	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/include/BDSFieldBuilder.hh	2025-02-07 14:43:00.826109449 +0000
+--- jairhul-bdsim-modified/include/BDSFieldBuilder.hh	2025-02-24 17:46:10.688397181 +0000
 ***************
 *** 84,93 ****
   
@@ -48,9 +49,10 @@ diff -crB jairhul-bdsim-c725b23739b8/include/BDSFieldBuilder.hh jairhul-bdsim-mi
     std::vector<G4bool>              propagators;
     /// @}
   
-diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutput.hh jairhul-bdsim-minimally_modified_backup/include/BDSOutput.hh
+Only in jairhul-bdsim-modified/include: BDSFieldBuilder.hh.rej
+diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutput.hh jairhul-bdsim-modified/include/BDSOutput.hh
 *** jairhul-bdsim-c725b23739b8/include/BDSOutput.hh	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/include/BDSOutput.hh	2025-02-07 14:50:24.757691062 +0000
+--- jairhul-bdsim-modified/include/BDSOutput.hh	2025-04-10 10:41:44.962956530 +0100
 ***************
 *** 157,162 ****
 --- 157,164 ----
@@ -58,13 +60,14 @@ diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutput.hh jairhul-bdsim-minimall
     static void PrintProtectedNames(std::ostream& out);
   
 +   using BDSOutputStructures::samplerTrees;
-+ 
++   bool storeOutput = true;
   protected:
     /// Get the next file name based on the base file name and the accrued number of files.
     G4String GetNextFileName();
-diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutputROOTEventSampler.hh jairhul-bdsim-minimally_modified_backup/include/BDSOutputROOTEventSampler.hh
+Only in jairhul-bdsim-modified/include: BDSOutput.hh.rej
+diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutputROOTEventSampler.hh jairhul-bdsim-modified/include/BDSOutputROOTEventSampler.hh
 *** jairhul-bdsim-c725b23739b8/include/BDSOutputROOTEventSampler.hh	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/include/BDSOutputROOTEventSampler.hh	2025-02-07 11:13:52.460206037 +0000
+--- jairhul-bdsim-modified/include/BDSOutputROOTEventSampler.hh	2025-02-24 17:46:10.690397184 +0000
 ***************
 *** 50,55 ****
 --- 50,57 ----
@@ -86,9 +89,10 @@ diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutputROOTEventSampler.hh jairhu
     void FlushLocal(); ///< Actual flush that is non virtual function to use in constructor.
   
     static BDSOutputROOTParticleData* particleTable;
-diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutputStructures.hh jairhul-bdsim-minimally_modified_backup/include/BDSOutputStructures.hh
+Only in jairhul-bdsim-modified/include: BDSOutputROOTEventSampler.hh.rej
+diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutputStructures.hh jairhul-bdsim-modified/include/BDSOutputStructures.hh
 *** jairhul-bdsim-c725b23739b8/include/BDSOutputStructures.hh	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/include/BDSOutputStructures.hh	2025-02-07 11:12:30.561224771 +0000
+--- jairhul-bdsim-modified/include/BDSOutputStructures.hh	2025-02-24 17:46:10.692397187 +0000
 ***************
 *** 144,154 ****
 --- 144,156 ----
@@ -105,9 +109,10 @@ diff -crB jairhul-bdsim-c725b23739b8/include/BDSOutputStructures.hh jairhul-bdsi
     std::vector<std::string> samplerNames; ///< Sampler names to use.
     std::vector<BDSOutputROOTEventSamplerC*> samplerCTrees;
     std::vector<BDSOutputROOTEventSamplerS*> samplerSTrees;
-diff -crB jairhul-bdsim-c725b23739b8/include/BDSRandom.hh jairhul-bdsim-minimally_modified_backup/include/BDSRandom.hh
+Only in jairhul-bdsim-modified/include: BDSOutputStructures.hh.rej
+diff -crB jairhul-bdsim-c725b23739b8/include/BDSRandom.hh jairhul-bdsim-modified/include/BDSRandom.hh
 *** jairhul-bdsim-c725b23739b8/include/BDSRandom.hh	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/include/BDSRandom.hh	2025-02-07 10:56:39.816291413 +0000
+--- jairhul-bdsim-modified/include/BDSRandom.hh	2025-02-24 17:46:10.692397187 +0000
 ***************
 *** 46,51 ****
 --- 46,53 ----
@@ -119,10 +124,10 @@ diff -crB jairhul-bdsim-c725b23739b8/include/BDSRandom.hh jairhul-bdsim-minimall
     void SetSeed();
   
     /// Print out seed state to G4cout.
-Only in jairhul-bdsim-minimally_modified_backup: jairhul-bdsim-c725b23739b8
-diff -crB jairhul-bdsim-c725b23739b8/src/BDSEventAction.cc jairhul-bdsim-minimally_modified_backup/src/BDSEventAction.cc
+Only in jairhul-bdsim-modified/include: BDSRandom.hh.rej
+diff -crB jairhul-bdsim-c725b23739b8/src/BDSEventAction.cc jairhul-bdsim-modified/src/BDSEventAction.cc
 *** jairhul-bdsim-c725b23739b8/src/BDSEventAction.cc	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/src/BDSEventAction.cc	2025-02-10 09:39:42.466570401 +0000
+--- jairhul-bdsim-modified/src/BDSEventAction.cc	2025-02-24 17:46:10.694397190 +0000
 ***************
 *** 184,191 ****
     G4int currentEventID = evt->GetEventID();
@@ -143,9 +148,10 @@ diff -crB jairhul-bdsim-c725b23739b8/src/BDSEventAction.cc jairhul-bdsim-minimal
     if (verboseEventBDSIM) // always print this out
       {G4cout << __METHOD_NAME__ << "event #" << currentEventID << G4endl;}
   
-diff -crB jairhul-bdsim-c725b23739b8/src/BDSOutput.cc jairhul-bdsim-minimally_modified_backup/src/BDSOutput.cc
+Only in jairhul-bdsim-modified/src: BDSEventAction.cc.rej
+diff -crB jairhul-bdsim-c725b23739b8/src/BDSOutput.cc jairhul-bdsim-modified/src/BDSOutput.cc
 *** jairhul-bdsim-c725b23739b8/src/BDSOutput.cc	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/src/BDSOutput.cc	2025-02-10 09:29:51.051486883 +0000
+--- jairhul-bdsim-modified/src/BDSOutput.cc	2025-04-10 10:42:02.311232527 +0100
 ***************
 *** 329,374 ****
     energyWorldExit              = 0;
@@ -194,15 +200,14 @@ diff -crB jairhul-bdsim-c725b23739b8/src/BDSOutput.cc jairhul-bdsim-minimally_mo
   }
   
   void BDSOutput::CloseAndOpenNewFile()
---- 329,379 ----
+--- 329,378 ----
     energyWorldExit              = 0;
     energyWorldExitKinetic       = 0;
     nCollimatorsInteracted       = 0;
   
 !   FillSamplerHitsVector(samplerHitsPlane);
 !  //CERN writing to file is such a drag when we only need the primary positions on the samplers
-!   bool store_output = false;
-!   if(store_output){
+!   if(storeOutput){
 !       
 !     if (vertex && storePrimaries)
 !       {FillPrimary(vertex, turnsTaken);}
@@ -246,9 +251,10 @@ diff -crB jairhul-bdsim-c725b23739b8/src/BDSOutput.cc jairhul-bdsim-minimally_mo
   }
   
   void BDSOutput::CloseAndOpenNewFile()
-diff -crB jairhul-bdsim-c725b23739b8/src/BDSOutputROOTEventSampler.cc jairhul-bdsim-minimally_modified_backup/src/BDSOutputROOTEventSampler.cc
+Only in jairhul-bdsim-modified/src: BDSOutput.cc.rej
+diff -crB jairhul-bdsim-c725b23739b8/src/BDSOutputROOTEventSampler.cc jairhul-bdsim-modified/src/BDSOutputROOTEventSampler.cc
 *** jairhul-bdsim-c725b23739b8/src/BDSOutputROOTEventSampler.cc	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/src/BDSOutputROOTEventSampler.cc	2025-02-07 11:07:29.174384664 +0000
+--- jairhul-bdsim-modified/src/BDSOutputROOTEventSampler.cc	2025-02-24 17:46:10.698397195 +0000
 ***************
 *** 72,77 ****
 --- 72,79 ----
@@ -276,9 +282,10 @@ diff -crB jairhul-bdsim-c725b23739b8/src/BDSOutputROOTEventSampler.cc jairhul-bd
   std::vector<U> BDSOutputROOTEventSampler<U>::getKineticEnergy()
   {
     std::vector<U> result((unsigned long)n);
-diff -crB jairhul-bdsim-c725b23739b8/src/BDSRandom.cc jairhul-bdsim-minimally_modified_backup/src/BDSRandom.cc
+Only in jairhul-bdsim-modified/src: BDSOutputROOTEventSampler.cc.rej
+diff -crB jairhul-bdsim-c725b23739b8/src/BDSRandom.cc jairhul-bdsim-modified/src/BDSRandom.cc
 *** jairhul-bdsim-c725b23739b8/src/BDSRandom.cc	2024-01-29 19:21:58.000000000 +0000
---- jairhul-bdsim-minimally_modified_backup/src/BDSRandom.cc	2025-02-07 10:57:50.004155817 +0000
+--- jairhul-bdsim-modified/src/BDSRandom.cc	2025-02-24 17:46:10.699397197 +0000
 ***************
 *** 89,94 ****
 --- 89,103 ----
@@ -297,3 +304,4 @@ diff -crB jairhul-bdsim-c725b23739b8/src/BDSRandom.cc jairhul-bdsim-minimally_mo
   void BDSRandom::SetSeed()
   {
   #ifdef BDSDEBUG
+Only in jairhul-bdsim-modified/src: BDSRandom.cc.rej

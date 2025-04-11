@@ -25,17 +25,12 @@ int main(){
   inter.SetInternalPars(pars_array);
   inter.SetChisqMode(1+2+4+8);
 
-  Interface inter2(ssemDataFile, baseBeamlineFile, nPars, nMagnetPars, nBeamPars);
-  inter2.SetInitialValues(nullptr, false, false, false, pars_array);
-  inter2.SetInternalPars(pars_array);
-  inter2.SetChisqMode(1+2+4+8);
-
   double ones[nPars];
   for(int i=0; i<nPars; i++) ones[i] = 1.0;
 
 
   inter.fcn(ones);
-  inter2.fcn(ones);
+//  inter2.fcn(ones);
 
 
 //just see how long a single iteration takes

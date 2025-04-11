@@ -11,10 +11,10 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   bds = new CNBDSIM();
 
   char *dargv[6];
-  char path[256] = "--file=/home/T2K-Neutrino-Beamline/survey/test.gmad";
+  char path[256] = "--file=/opt/T2K-Neutrino-Beamline/survey/unoptimised.gmad";
   char batch[256] = "--batch";
   char ngen[256] = "--ngenerate=100";
-  char outfile[256] = "--outfile=/home/bdsim_output";
+  char outfile[256] = "--outfile=/opt/bdsim_output";
   char seed[256] = "--seed=1989";
   //char verbose[256] = "--verbose=0";
   dargv[1] = path;
@@ -58,7 +58,7 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
 
   for(int i=0; i<ssemData->GetEntries(); i++){
     ssemData->GetEntry(i);
-    if(ssemax[0] < 100) continue;  //if there was no beam skip
+    if(ssemax[0] < 100) continue;  //if there was no beam then skip sadly for run910216 the CTs were disabled?
     for(int j=0; j<12; j++){ //CERN for some reason the later magnets do change from shot-to-shot
       if(magset[j] != magCurrent[j]) goto loopend; //select only cases with the same current each shot
                                                    //actually legit use of a goto!
@@ -381,6 +381,7 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
     beamline.push_back(newSecondPart);
 
   }
+
   if(nPars != beamline.size()-1){
     std::cerr<<"Number of parameters set is not equal to the number in the gmad file supplied "<<__FILE__<<":"<<__LINE__<<std::endl;
     std::cerr<<"Expected "<<nPars<<" but file has "<<beamline.size()-1<<std::endl;

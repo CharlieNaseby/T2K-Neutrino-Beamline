@@ -451,6 +451,9 @@ double CNBDSIM::GetParameterValue(std::string key){
     return -999;
 }
 
+void CNBDSIM::SetFileWriting(bool write){
+  bdsOutput->storeOutput = write;
+}
 
 void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
 {
