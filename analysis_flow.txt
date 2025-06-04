@@ -1,0 +1,15 @@
+source ../setup.sh
+cd bdsim_optimiser
+source setup.sh
+make
+./bin/optimise_line
+cd ../survey
+set use_prev_best_fit to true in extract_positions.py
+python extract_positions.py
+edit optimised.gmad
+set energy dispersion to zero, and set sample, all; 
+cd ../
+bash run_analysis.sh
+100
+cd bdsim_optimiser
+root -l -b -q 'plot_beam_result.C("fit_result", "../optics_dump/optics_output.root", "")'

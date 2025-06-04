@@ -12,7 +12,7 @@
 int main(){
   auto starttime = std::chrono::high_resolution_clock::now();
 
-  std::string baseBeamlineFile="../gmad/test.gmad";
+  std::string baseBeamlineFile="../survey/unoptimised.gmad";
   std::string ssemDataFile="./ssem_data/run0910216_gen.root";
 
   const int nMagnetPars = 11;
@@ -20,6 +20,9 @@ int main(){
   const int nPars = nMagnetPars + nBeamPars;
 
   Interface inter(ssemDataFile, baseBeamlineFile, nPars, nMagnetPars, nBeamPars);
+
+  inter.bds->SetFileWriting(false); //dont want to save a file for every simulation run, realllly slows things down
+
   double pars_array[nPars];
   inter.SetInitialValues(nullptr, false, false, false, pars_array);
   inter.SetInternalPars(pars_array);

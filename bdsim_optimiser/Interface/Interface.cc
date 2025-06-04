@@ -59,7 +59,7 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   for(int i=0; i<ssemData->GetEntries(); i++){
     ssemData->GetEntry(i);
     if(ssemax[0] < 100) continue;  //if there was no beam then skip sadly for run910216 the CTs were disabled?
-    for(int j=0; j<12; j++){ //CERN for some reason the later magnets do change from shot-to-shot
+    for(int j=0; j<11; j++){ //CERN for some reason the later magnets do change from shot-to-shot
       if(magset[j] != magCurrent[j]) goto loopend; //select only cases with the same current each shot
                                                    //actually legit use of a goto!
 //      std::cout<<j<<" magset "<<magset[j]<<" magcurrent "<<magCurrent[j]<<std::endl;
@@ -135,10 +135,10 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
 
 
   std::map<std::string, double> kScaling;
-  //derived from the KIcurve sad file, scaling of K1 or K0 value in units of 100A
+  //derived from the "KIcurve sad file, scaling of K1 or K0 value in units of 100A
   kScaling["BPV1"] = -0.08760146181454302;
   kScaling["BPH2"] = -0.06372506685790527;
-  kScaling["QPQ1"] = 0.00953465;
+  kScaling["QPQ1"] = 0.010747477;
   kScaling["QPQ2"] = -0.012669113;
   kScaling["BPD1"] = -0.0926275917278186;
   kScaling["BPD2"] = -0.08940591194129406;
@@ -150,16 +150,23 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
 
 
   //values based on the fieldmap fields at 100A
-  kScaling["QPQ1"] = 0.011798078333463476;
-  kScaling["QPQ2"] = -0.011492647647480913;
-  kScaling["QPQ4"] = -0.01471238222852117;
-  kScaling["QPQ5"] = 0.019445574477550798;
-
+  //note that for quads these strengths are 1/(B*rho) * dB/dx
+  //for 30 GeV KE protons gamma*m_p*c^2 = 30.938 GeV
+  //so B*rho = 30.938*beta/proton charge
+  //=30.938 * 0.9995/0.30286   elementary charge in natural units from alpha=1/137
+  //(1/103.101)*dB/dx
   kScaling["BPV1"] = -0.09456593004136546;
+
+  kScaling["QPQ1"] = 0.010517526;
+  kScaling["QPQ2"] = -0.01261134;
   kScaling["BPD1"] = -0.09289046446110355;
   kScaling["BPD2"] = -0.09289046446110355;
+  kScaling["QPQ3"] = 0.01574514;
   kScaling["BPV2"] = -0.12654858254158613;
+  kScaling["QPQ4"] = -0.01471238222852117;
   kScaling["BPH3"] = -0.12432151082458207;
+  kScaling["QPQ5"] = 0.019445574477550798;
+
 
   for(auto &val : magCurrent) val += 1e-1; //annoyingly magnets with 0 strength create issues
 
@@ -305,7 +312,10 @@ double Interface::fcn_wrapper(const double *pars){
 bool Interface::CheckBounds(std::map<std::string, double> pars){
   std::vector<std::string> limitedpars = {"emitx", "betx", "emity", "bety"};
   for(auto st : limitedpars){
-    if(pars[st] < 0) return false;
+    if(pars[st] < 0){
+      std::cerr<<"found parameter outside of range "<<st<<" with value "<<pars[st]<<std::endl; 
+      return false;
+    }
   }
   return true;
 }

@@ -2,4 +2,6 @@
 *.o
 *.so
 bdsim_optimiser/bin
-
+*.png
+*.pdf
+*.prof

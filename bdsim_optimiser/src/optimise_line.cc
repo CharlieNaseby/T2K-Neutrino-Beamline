@@ -11,7 +11,7 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
   inter->SetChisqMode(fitMode);
   min->SetStrategy(3);
   min->SetMaxFunctionCalls(10000);
-  min->SetTolerance(1000);
+  min->SetTolerance(10);
 
 //  for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], pars[i], 0.1);
    for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], inter->PhysicalToFit(i, pars[i]), 0.1);
@@ -113,7 +113,7 @@ int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
 
   std::string baseBeamlineFile="../survey/unoptimised.gmad";
-  std::string ssemDataFile="./ssem_data/run0910216_gen.root";
+  std::string ssemDataFile="ssem_data/run0910217_gen.root";//"./ssem_data/run0910216_gen.root";
 
   const int nMagnetPars = 11;
   const int nBeamPars = 10;
@@ -125,27 +125,27 @@ int main(int argc, char **argv){
   double pars[nPars];
 
   //options for the initial magnet field strengths, all false means use ssem data file and estimates of magnet strengths
-  char *usePrevBestFit = nullptr; //"./mar_2025_cm_fits/fit_910216_with_misalignments_no_noise_5pc_constraint.root";
+  char *usePrevBestFit = nullptr; //"./may_2025_hk_fits/misalignments_no_noise_tight_tolerance.root";
   bool useFieldMaps = false; //currently unsupported
   bool useFudgeFactor = false;
   bool useInputFile = false;
 
 
-  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars, 0); //last arg is noise
+  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars, 0.0); //last arg is noise
 
   //set prior constraints
   //negative values are a fractional uncertainty on the nominal value
   //positive values are an absolute uncertainty in the same units as the parameter
 
 //  inter.priorErrors["BPV1"] = 0.00001; //nominal current is 0 maybe there should actually be no freedom here..
-  inter.priorErrors["BPH2"] = -0.05;
-  inter.priorErrors["QPQ1"] = -0.05;
-  inter.priorErrors["QPQ2"] = -0.05;
-  inter.priorErrors["BPD1"] = -0.05;
-  inter.priorErrors["BPD2"] = -0.05;
-  inter.priorErrors["QPQ3"] = -0.05;
-  inter.priorErrors["BPV2"] = -0.05;
-  inter.priorErrors["QPQ4"] = -0.05;
+  inter.priorErrors["BPH2"] = -0.07;
+  inter.priorErrors["QPQ1"] = -0.07;
+  inter.priorErrors["QPQ2"] = -0.07;
+  inter.priorErrors["BPD1"] = -0.07;
+  inter.priorErrors["BPD2"] = -0.07;
+  inter.priorErrors["QPQ3"] = -0.07;
+  inter.priorErrors["BPV2"] = -0.07;
+  inter.priorErrors["QPQ4"] = -0.07;
 //  inter.priorErrors["BPH3"] = -0.05;
 //  inter.priorErrors["QPQ5"] = -0.05;
 

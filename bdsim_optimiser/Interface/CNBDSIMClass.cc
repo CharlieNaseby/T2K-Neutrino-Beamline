@@ -502,7 +502,6 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
 //    G4cout << "Set " << key << " to value " << value << G4endl;
   }
 
-//  parser->GetBeam().X0 -= 0.001; //subtractm 1mm
   bdsBunch = BDSBunchFactory::CreateBunch(beamParticle,
                                           parser->GetBeam(),
                                           globals->BeamlineTransform(),

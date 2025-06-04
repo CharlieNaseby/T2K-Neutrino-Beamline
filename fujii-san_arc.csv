@@ -1,0 +1,4 @@
+element   , elementID, length, mark  , type , aperture_type, aperture_x, aperture_y, angle , polelength, tilt, zref, survey_offset, geometry, blm, blm_offset_x, blm_offset_y, blm_offset_s, blm_orientation
+arc_druftu,         1,     10, NA    , drift, circular     ,        100,          0, 0     ,          0,    0,    0, NA           , true,   0,            0,            0,            0,               0
+arc_dipole,         2, 150000, 75000, sbend, circular     ,        100,          0, -1.408,     149000,    0,    0, NA           , none,   0,            0,            0,            0,               0
+arc_driftd,         3,     10, NA    , drift, circular     ,        100,          0, 0     ,          0,    0,    0, NA           , true,   0,            0,            0,            0,               0

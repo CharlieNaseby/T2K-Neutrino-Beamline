@@ -113,7 +113,7 @@ public:
 
   /// @{ Cache of main objects in BDSIM.
   BDSParser*     parser;
-  BDSOutput*     bdsOutput;
+  BDSOutput*   bdsOutput;
   BDSBunch*      bdsBunch;
   BDSEventAction* eventAction;
   BDSRunManager* runManager;

@@ -112,26 +112,56 @@ void plot_beam_result(TString infilenamebds, TString infilenamerebdsimoptics="",
     if(infilenamerebdsimoptics!=""){
       TFile *bdsopt = new TFile(infilenamerebdsimoptics, "READ");
       TTree *Optics = (TTree*)(bdsopt->Get("Optics"));
-      double S, Mean_x, Mean_y;
+      double S, Mean_x, Mean_y, Alpha_x, Alpha_y, Beta_x, Beta_y, Emitt_x, Emitt_y;
       Optics->SetBranchAddress("Mean_x", &Mean_x);
       Optics->SetBranchAddress("Mean_y", &Mean_y);
+      Optics->SetBranchAddress("Alpha_x", &Alpha_x);
+      Optics->SetBranchAddress("Alpha_y", &Alpha_y);
+      Optics->SetBranchAddress("Beta_x", &Beta_x);
+      Optics->SetBranchAddress("Beta_y", &Beta_y);
+      Optics->SetBranchAddress("Emitt_x", &Emitt_x);
+      Optics->SetBranchAddress("Emitt_y", &Emitt_y);
+
       Optics->SetBranchAddress("S", &S);
-      std::vector<double> opt_s, opt_x, opt_y;
+      std::vector<double> opt_s, opt_x, opt_y, opt_alph_x, opt_alph_y, opt_beta_x, opt_beta_y, opt_width_x, opt_width_y;
 
       for(int i=0; i<Optics->GetEntries(); i++){
         Optics->GetEntry(i);
         opt_s.push_back(S);
         opt_x.push_back(1000*Mean_x);
         opt_y.push_back(1000*Mean_y);
+        opt_alph_x.push_back(Alpha_x);
+        opt_alph_y.push_back(Alpha_y);
+        opt_beta_x.push_back(Beta_x);
+        opt_beta_y.push_back(Beta_y);
+	opt_width_x.push_back(2000.*sqrt(Beta_x*Emitt_x));
+	opt_width_y.push_back(2000.*sqrt(Beta_y*Emitt_y));
       }
 
       outf->cd();
-      TGraph *opt_ygr = new TGraph(opt_s.size(), &opt_s[0], &opt_x[0]);
-      TGraph *opt_xgr = new TGraph(opt_s.size(), &opt_s[0], &opt_y[0]);
+      TGraph *opt_xgr = new TGraph(opt_s.size(), &opt_s[0], &opt_x[0]);
+      TGraph *opt_ygr = new TGraph(opt_s.size(), &opt_s[0], &opt_y[0]);
+
+      TGraph *opt_alph_xgr = new TGraph(opt_s.size(), &opt_s[0], &opt_alph_x[0]);
+      TGraph *opt_alph_ygr = new TGraph(opt_s.size(), &opt_s[0], &opt_alph_y[0]);
+
+      TGraph *opt_beta_xgr = new TGraph(opt_s.size(), &opt_s[0], &opt_beta_x[0]);
+      TGraph *opt_beta_ygr = new TGraph(opt_s.size(), &opt_s[0], &opt_beta_y[0]);
+
+      TGraph *opt_width_xgr = new TGraph(opt_s.size(), &opt_s[0], &opt_width_x[0]);
+      TGraph *opt_width_ygr = new TGraph(opt_s.size(), &opt_s[0], &opt_width_y[0]);
 
       opt_xgr->Write("opt_x");
       opt_ygr->Write("opt_y");
 
+      opt_alph_xgr->Write("opt_alpha_x");
+      opt_alph_ygr->Write("opt_alpha_y");
+
+      opt_beta_xgr->Write("opt_beta_x");
+      opt_beta_ygr->Write("opt_beta_y");
+
+      opt_width_xgr->Write("opt_width_x");
+      opt_width_ygr->Write("opt_width_y");
 
     }
 

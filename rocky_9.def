@@ -6,10 +6,22 @@ From: rockylinux/rockylinux:9.5
     cat /etc/os-release
     yum -y update
     yum -y install epel-release
+
     yum -y install wget curl vim --allowerasing
     yum -y install sudo yum-utils
     yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.5/devel/x86_64/os/
+#    yum-config-manager --add-repo https://dl.rockylinux.org/pub/rocky/9.5/devel/aarch64/
+
+
+
     yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
+    yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel libXpm-devel libXft-devel libXext-devel
+    yum -y install xcb-util-cursor-devel
+    yum -y install HepMC3
+    yum -y install pip gperftools
+    pip install numpy pandas matplotlib xlrd pyqt6 openpyxl
+
+
 
 #get CLHEP
     cd /opt
@@ -26,18 +38,25 @@ From: rockylinux/rockylinux:9.5
     cd /opt
     
 
-    yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel libXpm-devel libXft-devel libXext-devel
-    yum -y install xcb-util-cursor-devel
-
-
-    #our own install of root so minuit works
     cd /opt
     mkdir root
     cd root
-    wget https://root.cern/download/root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
-    tar -xzf root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
-    source root/bin/thisroot.sh
+    git clone --branch latest-stable --depth=1 https://github.com/root-project/root.git root_src
+    mkdir root_build root_install && cd root_build
+    cmake -DCMAKE_INSTALL_PREFIX=../root_install ../root_src # && check cmake configuration output for warnings or errors
+    cmake --build . -- install -j8 # if you have 4 cores available for compilation
+    source ../root_install/bin/thisroot.sh 
     cd /opt
+
+
+#    #our own install of root so minuit works
+#    cd /opt
+#    mkdir root
+#    cd root
+#    wget https://root.cern/download/root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
+#    tar -xzf root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
+#    source root/bin/thisroot.sh
+#    cd /opt
 
 
 #geant4 time
@@ -49,11 +68,10 @@ From: rockylinux/rockylinux:9.5
     cd geant4-v10.7.4-build
     cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=OFF -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=OFF -DGEANT4_USE_XM=OFF
 #    cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=ON -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=ON -DGEANT4_USE_XM=ON
-    make -j1
+    make -j8
     make install
 
     source /usr/local/bin/geant4.sh
-    yum -y install HepMC3
 
     cd /opt
     mkdir bdsim
@@ -70,8 +88,7 @@ From: rockylinux/rockylinux:9.5
     echo "source /usr/local/bin/geant4.sh" >> /opt/setup.sh
 
 
-    yum -y install pip gperftools
-    pip install numpy pandas matplotlib xlrd pyqt6 openpyxl
+
 
 
     # Clean up

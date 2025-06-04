@@ -1,0 +1,4 @@
+
+diff -crB jairhul-bdsim-c725b23739b8/ jairhul-bdsim-c725b23739b8_modified/ > bdsim_modifications.diff
+
+patch -p1 -d jairhul-bdsim-c725b23739b8 --verbose < bdsim_modifications.diff
