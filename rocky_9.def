@@ -1,28 +1,31 @@
 Bootstrap: docker
 From: rockylinux/rockylinux:9.5
-
 %post
     # Update the package repository and install necessary packages
     cat /etc/os-release
     yum -y update
     yum -y install epel-release
-
     yum -y install wget curl vim --allowerasing
     yum -y install sudo yum-utils
     yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.5/devel/x86_64/os/
-#    yum-config-manager --add-repo https://dl.rockylinux.org/pub/rocky/9.5/devel/aarch64/
-
-
-
+#    yum-config-manager --add-repo https://dl.rockylinux.org/pub/rocky/9.5/devel/aarch64/os/
     yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
-    yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel libXpm-devel libXft-devel libXext-devel
-    yum -y install xcb-util-cursor-devel
+    yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel
+    yum -y install xcb-util-cursor-devel 
+    yum -y install binutils libX11-devel libXpm-devel libXft-devel libXext-devel openssl-devel xrootd-client-devel xrootd-libs-devel
     yum -y install HepMC3
     yum -y install pip gperftools
     pip install numpy pandas matplotlib xlrd pyqt6 openpyxl
 
-
-
+    cd /opt
+    mkdir root
+    cd root
+    git clone --branch latest-stable --depth=1 https://github.com/root-project/root.git root_src
+    mkdir root_build root_install && cd root_build
+    cmake -DCMAKE_INSTALL_PREFIX=../root_install ../root_src # && check cmake configuration output for warnings or errors
+    cmake --build . -- install -j8
+    source ../root_install/bin/thisroot.sh 
+    cd /opt
 #get CLHEP
     cd /opt
     mkdir clhep
@@ -33,22 +36,10 @@ From: rockylinux/rockylinux:9.5
     mkdir build
     cd build
     cmake ../CLHEP
-    make
+    make -j8
     sudo make install
     cd /opt
     
-
-    cd /opt
-    mkdir root
-    cd root
-    git clone --branch latest-stable --depth=1 https://github.com/root-project/root.git root_src
-    mkdir root_build root_install && cd root_build
-    cmake -DCMAKE_INSTALL_PREFIX=../root_install ../root_src # && check cmake configuration output for warnings or errors
-    cmake --build . -- install -j8 # if you have 4 cores available for compilation
-    source ../root_install/bin/thisroot.sh 
-    cd /opt
-
-
 #    #our own install of root so minuit works
 #    cd /opt
 #    mkdir root
@@ -57,10 +48,7 @@ From: rockylinux/rockylinux:9.5
 #    tar -xzf root_v6.32.02.Linux-almalinux9.4-x86_64-gcc11.4.tar.gz
 #    source root/bin/thisroot.sh
 #    cd /opt
-
-
 #geant4 time
-
     wget https://gitlab.cern.ch/geant4/geant4/-/archive/v10.7.4/geant4-v10.7.4.tar.gz
     tar -xzf geant4-v10.7.4.tar.gz
     mkdir geant4-v10.7.4-build
@@ -70,9 +58,7 @@ From: rockylinux/rockylinux:9.5
 #    cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=ON -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=ON -DGEANT4_USE_XM=ON
     make -j8
     make install
-
     source /usr/local/bin/geant4.sh
-
     cd /opt
     mkdir bdsim
     cd bdsim
@@ -81,19 +67,12 @@ From: rockylinux/rockylinux:9.5
     mkdir bdsim-build
     cd bdsim-build
     cmake ../jairhul-bdsim-c725b23739b8/
-    make
+    make -j8
     make install
-
-    echo "source /opt/root/root/bin/thisroot.sh" > /opt/setup.sh
+    echo "source /opt/root/root_install/bin/thisroot.sh" > /opt/setup.sh
     echo "source /usr/local/bin/geant4.sh" >> /opt/setup.sh
-
-
-
-
-
     # Clean up
     yum clean all
-
 %environment
     # Set environment variables
     export LC_ALL=C
@@ -101,18 +80,13 @@ From: rockylinux/rockylinux:9.5
     export PATH=/usr/local/bin:$PATH
 #    export HOME=/home/
 #    source /home/.bashrc
-
 %runscript
     # Commands to run when the container is executed
     echo "This is a Rocky Linux container"
-
 %labels
     Author Charlie Naseby
     Version v1.0
     Description "A rocky 9 container for BDSIM"
-
 %help
     This Singularity definition file creates a container based on Rocky Linux 9.
     It installs the dependencies for BDSIM and then BDSIM itself based on a specific tag of BDSIM
-
-
