@@ -14,6 +14,8 @@ from botorch.utils.transforms import t_batch_mode_transform
 from botorch.acquisition.monte_carlo import MCAcquisitionFunction
 from botorch.sampling.base import MCSampler
 from botorch.sampling.normal import SobolQMCNormalSampler
+from botorch.acquisition import UpperConfidenceBound
+from botorch.settings import debug
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,7 +65,18 @@ def get_gamma(alpha, beta):
     return (1+alpha**2)/beta
 
 def get_width(emittance, beampars):
-    return (emittance*beampars[0,:])**0.5
+
+    if(type(beampars) == np.float64):
+        return (emittance*beampars)**0.5
+    elif(beampars.shape[0] == NSSEM): #beta at each SSEM format
+        return np.array([get_width(emittance,ssem) for ssem in beampars])
+    elif(beampars.shape[0] == NAXIS): #beta, alpha, gamma format
+        return [get_width(emittance, beam) for beam in beampars]
+    elif(beampars.shape == (3,)):
+        return get_width(emittance, beampars[0])
+    else:
+        print(f'Error unknown type for get_width {type(beampars)} shape {beampars.shape}')
+        raise TypeError("Invalid type argument to get_width")
 
 def get_acquisition_function(y, sigma, best_point, xi):
     return sigma*xi + (best_point-y)
@@ -75,6 +88,8 @@ def get_true_width(initial_beam, emittance, x):
     resulting_beam = np.array([bl.propagate_beam(initial_beam, p) for p in x])
     return np.array([get_width(emittance, beam) for beam in resulting_beam])
 
+def get_likelihood(beam, target):
+    return -np.sum((beam-target)**2, axis=tuple(range(1,beam.ndim)))
 
 class Beamline:
     strengths = []
@@ -88,8 +103,10 @@ class Beamline:
         return np.array([quad[0].dot(beam[:,0]), quad[1].dot(beam[:,1])]).T
 
     def propagate_beam(self, initial_beam, strengths):
-        output_beam = drift(1.0).dot(self.apply_quad(strengths[1], 1.0, drift(1.0).dot(self.apply_quad(strengths[0], 1.0, drift(1.0).dot(initial_beam)))))
-        return output_beam
+        SSEM1 = drift(1.0).dot(self.apply_quad(strengths[1], 1.0, drift(1.0).dot(self.apply_quad(strengths[0], 1.0, drift(1.0).dot(initial_beam)))))
+        SSEM2 = drift(2.0).dot(SSEM1)
+        measurements = np.array([SSEM1.T, SSEM2.T])
+        return measurements
 
 
 def get_gp_func(X, Y):
@@ -149,11 +166,13 @@ class qScalarizedUpperConfidenceBound(MCAcquisitionFunction):
 
 
 torch.set_default_dtype(torch.float64)
-np.random.seed(1989)
+np.random.seed(1987)
 
 
 NDIM_IN = 2
 NDIM_OUT = 1
+NSSEM = 2
+NAXIS = 2
 
 emittance = np.array([1., 1.])
 alpha = np.array([0.1, 0.1])
@@ -162,42 +181,59 @@ gamma = get_gamma(alpha, beta)
 
 initial_beam = np.array([beta, alpha, gamma])
 
-predictor = Beamline()
-final_beam = predictor.propagate_beam(initial_beam, np.array([0.7, -0.7]))
-target_width = get_width(emittance, final_beam)
+target_parameters = np.array([0.7, -0.7])
 
+predictor = Beamline()
+final_beam = predictor.propagate_beam(initial_beam, target_parameters)
+target_width = get_width(emittance, final_beam)
 
 x_train = np.linspace(0.01, 2, 4, dtype=np.float64)
 x0_train, x1_train = np.meshgrid(x_train, -x_train)
 x_train = np.column_stack((x0_train.ravel(), x1_train.ravel()))
-y_train = get_true_width(initial_beam, emittance, x_train)
 
+x0_train = np.random.uniform(0.01, 2, 4)
+x1_train = np.random.uniform(-2, -0.01, 4)
+
+x_train = np.column_stack((x0_train, x1_train))
+y_train = get_likelihood(get_true_width(initial_beam, emittance, x_train), target_width)
 
 x_truth = np.linspace(0.01, 2, 100)
 x0_truth, x1_truth = np.meshgrid(x_truth, -x_truth)
 x_truth = np.column_stack((x0_truth.ravel(), x1_truth.ravel()))
-y_truth = get_true_width(initial_beam, emittance, x_truth)
-
+y_truth = get_likelihood(get_true_width(initial_beam, emittance, x_truth), target_width)
 solution_curve = []
 for i in range(len(y_truth)):
-    if np.abs((y_truth[i]-target_width)[0])<0.05:
+    if np.abs(y_truth[i])<0.1:
         solution_curve.append(x_truth[i])
 
 solution_curve = np.array(solution_curve)
 
 
+debug(True)
+for i in range(40):
 
-for i in range(10):
-    model, mll = get_gp_func(torch.from_numpy(x_train), torch.from_numpy(y_train[:,0]).reshape(-1, 1)) #just train x
+    with gpytorch.settings.cholesky_max_tries(10):
+        model, mll = get_gp_func(torch.from_numpy(x_train), torch.from_numpy(y_train).reshape(-1, 1)) #just train x
 
+
+    UCB = UpperConfidenceBound(model, beta=10.0)
+    logEI = LogExpectedImprovement(model=model, best_f=y_train.max())
     custom_log_ei = qScalarizedUpperConfidenceBound(model=model, beta=0.1, weights=torch.tensor([0.1]))
 
 
     bounds = torch.tensor([[0.01, -2.],[2., -0.01]])
 
-    custom_candidate, custom_acq_value = optimize_acqf(
-      custom_log_ei, bounds=bounds, q=1, num_restarts=5, raw_samples=20,
+    candidate, acq_value = optimize_acqf(
+      logEI, bounds=bounds, q=1, num_restarts=25, raw_samples=200,
     )
+
+    candidate, acq_value = optimize_acqf(
+        UCB, bounds=bounds, q=1, num_restarts=10, raw_samples=100,
+    )
+
+#    custom_candidate, custom_acq_value = optimize_acqf(
+#      custom_log_ei, bounds=bounds, q=1, num_restarts=5, raw_samples=20,
+#    )
 
     x_array = torch.from_numpy(x_truth)
     x_array_reshaped = x_array.reshape(-1, NDIM_IN).to(torch.double)
@@ -210,51 +246,100 @@ for i in range(10):
 
 
     x_array_reshaped = x_array.reshape(-1, 1, NDIM_IN).to(torch.double)
-    custom_acquisition_values = custom_log_ei(x_array_reshaped)
 
-    fig, axes = plt.subplots(2, 3, figsize=(12, 5))
+    acquisition_values = logEI(x_array_reshaped)
 
-    widthmap_x = axes[0,0].scatter(x_truth[:,0], x_truth[:,1], c=y_truth[:,0], cmap='viridis',s=0.3)
-    fig.colorbar(widthmap_x, label='True Beam Width Arb.')
-    axes[0,0].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
-    axes[0,0].set_title('X width')
-    axes[0,0].set_ylabel('Q2 k1**0.5')
+    acquisition_values = UCB(x_array_reshaped)
+#    custom_acquisition_values = custom_log_ei(x_array_reshaped)
 
-#    widthmap_y = axes[0,1].scatter(x_truth[:,0], x_truth[:,1], c=y_truth[:,1], cmap='viridis')
-#    fig.colorbar(widthmap_y, label='Beam Width Arb.')
-#    axes[0,1].set_title('Y width')
-#    axes[0,1].set_xlabel('Q1 k1**0.5')
-#    axes[0,1].set_ylabel('Q2 k1**0.5')
+    print(f'Best found position = {x_truth[np.argmax(mean)]} with mean {mean[np.argmax(mean)]} and stddev {ci_band[np.argmax(mean)]}')
+    if(i%4==0):
+        fig, axes = plt.subplots(2, 3, figsize=(12, 5))
+    
+        widthmap_x = axes[0,0].scatter(x_truth[:,0], x_truth[:,1], c=y_truth, cmap='viridis',s=0.3)
+        fig.colorbar(widthmap_x, label='True Beam Width Arb.')
+        axes[0,0].scatter(target_parameters[0], target_parameters[1], c='black', label='True Target')
+        axes[0,0].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+        axes[0,0].set_title('X width')
+        axes[0,0].set_ylabel('Q2 k1**0.5')
+    
+        widthmap_x_gp = axes[0,1].scatter(x_truth[:,0], x_truth[:,1], c=mean, cmap='viridis',s=0.3)
+        axes[0,1].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+    #    axes[0,1].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+        fig.colorbar(widthmap_x_gp, label='Model Beam Width Arb.')
+        axes[0,1].set_title('X width Predicted from GP')
+    
+    
+        widthmap_x_gp = axes[0,2].scatter(x_truth[:,0], x_truth[:,1], c=y_truth-mean.numpy()[:,0], cmap='viridis',s=0.3)
+        axes[0,2].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+    #    axes[0,2].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+        fig.colorbar(widthmap_x_gp, label='Beam Width True-Model')
+        axes[0,2].set_title('True - Prediction X')
+    
+        widthmap_xsigma_gp = axes[1,0].scatter(x_truth[:,0], x_truth[:,1], c=ci_band.numpy()[:,0], cmap='viridis', s=0.3)
+        axes[1,0].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+    #    axes[1,0].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+        fig.colorbar(widthmap_xsigma_gp, label='Beam Model Uncert')
+        axes[1,0].set_title('Uncertainty')
+        axes[1,0].set_xlabel('Q1 k1**0.5')
+        axes[1,0].set_ylabel('Q2 k1**0.5')
+    
+        acquisition = axes[1,1].scatter(x_truth[:,0], x_truth[:,1], c=np.log(np.abs(acquisition_values.detach().numpy())), cmap='viridis', s=0.3)
+        axes[1,1].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+        axes[1,1].scatter(x_truth[np.argmax(acquisition_values.detach().numpy()),0], x_truth[np.argmax(acquisition_values.detach().numpy()),1])
+    #    axes[1,1].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+        fig.colorbar(acquisition, label='log Acquisition Function')
+        axes[1,1].set_title('Acquisition Function')
+        plt.tight_layout()
+        plt.show()
 
-    widthmap_x_gp = axes[0,1].scatter(x_truth[:,0], x_truth[:,1], c=mean, cmap='viridis',s=0.3)
-    axes[0,1].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
-    axes[0,1].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
-    fig.colorbar(widthmap_x_gp, label='Model Beam Width Arb.')
-    axes[0,1].set_title('X width Predicted from GP')
 
 
-    widthmap_x_gp = axes[0,2].scatter(x_truth[:,0], x_truth[:,1], c=y_truth[:,0]-mean.numpy()[:,0], cmap='viridis',s=0.3)
-    axes[0,2].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
-    axes[0,2].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
-    fig.colorbar(widthmap_x_gp, label='Beam Width True-Model')
-    axes[0,2].set_title('True - Prediction X')
 
-    widthmap_xsigma_gp = axes[1,0].scatter(x_truth[:,0], x_truth[:,1], c=ci_band.numpy()[:,0], cmap='viridis', s=0.3)
-    axes[1,0].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
-    axes[1,0].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
-    fig.colorbar(widthmap_xsigma_gp, label='Beam Model Uncert')
-    axes[1,0].set_title('Uncertainty')
-    axes[1,0].set_xlabel('Q1 k1**0.5')
-    axes[1,0].set_ylabel('Q2 k1**0.5')
+#    fig, axes = plt.subplots(2, 3, figsize=(12, 5))
+#
+#    widthmap_x = axes[0,0].scatter(x_truth[:,0], x_truth[:,1], c=y_truth[:,0], cmap='viridis',s=0.3)
+#    fig.colorbar(widthmap_x, label='True Beam Width Arb.')
+#    axes[0,0].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+#    axes[0,0].set_title('X width')
+#    axes[0,0].set_ylabel('Q2 k1**0.5')
+#
+##    widthmap_y = axes[0,1].scatter(x_truth[:,0], x_truth[:,1], c=y_truth[:,1], cmap='viridis')
+##    fig.colorbar(widthmap_y, label='Beam Width Arb.')
+##    axes[0,1].set_title('Y width')
+##    axes[0,1].set_xlabel('Q1 k1**0.5')
+##    axes[0,1].set_ylabel('Q2 k1**0.5')
+#
+#    widthmap_x_gp = axes[0,1].scatter(x_truth[:,0], x_truth[:,1], c=mean, cmap='viridis',s=0.3)
+#    axes[0,1].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+#    axes[0,1].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+#    fig.colorbar(widthmap_x_gp, label='Model Beam Width Arb.')
+#    axes[0,1].set_title('X width Predicted from GP')
+#
+#
+#    widthmap_x_gp = axes[0,2].scatter(x_truth[:,0], x_truth[:,1], c=y_truth[:,0]-mean.numpy()[:,0], cmap='viridis',s=0.3)
+#    axes[0,2].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+#    axes[0,2].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+#    fig.colorbar(widthmap_x_gp, label='Beam Width True-Model')
+#    axes[0,2].set_title('True - Prediction X')
+#
+#    widthmap_xsigma_gp = axes[1,0].scatter(x_truth[:,0], x_truth[:,1], c=ci_band.numpy()[:,0], cmap='viridis', s=0.3)
+#    axes[1,0].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+#    axes[1,0].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+#    fig.colorbar(widthmap_xsigma_gp, label='Beam Model Uncert')
+#    axes[1,0].set_title('Uncertainty')
+#    axes[1,0].set_xlabel('Q1 k1**0.5')
+#    axes[1,0].set_ylabel('Q2 k1**0.5')
+#
+#    acquisition = axes[1,1].scatter(x_truth[:,0], x_truth[:,1], c=-np.log(np.abs(custom_acquisition_values.detach().numpy())), cmap='viridis', s=0.3)
+#    axes[1,1].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
+#    axes[1,1].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
+#    fig.colorbar(acquisition, label='log(Acquisition Function)')
+#    axes[1,1].set_title('Acquisition Function')
+#    plt.tight_layout()
+#    plt.show()
 
-    acquisition = axes[1,1].scatter(x_truth[:,0], x_truth[:,1], c=-np.log(np.abs(custom_acquisition_values.detach().numpy())), cmap='viridis', s=0.3)
-    axes[1,1].scatter(x_train[:,0], x_train[:,1], color='red', s=0.1)
-    axes[1,1].scatter(solution_curve[:,0], solution_curve[:,1], c='blue', s=0.1)
-    fig.colorbar(acquisition, label='log(Acquisition Function)')
-    axes[1,1].set_title('Acquisition Function')
-    plt.tight_layout()
-    plt.show()
 
-
-    x_train = np.append(x_train, custom_candidate.numpy(), axis=0)
-    y_train = np.append(y_train, [get_true_width(initial_beam, emittance, x_train[-1])[0]], axis=0)
+    x_train = np.append(x_train, candidate.numpy(), axis=0)
+    y_train = np.append(y_train, get_likelihood(get_true_width(initial_beam, emittance, x_train[-1]), target_width), axis=0)
+    print(f'y train is now {y_train}')
