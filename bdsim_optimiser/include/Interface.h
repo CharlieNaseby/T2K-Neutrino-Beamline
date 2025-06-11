@@ -36,6 +36,11 @@
 #include "TRandom3.h"
 
 
+#ifdef PYBIND
+#include <pybind11/pybind11.h>
+#endif
+
+
 #define NSSEM 9
 
 class Interface{
@@ -83,3 +88,11 @@ public:
   void SetChisqMode(int mode){fitMode=mode;};
 
 };
+
+#ifdef PYBIND
+PYBIND11_MODULE(Interface, m) {
+    pybind11::class_<Interface>(m, "Interface")
+        .def(pybind11::init<std::string &, std::string &, int, int, int>())
+        .def("fcn", static_cast<double (Interface::*)(const double*)>(&Interface::fcn));
+}
+#endif
