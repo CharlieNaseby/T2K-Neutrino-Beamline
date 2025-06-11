@@ -567,9 +567,9 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
 }
 
 std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
-    std::vector<std::array<double, 4> > ssemPred;
+    std::vector<std::array<double, 4> > ssemPred(bdsOutput->samplerTrees.size());
 //    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->x.size() <<std::endl;
-    ssemPred.reserve(bdsOutput->samplerTrees.size());
+//    ssemPred.reserve(bdsOutput->samplerTrees.size());
     for(unsigned int i=0; i<bdsOutput->samplerTrees.size(); i++){ //loop over ssems
       std::vector<float> x = (*bdsOutput->samplerTrees[i]).xcache;
       for(auto &ele : x) ele*=1000;  //convert to mm
@@ -587,7 +587,6 @@ std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
       // Compute Standard Deviation using lambda
       double stddevy = std::sqrt(std::accumulate(y.begin(), y.end(), 0.0,
         [meany](float acc, float val) { return acc + (val - meany) * (val - meany); }) / (y.size()-1));
-      
       ssemPred[i][0] = meanx;
       ssemPred[i][1] = meany;
       ssemPred[i][2] = stddevx*2;

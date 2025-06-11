@@ -1,0 +1,45 @@
+d1: drift, l=1.0*m;
+Q1: quadrupole, l=1.0*m, k1=1.0, magnetGeometryType="none";
+d2: drift, l=1.0*m;
+Q2: quadrupole, l=1.0*m, k1=-1.0, magnetGeometryType="none";
+d3: drift, l=1.0*m;
+SSEM1: drift, l=0.015*mm;
+d4: drift, l=1.0*m;
+SSEM2: drift, l=0.015*mm;
+
+l0: line = (d1,
+Q1,
+d2,
+Q2,
+d3,
+SSEM1,
+d4,
+SSEM2);
+
+use, period=l0;
+
+beam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=0.0*m,
+      Xp0=0.0,
+      emitx=1*mm*mrad,
+      betx=1.0*m,
+      alfx=0.0,
+      dispx=0.0*m,
+      dispxp=0.0,
+
+      Y0=0.0*m,
+      Yp0=0.0,
+      emity=1*mm*mrad,
+      bety=1.0*m,
+      alfy=0.0,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      kineticEnergy=30*GeV;
+
+
+option, nturns=1;
+sample, range=SSEM1;
+sample, range=SSEM2;

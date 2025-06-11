@@ -38,6 +38,7 @@
 
 #ifdef PYBIND
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #endif
 
 
@@ -63,9 +64,13 @@ public:
   int testval = 0;
   unsigned int fitMode=1+2+4+8;  //by default fit width and position
  
+  Interface(std::vector<double> pars, std::vector<std::array<double,4> > target);
   Interface(std::string dataFile, std::string baseBeamlineFile, int npars, int nmagnetpars, int nbeampars);
   ~Interface();
   void SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double* pars, double noise=0.0);
+  void SetInitialValues(std::vector<double> pars);
+  void SetSSEMData(std::string dataFile);
+  void SetData(std::vector<double> x, std::vector<double> y, std::vector<double> wx, std::vector<double> wy);
   void SetInternalPars(const double *pars);
   std::map<std::string, double> GetNominalPars();
   void ParamScan(int param, TH1D *hist);
@@ -93,6 +98,10 @@ public:
 PYBIND11_MODULE(Interface, m) {
     pybind11::class_<Interface>(m, "Interface")
         .def(pybind11::init<std::string &, std::string &, int, int, int>())
-        .def("fcn", static_cast<double (Interface::*)(const double*)>(&Interface::fcn));
+        .def(pybind11::init<std::vector<double> &, std::vector<std::array<double, 4> > &>())
+        .def("fcn", static_cast<double (Interface::*)(std::vector<double>)> (&Interface::fcn))
+        .def("SetInitialValues", static_cast<void (Interface::*)(std::vector<double> )> (&Interface::SetInitialValues))
+        .def("GetBeamPars", static_cast<std::vector<std::array<double, 4> > (Interface::*)()>(&Interface::GetBeamPars))
+        .def("SetChisqMode", static_cast<void (Interface::*)(int)> (&Interface::SetChisqMode));
 }
 #endif

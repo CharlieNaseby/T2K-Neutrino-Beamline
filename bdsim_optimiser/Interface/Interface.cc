@@ -3,6 +3,60 @@
 
 //constructor to set data and the gmad file we'll use as a base to our fit
 
+//very simple setup for testing purposes and bayesian optimisation studies
+Interface::Interface(std::vector<double> pars, std::vector<std::array<double, 4> > target){
+  nPars = pars.size();
+  nMagnetPars = pars.size();
+  nBeamPars = 0;
+
+  bds = new CNBDSIM();
+
+  char *dargv[6];
+  char path[256] = "--file=simple_beamline.gmad";
+  char batch[256] = "--batch";
+  char ngen[256] = "--ngenerate=100";
+  char outfile[256] = "--outfile=/opt/bdsim_output";
+  char seed[256] = "--seed=1989";
+  //char verbose[256] = "--verbose=0";
+  dargv[1] = path;
+  dargv[2] = batch;
+  dargv[3] = ngen;
+  dargv[4] = outfile;
+  dargv[5] = seed;
+//  dargv[6] = verbose;
+  bds->Initialise(5, dargv);
+  internalPars.resize(nPars); //point about which LLH scans will be conducted
+  magNames.resize(nMagnetPars);
+  beamNames.resize(nBeamPars);
+  preFit.resize(nPars); //the values of the parameters expected with scalings or fudge factors applied
+
+  std::vector<double> x, y, wx, wy;
+  for(auto ssem : target){
+    x.push_back(ssem[0]);
+    y.push_back(ssem[1]);
+    wx.push_back(ssem[2]);
+    wy.push_back(ssem[3]);
+
+  }
+  SetData(x, y, wx, wy);
+
+
+  magMap["Q1"] = 0;
+  magMap["Q2"] = 1;
+//  magMap["B1"] = 2;
+//  magMap["Q3"] = 3;
+//  magMap["B2"] = 4;
+
+
+  for(auto [key, value] : magMap) magNames[value] = key;
+  for(auto name : magNames) parNames.push_back(name);
+
+  ParseInputFile("./simple_beamline.gmad");
+
+}
+
+
+//the full T2K beamline setup
 Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npars, int nmagnetpars, int nbeampars){
 
   nPars = npars;
@@ -11,7 +65,7 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   bds = new CNBDSIM();
 
   char *dargv[6];
-  char path[256] = "--file=/opt/T2K-Neutrino-Beamline/survey/unoptimised.gmad";
+  char path[256] = "--file=../survey/unoptimised.gmad";
   char batch[256] = "--batch";
   char ngen[256] = "--ngenerate=100";
   char outfile[256] = "--outfile=/opt/bdsim_output";
@@ -31,7 +85,36 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   beamNames.resize(nBeamPars);
   preFit.resize(nPars); //the values of the parameters expected with scalings or fudge factors applied
 
+  SetSSEMData(dataFile);
 
+
+  magMap["BPV1"] = 0;
+  magMap["BPH2"] = 1;
+  magMap["QPQ1"] = 2;
+  magMap["QPQ2"] = 3;
+  magMap["BPD1"] = 4;
+  magMap["BPD2"] = 5;
+  magMap["QPQ3"] = 6;
+  magMap["BPV2"] = 7;
+  magMap["QPQ4"] = 8;
+  magMap["BPH3"] = 9;
+  magMap["QPQ5"] = 10;
+
+  for(auto [key, value] : magMap) magNames[value] = key;
+
+  beamNames ={"X0", "Xp0", "emitx", "betx", "alfx", "Y0", "Yp0", "emity", "bety", "alfy"};
+
+  for(auto name : magNames) parNames.push_back(name);
+  for(auto name : beamNames) parNames.push_back(name);
+
+  ParseInputFile(baseBeamlineFile);
+}
+
+Interface::~Interface(){
+  delete bds;
+}
+
+void Interface::SetSSEMData(std::string dataFile){
   TFile *ssemDataFile = new TFile(dataFile.c_str(), "READ");
   TTree *ssemData = dynamic_cast<TTree*> (ssemDataFile->Get("anabeam"));
   double ssemx[19], ssemax[19], ssemy[19], ssemwx[19], ssemwy[19], ct[5], magset[31];
@@ -46,7 +129,7 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
   ssemData->GetEntry(0);
   for(int i=0; i<31; i++) magCurrent.push_back(magset[i]);
 
-  double ssemxMean[NSSEM], ssemyMean[NSSEM], ssemwxMean[NSSEM], ssemwyMean[NSSEM];
+  std::vector<double> ssemxMean(NSSEM), ssemyMean(NSSEM), ssemwxMean(NSSEM), ssemwyMean(NSSEM);
   for(int i=0; i<NSSEM; i++){
     ssemxMean[i] = 0;
     ssemyMean[i] = 0;
@@ -70,7 +153,6 @@ Interface::Interface(std::string dataFile, std::string baseBeamlineFile, int npa
       ssemwxMean[j]+=ssemwx[j];
       ssemwyMean[j]+=ssemwy[j];
     }
-    std::cout<<magset[9]<<std::endl;
     nShots++;
 loopend:;
   }
@@ -80,42 +162,20 @@ loopend:;
     ssemwxMean[i] /= (double)nShots;
     ssemwyMean[i] /= (double)nShots;
   }
+  SetData(ssemxMean, ssemyMean, ssemwxMean, ssemwyMean);
+}
 
-  dat.resize(NSSEM);
-  for(unsigned int i=0; i<dat.size(); i++){
-    dat[i][0] = ssemxMean[i];
-    dat[i][1] = ssemyMean[i];
-    dat[i][2] = ssemwxMean[i];
-    dat[i][3] = ssemwyMean[i];
+void Interface::SetData(std::vector<double> x, std::vector<double> y, std::vector<double> wx, std::vector<double> wy){
+  dat.resize(x.size());
+  for(unsigned int i=0; i<x.size(); i++){
+    dat[i][0] = x[i];
+    dat[i][1] = y[i];
+    dat[i][2] = wx[i];
+    dat[i][3] = wy[i];
   }
-
-  magMap["BPV1"] = 0;
-  magMap["BPH2"] = 1;
-  magMap["QPQ1"] = 2;
-  magMap["QPQ2"] = 3;
-  magMap["BPD1"] = 4;
-  magMap["BPD2"] = 5;
-  magMap["QPQ3"] = 6;
-  magMap["BPV2"] = 7;
-  magMap["QPQ4"] = 8;
-  magMap["BPH3"] = 9;
-  magMap["QPQ5"] = 10;
-
-  for(auto [key, value] : magMap) magNames[value] = key;
-
-  beamNames ={"X0", "Xp0", "emitx", "betx", "alfx", "Y0", "Yp0", "emity", "bety", "alfy"};
-
-  for(auto name : magNames) parNames.push_back(name);
-  for(auto name : beamNames) parNames.push_back(name);
-
-
-  ParseInputFile(baseBeamlineFile);
-};
-
-Interface::~Interface(){};
+}
 
 void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool useFudgeFactor, bool useInputFile, double *pars, double noise){
-
 
   std::map<std::string, double> beamPars;
   beamPars["X0"]=-0.5e-3; //units of m
@@ -269,6 +329,16 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
   }
 
 }
+//simple one for just setting them outside of the T2K construct
+void Interface::SetInitialValues(std::vector<double> init){
+
+  for(int i=0; i<init.size(); i++){
+    preFit[i] = init[i];
+    nominalPars[parNames[i]] = init[i];
+  }
+}
+
+
 void Interface::ParamScan(int param, TH1D *hist){
   double store = internalPars[param];
   for(int i=1; i<=hist->GetNbinsX(); i++){
@@ -354,7 +424,6 @@ void Interface::GenerateInputFile(const double *pars){
 //read an input file, splitting the file every time theres a string indicative of a parameter 
 
 void Interface::ParseInputFile(std::string baseBeamlineFile){
-  std::cout<<"parsing input file "<<baseBeamlineFile<<std::endl;
   std::ifstream infile;
   infile.open(baseBeamlineFile);
   beamline.resize(1);
@@ -444,7 +513,6 @@ std::map<std::string, double> Interface::GetParmap(const double *pars){
 
 
 double Interface::CalcChisq(const double *pars){
-
   std::map<std::string, double> parmap;
   int i=0;
   for(auto key : parNames){
@@ -456,7 +524,6 @@ double Interface::CalcChisq(const double *pars){
   bds->BeamOn(100, parmap);
 
   std::vector<std::array<double, 4> > allSSEMSimulation = GetBeamPars();
-
 
   double chisq = 0;
   double chisqx = 0;
@@ -474,6 +541,7 @@ double Interface::CalcChisq(const double *pars){
     chisqwy += (dat[i][3]-simulation[3])*(dat[i][3]-simulation[3])/(0.2*0.2);  //width y
 //    std::cout<<"SSEM "<<i+1<<" position cumulative chisq contribution "<<chisq<<std::endl;
   }
+
   double prior = CalcPrior(parmap);
   if(fitMode & 0x01) chisq += chisqx;
   if(fitMode & 0x02) chisq += chisqy;
