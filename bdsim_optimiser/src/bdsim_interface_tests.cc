@@ -45,17 +45,17 @@ int main(){
 //  pars["QPQ1"] = 0.055;
 
   inter.bds->BeamOn(100, pars);
-  std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();
+  std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamProperties();
   for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
 
   pars["BPD1"] = -1.11;
   inter.bds->BeamOn(100, pars);
-  simResult = inter.bds->CalcBeamPars();
+  simResult = inter.bds->CalcBeamProperties();
   for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
 
   pars["BPD1"] = -1.15;
   inter.bds->BeamOn(100, pars);
-  simResult = inter.bds->CalcBeamPars();
+  simResult = inter.bds->CalcBeamProperties();
   for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
 
 //  inter2.bds->BeamOn();
@@ -74,7 +74,7 @@ int main(){
 //    auto loopstarttime = std::chrono::high_resolution_clock::now();
     inter.fcn(ones);
     //inter.bds->BeamOn(100, pars);
-    //std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamPars();
+    //std::vector<std::array<double, 4> > simResult = inter.bds->CalcBeamProperties();
     //for(auto axis : simResult[8]) std::cout << "resulting beam parameters at ssem9 " << axis << std::endl;
 //    auto loopendtime = std::chrono::high_resolution_clock::now();
 //    auto looptime = std::chrono::duration_cast<std::chrono::microseconds>(loopendtime-loopstarttime).count();

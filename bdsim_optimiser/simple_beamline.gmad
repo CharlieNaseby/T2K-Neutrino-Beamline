@@ -1,16 +1,16 @@
 d1: drift, l=1.0*m;
-Q1: quadrupole, l=1.0*m, k1=1.0, magnetGeometryType="none";
+B1: sbend, l=1.0*m, B=1.0, magnetGeometryType="none";
 d2: drift, l=1.0*m;
-Q2: quadrupole, l=1.0*m, k1=-1.0, magnetGeometryType="none";
+Q1: quadrupole, l=1.0*m, k1=-1.0, magnetGeometryType="none";
 d3: drift, l=1.0*m;
 SSEM1: drift, l=0.015*mm;
 d4: drift, l=1.0*m;
 SSEM2: drift, l=0.015*mm;
 
 l0: line = (d1,
-Q1,
+B1,
 d2,
-Q2,
+Q1,
 d3,
 SSEM1,
 d4,
@@ -21,7 +21,7 @@ use, period=l0;
 beam, particle="proton",
       distrType="gausstwiss",
 
-      X0=0.0*m,
+      X0=0.0*mm,
       Xp0=0.0,
       emitx=1*mm*mrad,
       betx=1.0*m,
@@ -29,7 +29,7 @@ beam, particle="proton",
       dispx=0.0*m,
       dispxp=0.0,
 
-      Y0=0.0*m,
+      Y0=0.0*mm,
       Yp0=0.0,
       emity=1*mm*mrad,
       bety=1.0*m,

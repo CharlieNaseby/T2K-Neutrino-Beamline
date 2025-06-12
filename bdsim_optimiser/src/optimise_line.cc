@@ -62,7 +62,7 @@ void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, const c
   TVectorD posErrorFitBasis(nPars);
   TVectorD posFcn(2);
   posFcn[0] = fcnmin;
-  posFcn[1] = inter->CalcPrior(inter->GetParmap(min->X()));
+  posFcn[1] = inter->CalcPrior(inter->GetParMap(min->X()));
 
   for(int i=0; i<nPars; i++){
     nom[i] = inter->nominalPars[inter->parNames[i]];
@@ -82,7 +82,7 @@ void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, const c
   }
 
   paramtree->Write();
-  std::vector<std::array<double, 4> > allSSEMSimulation = inter->GetBeamPars();
+  std::vector<std::array<double, 4> > allSSEMSimulation = inter->GetBeamProperties();
   std::vector<std::array<double, 4> > dat = inter->dat;
 
   for(int i=0; i<4; i++){

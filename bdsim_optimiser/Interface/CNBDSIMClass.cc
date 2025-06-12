@@ -566,7 +566,7 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
     delete bdsBunch;
 }
 
-std::vector<std::array<double, 4> > CNBDSIM::CalcBeamPars(){
+std::vector<std::array<double, 4> > CNBDSIM::CalcBeamProperties(){
     std::vector<std::array<double, 4> > ssemPred(bdsOutput->samplerTrees.size());
 //    std::cout<<"num events in ssem1 "<< bdsOutput->samplerTrees[0]->x.size() <<std::endl;
 //    ssemPred.reserve(bdsOutput->samplerTrees.size());

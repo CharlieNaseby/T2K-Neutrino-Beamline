@@ -30,19 +30,13 @@ Interface::Interface(std::vector<double> pars, std::vector<std::array<double, 4>
   beamNames.resize(nBeamPars);
   preFit.resize(nPars); //the values of the parameters expected with scalings or fudge factors applied
 
-  std::vector<double> x, y, wx, wy;
-  for(auto ssem : target){
-    x.push_back(ssem[0]);
-    y.push_back(ssem[1]);
-    wx.push_back(ssem[2]);
-    wy.push_back(ssem[3]);
-
-  }
-  SetData(x, y, wx, wy);
+  SetData(target);
 
 
-  magMap["Q1"] = 0;
-  magMap["Q2"] = 1;
+
+
+  magMap["B1"] = 0;
+  magMap["Q1"] = 1;
 //  magMap["B1"] = 2;
 //  magMap["Q3"] = 3;
 //  magMap["B2"] = 4;
@@ -164,6 +158,19 @@ loopend:;
   }
   SetData(ssemxMean, ssemyMean, ssemwxMean, ssemwyMean);
 }
+
+
+void Interface::SetData(std::vector<std::array<double, 4> > target){
+  std::vector<double> x, y, wx, wy;
+  for(auto ssem : target){
+    x.push_back(ssem[0]);
+    y.push_back(ssem[1]);
+    wx.push_back(ssem[2]);
+    wy.push_back(ssem[3]);
+  }
+  SetData(x, y, wx, wy);
+}
+
 
 void Interface::SetData(std::vector<double> x, std::vector<double> y, std::vector<double> wx, std::vector<double> wy){
   dat.resize(x.size());
@@ -338,6 +345,9 @@ void Interface::SetInitialValues(std::vector<double> init){
   }
 }
 
+void Interface::SetFileWriting(bool write){
+  bds->SetFileWriting(write);
+}
 
 void Interface::ParamScan(int param, TH1D *hist){
   double store = internalPars[param];
@@ -468,8 +478,8 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
   }
 }
 
-std::vector<std::array<double, 4> > Interface::GetBeamPars(){
-  return bds->CalcBeamPars();
+std::vector<std::array<double, 4> > Interface::GetBeamProperties(){
+  return bds->CalcBeamProperties();
 }
 
 
@@ -501,7 +511,7 @@ double Interface::PhysicalToFit(int i, double physval){
   return physval/preFit[i];
 }
 
-std::map<std::string, double> Interface::GetParmap(const double *pars){
+std::map<std::string, double> Interface::GetParMap(const double *pars){
   std::map<std::string, double> parmap;
   int i=0;
   for(auto key : parNames){
@@ -511,19 +521,16 @@ std::map<std::string, double> Interface::GetParmap(const double *pars){
   return parmap;
 }
 
+void Interface::BeamOn(int n, std::map<std::string, double> parmap){
+  bds->BeamOn(100, parmap);
+}
 
 double Interface::CalcChisq(const double *pars){
-  std::map<std::string, double> parmap;
-  int i=0;
-  for(auto key : parNames){
-    parmap[key] = FitToPhysical(i, pars[i]);
-    i++;
-  }
-
+  std::map<std::string, double> parmap = GetParMap(pars);
   if(CheckBounds(parmap) == false) return 1234567891.0;
-  bds->BeamOn(100, parmap);
+  BeamOn(100, parmap);
 
-  std::vector<std::array<double, 4> > allSSEMSimulation = GetBeamPars();
+  std::vector<std::array<double, 4> > allSSEMSimulation = GetBeamProperties();
 
   double chisq = 0;
   double chisqx = 0;
