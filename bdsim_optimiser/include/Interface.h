@@ -48,6 +48,7 @@ class Interface{
 public:
   std::vector<std::array<double, 4> > dat;
   std::vector<double> s;
+  std::vector<double> fcnHistory, MAEHistory;
   std::vector<std::string> beamline;
   int nPars, nMagnetPars, nBeamPars;
   std::vector<double> internalPars;
@@ -81,6 +82,8 @@ public:
   double fcn(std::vector<double> pars);
   double fcn_wrapper(const double *pars);
   double fcn(const double *pars);
+  double MAE(const double *pars);
+  double MAE(std::vector<double> pars);
   void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);
   std::vector<std::array<double, 4> > GetBeamProperties();
@@ -89,11 +92,14 @@ public:
   std::vector<double> PhysicalToFit(double *physval);
   double PhysicalToFit(int i, double physval);
   double CalcChisq(const double *pars);
+  double CalcMAE(const double *pars);
   std::map<std::string, double> GetParMap(const double *pars);
   void BeamOn(int n, std::map<std::string, double> parmap);
   double CalcPrior(std::map<std::string, double> pars);
   void TestBdsim();
   void SetChisqMode(int mode){fitMode=mode;};
+  std::vector<double> GetFcnHistory(){return fcnHistory;};
+  std::vector<double> GetMAEHistory(){return MAEHistory;};
 
 };
 
@@ -103,8 +109,10 @@ PYBIND11_MODULE(Interface, m) {
         .def(pybind11::init<std::string &, std::string &, int, int, int>())
         .def(pybind11::init<std::vector<double> &, std::vector<std::array<double, 4> > &>())
         .def("fcn", static_cast<double (Interface::*)(std::vector<double>)> (&Interface::fcn))
+        .def("MAE", static_cast<double (Interface::*)(std::vector<double>)> (&Interface::MAE))
         .def("SetInitialValues", static_cast<void (Interface::*)(std::vector<double> )> (&Interface::SetInitialValues))
         .def("GetBeamProperties", static_cast<std::vector<std::array<double, 4> > (Interface::*)()>(&Interface::GetBeamProperties))
+        .def("GetFcnHistory", static_cast<std::vector<double> (Interface::*)()>(&Interface::GetFcnHistory))
         .def("SetData", static_cast<void (Interface::*)(std::vector<std::array<double, 4> > ) >(&Interface::SetData))
         .def("SetFileWriting", static_cast<void (Interface::*)(bool ) >(&Interface::SetFileWriting))
         .def("SetChisqMode", static_cast<void (Interface::*)(int)> (&Interface::SetChisqMode));

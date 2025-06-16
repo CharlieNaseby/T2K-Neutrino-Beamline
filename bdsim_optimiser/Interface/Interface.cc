@@ -33,10 +33,17 @@ Interface::Interface(std::vector<double> pars, std::vector<std::array<double, 4>
   SetData(target);
 
 
+  magMap["Q1"] = 0;
+  magMap["Q2"] = 1;
+  magMap["BH1"] = 2;
+  magMap["Q3"] = 3;
+  magMap["BV1"] = 4;
 
 
-  magMap["B1"] = 0;
-  magMap["Q1"] = 1;
+
+//  magMap["B1"] = 0;
+//  magMap["Q1"] = 1;
+//  magMap["Q2"] = 2;
 //  magMap["B1"] = 2;
 //  magMap["Q3"] = 3;
 //  magMap["B2"] = 4;
@@ -377,17 +384,7 @@ void Interface::SetInternalPars(const double *pars){
 std::map<std::string, double> Interface::GetNominalPars(){
   return nominalPars;
 }
-//the cost function we'll minimise
 
-double Interface::fcn(std::vector<double> pars){
-
-  const double *tmp = pars.data();
-  return fcn(tmp);
-}
-//need a non-overloaded function that just takes const double*
-double Interface::fcn_wrapper(const double *pars){
-  return fcn(pars);
-}
 
 bool Interface::CheckBounds(std::map<std::string, double> pars){
   std::vector<std::string> limitedpars = {"emitx", "betx", "emity", "bety"};
@@ -400,10 +397,37 @@ bool Interface::CheckBounds(std::map<std::string, double> pars){
   return true;
 }
 
+//mean absolute error cost function
+
+double Interface::MAE(const double *pars){
+  SetInternalPars(pars);
+  double retval = CalcMAE(pars);
+  MAEHistory.push_back(retval);
+  return retval;
+}
+
+double Interface::MAE(std::vector<double> pars){
+  const double *tmp = pars.data();
+  return MAE(tmp);
+}
+
+//the cost function we'll minimise
+
+double Interface::fcn(std::vector<double> pars){
+
+  const double *tmp = pars.data();
+  return fcn(tmp);
+}
+//need a non-overloaded function that just takes const double*
+double Interface::fcn_wrapper(const double *pars){
+  return fcn(pars);
+}
 
 double Interface::fcn(const double *pars){
   SetInternalPars(pars);
-  return CalcChisq(pars);
+  double retval = CalcChisq(pars);
+  fcnHistory.push_back(retval);
+  return retval;
 }
 
 double Interface::CalcPrior(std::map<std::string, double> pars){
@@ -524,6 +548,29 @@ std::map<std::string, double> Interface::GetParMap(const double *pars){
 void Interface::BeamOn(int n, std::map<std::string, double> parmap){
   bds->BeamOn(100, parmap);
 }
+
+double Interface::CalcMAE(const double *pars){
+  std::map<std::string, double> parmap = GetParMap(pars);
+  if(CheckBounds(parmap) == false) return 1234567891.0;
+  BeamOn(100, parmap);
+
+  std::vector<std::array<double, 4> > allSSEMSimulation = GetBeamProperties();
+
+  double MAE = 0.0;
+
+  auto abs = [](double a) {
+      return a>=0 ?  a: -a;
+  };
+  
+
+  for(unsigned int i=0; i<dat.size(); i++){
+    std::array<double, 4> simulation = allSSEMSimulation[i];
+    for(int j=0; j<4; j++) std::cout<<"data vs simulation "<<dat[i][j]<<"\t"<<simulation[j]<<std::endl;
+    for(int j=0; j<4; j++) MAE += 0.25*abs(dat[i][j]-simulation[j]);
+  }
+  return MAE/(double)(dat.size());
+}
+
 
 double Interface::CalcChisq(const double *pars){
   std::map<std::string, double> parmap = GetParMap(pars);

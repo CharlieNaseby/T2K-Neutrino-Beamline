@@ -1,24 +1,32 @@
 d1: drift, l=1.0*m;
-B1: sbend, l=1.0*m, B=1.0, magnetGeometryType="none";
+Q1: quadrupole, l=0.2*m, k1=1.0, magnetGeometryType="none";
 d2: drift, l=1.0*m;
-Q1: quadrupole, l=1.0*m, k1=-1.0, magnetGeometryType="none";
+Q2: quadrupole, l=0.2*m, k1=-1.0, magnetGeometryType="none";
 d3: drift, l=1.0*m;
-SSEM1: drift, l=0.015*mm;
+BH1: rbend, l=0.2*m, B=0.1*T, magnetGeometryType="none";
 d4: drift, l=1.0*m;
-SSEM2: drift, l=0.015*mm;
+Q3: quadrupole, l=0.2*m, k1=1.0, magnetGeometryType="none";
+d5: drift, l=1.0*m;
+BV1: rbend, l=0.2*m, B=0.1*T, tilt=1.570796, magnetGeometryType="none";
+d6: drift, l=1.0*m;
+SSEM1: drift, l=0.015*mm;
 
 l0: line = (d1,
-B1,
-d2,
 Q1,
+d2,
+Q2,
 d3,
-SSEM1,
+BH1,
 d4,
-SSEM2);
+Q3,
+d5,
+BV1,
+d6,
+SSEM1);
 
 use, period=l0;
 
-beam, particle="proton",
+beam, particle="electron",
       distrType="gausstwiss",
 
       X0=0.0*mm,
@@ -37,9 +45,8 @@ beam, particle="proton",
       dispy=0.0*m,
       dispyp=0.,
 
-      kineticEnergy=30*GeV;
+      kineticEnergy=100*MeV;
 
 
 option, nturns=1;
 sample, range=SSEM1;
-sample, range=SSEM2;

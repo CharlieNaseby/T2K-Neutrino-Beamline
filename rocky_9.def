@@ -17,7 +17,7 @@ From: rockylinux/rockylinux:9.6
     yum -y install HepMC3
     yum -y install pip gperftools
     pip install numpy pandas matplotlib xlrd pyqt6 openpyxl pyroot
-    pip install gpy ipython torch gpytorch botorch pybind11
+    pip install gpy ipython torch gpytorch botorch pybind11 iminuit
 
     cd /opt
     mkdir root
