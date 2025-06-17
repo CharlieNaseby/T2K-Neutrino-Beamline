@@ -11,7 +11,7 @@ double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, doubl
   inter->SetChisqMode(fitMode);
   min->SetStrategy(3);
   min->SetMaxFunctionCalls(10000);
-  min->SetTolerance(10);
+  min->SetTolerance(1000);
 
 //  for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], pars[i], 0.1);
    for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], inter->PhysicalToFit(i, pars[i]), 0.1);
