@@ -1,0 +1,94 @@
+chrg: scorer, type="cellcharge";
+eDep: scorer, type="depositeddose";
+
+
+WSEM18_u: drift, l=10.0*mm, apertureType="circular", aper1=95.0*mm, bias="allBias";
+WSEM18: target, l=0.001*mm, material="G4_Ti", horizontalWidth=205.0*mm, offsetX=0.0*mm, offsetY=0.0*mm, bias="allBias";
+SSEM19_u: drift, l=1497*mm, apertureType="circular", aper1=95.0*mm, bias="allBias";
+
+
+wall: ecol, l=100*mm, material="G4_Al", xsize=120*mm, ysize=120*mm, horizontalWidth=600*cm;
+SSEM19: target, l=0.015*mm, material="G4_Ti", horizontalWidth=205.0*mm, offsetX=0.0*mm, offsetY=0.0*mm, bias="allBias";
+
+beamwindow_u: gap, l=550*mm;
+beamwindow3: target, l=0.3*mm, material="G4_Ti", horizontalWidth=205.0*mm, offsetX=0.0*mm, offsetY=0.0*mm, bias="allBias";
+beamwindow4: target, l=0.4*mm, material="G4_Ti", horizontalWidth=205.0*mm, offsetX=0.0*mm, offsetY=0.0*mm, bias="allBias";
+beamwindow_d: gap, l=350*mm;
+
+baffle_u: ecol, l=285*mm, material="graphite", xsize=10*mm, ysize=10*mm, horizontalWidth=10*cm, bias="allBias";
+baffle: ecol, l=1.13*m, material="concrete", xsize=10*mm, ysize=10*mm, horizontalWidth=600*cm, bias="allBias";
+baffle_d: ecol, l=285*mm, material="graphite", xsize=10*mm, ysize=10*mm, horizontalWidth=10*cm, bias="allBias";
+
+d1: gap, l=0.3*m;
+d2: gap, l=0.01*m;
+
+d3: gap, l=0.3*m;
+tgt: target, l=0.9*m, material="graphite", apertureType="circular", horizontalWidth=30*mm, minimumKineticEnergy=0.01*GeV;
+
+dump1: dump, horizontalWidth=300.0*mm, l=1000.0*mm;
+
+
+!full simulation
+!l0: line = (WSEM18_u, WSEM18, SSEM19_u, wall, SSEM19, beamwindow_u, beamwindow, beamwindow_d, baffle_u, baffle, baffle_d, d1, d2, d3, tgt);
+
+!just target
+!l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow_d, baffle_u, baffle, baffle_d, d1, d2, d3, tgt);
+
+!just SSEM19
+!l0: line = (WSEM18_u, SSEM19_u, wall, SSEM19, beamwindow_u, beamwindow_d, baffle_u, baffle, dump1);
+
+!just beam window3
+l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow3, beamwindow_d, baffle_u, baffle, dump1);
+
+!just beam window4
+!l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow4, beamwindow_d, baffle_u, baffle, dump1);
+
+!blm1: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=10*mm, blm2=30*mm, blmMaterial="G4_Ar",referenceElement="d2", x=-150*mm, y=0*mm, s=0*mm, theta=0, psi=0;
+blm50: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=500*mm, blm2=100*mm, blmMaterial="G4_Pb",referenceElement="WSEM18", x=0*mm, y=-1100*mm, s=147*mm, theta=1.57, psi=1.57, bias="blmBias";
+!otr: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=45*mm, blm2=3*mm, blmMaterial="G4_Ti",referenceElement="d2", x=0*mm, y=0*mm, s=0*mm, theta=0, psi=0, bias="blmBias";
+
+
+use, period=l0;
+
+beam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=-0.*m,
+      Xp0=0.,
+      emitx=7.684914192708664e-08*m*rad,
+      betx=34.07466763244768*m,
+      alfx=-1.275916024396286,
+      dispx=0.423734*m,
+      dispxp=0.0719639,
+
+      Y0=-0.0*m,
+      Yp0=0.,
+      emity=5.6264259733818914e-08*m*rad,
+      bety=7.381006937803243*m,
+      alfy=0.2899570136323668,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      !sigmaE=0.3e-2,
+
+      kineticEnergy=30*GeV;
+
+
+option, buildTunnel = 1,
+tunnelType="rectangular",
+tunnelOffsetX = 100*cm,
+tunnelOffsetY = 50*cm,
+tunnelAper1 = 170*cm,
+tunnelAper2 = 200*cm,
+tunnelThickness = 30*cm,
+buildTunnelFloor = 0,
+tunnelSoilThickness = 2*m;
+
+
+option, physicsList ="g4FTFP_BERT";
+option, nturns=1;
+!option, vacuumPressure=0.0001;
+
+blmBias: xsecBias, particle="proton", proc="all", xsecfact=100, flag=1;
+
+allBias: xsecBias, particle="proton", proc="all", xsecfact=100, flag=2;
