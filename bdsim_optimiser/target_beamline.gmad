@@ -1,0 +1,49 @@
+chrg: scorer, type="cellcharge";
+eDep: scorer, type="depositeddose";
+
+
+d1: drift, l=1.0*m, apertureType="circular", aper1=400.0*mm;
+d2: drift, l=0.01*m, apertureType="circular", aper1=400.0*mm;
+
+!blm1: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=10*mm, blm2=30*mm, blmMaterial="stainlesssteel",referenceElement="d2", x=-150*mm, y=0*mm, s=0*mm, theta=0, psi=0;
+
+otr: blm, scoreQuantity="chrg eDep", geometryType="cylinder", blm1=45*mm, blm2=3*mm, blmMaterial="G4_Ti",referenceElement="d2", x=0*mm, y=0*mm, s=0*mm, theta=0, psi=0, bias="otrBias";
+d3: drift, l=0.3*m, apertureType="circular", aper1=400.0*mm;
+tgt: target, l=0.9*m, material="G4_C", apertureType="circular", horizontalWidth=30*mm, minimumKineticEnergy=0.01*GeV;
+
+
+l0: line = (d1, d2, d3, tgt);
+
+use, period=l0;
+
+beam, particle="proton",
+      distrType="gausstwiss",
+
+      X0=-0.*m,
+      Xp0=0.,
+      emitx=7.684914192708664e-08*m*rad,
+      betx=34.07466763244768*m,
+      alfx=-1.275916024396286,
+      dispx=0.423734*m,
+      dispxp=0.0719639,
+
+      Y0=-0.0*m,
+      Yp0=0.,
+      emity=5.6264259733818914e-08*m*rad,
+      bety=7.381006937803243*m,
+      alfy=0.2899570136323668,
+      dispy=0.0*m,
+      dispyp=0.,
+
+      !sigmaE=0.3e-2,
+
+      kineticEnergy=30*GeV;
+
+
+
+option, physicsList ="g4FTFP_BERT";
+option, nturns=1;
+option, vacuumPressure=0.0001;
+
+otrBias: xsecBias, particle="proton", proc="all", xsecfact=100, flag=2;
+
