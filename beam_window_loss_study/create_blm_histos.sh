@@ -7,17 +7,15 @@ if [ "$#" -ne 1 ]; then
 fi
 argument="$1"
 counter=1989
-for (( i=0; i<4; i++ )); do
+for (( i=0; i<10; i++ )); do
 # Loop to run the program with the argument and an incrementing counter
     echo "Running: $argument $counter"
-    rebdsimOptics "${argument}_${counter}.root" "${argument}_${counter}_optics.root" &
+    rebdsimOptics "${argument}/${argument}_${counter}.root" "${argument}/${argument}_${counter}_optics.root" &
     ((counter++))
 done
 
 wait
-echo "${argument}*_optics.root"
-
-pattern="${argument}*_optics.root"
+pattern="${argument}/${argument}*_optics.root"
 files=($pattern)
 rebdsimCombine "${argument}_optics_combined.root" "${files[@]}"
 

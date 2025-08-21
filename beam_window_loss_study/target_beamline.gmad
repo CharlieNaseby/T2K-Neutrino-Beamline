@@ -32,13 +32,13 @@ dump1: dump, horizontalWidth=300.0*mm, l=1000.0*mm;
 !l0: line = (WSEM18_u, WSEM18, SSEM19_u, wall, SSEM19, beamwindow_u, beamwindow, beamwindow_d, baffle_u, baffle, baffle_d, d1, d2, d3, tgt);
 
 !just target
-!l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow_d, baffle_u, baffle, baffle_d, d1, d2, d3, tgt);
+l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow_d, baffle_u, baffle, baffle_d, d1, d2, d3, tgt);
 
 !just SSEM19
 !l0: line = (WSEM18_u, SSEM19_u, wall, SSEM19, beamwindow_u, beamwindow_d, baffle_u, baffle, dump1);
 
 !just beam window3
-l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow3, beamwindow_d, baffle_u, baffle, dump1);
+!l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow3, beamwindow_d, baffle_u, baffle, dump1);
 
 !just beam window4
 !l0: line = (WSEM18_u, SSEM19_u, wall, beamwindow_u, beamwindow4, beamwindow_d, baffle_u, baffle, dump1);
