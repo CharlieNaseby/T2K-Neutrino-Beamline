@@ -20,6 +20,8 @@ true=True
 
 proton_momentum = 30.924 # momentum for a 30GeV KE proton 
 vacuum_pressure = 1e-4 #vacuum pressure in bar
+ssem_in=False
+
 
 #print_tunnel=False
 #print_physics=True
@@ -35,7 +37,7 @@ vacuum_pressure = 1e-4 #vacuum pressure in bar
 #bias_physics=True
 
 #fit configuration
-if(True):
+if(False):
     print_tunnel=False
     print_physics=False
     sample_all=False
@@ -69,7 +71,7 @@ if(False):
     merge_drifts=False
 
 ##beam loss configuration
-if(False):
+if(True):
     print_tunnel=False
     print_physics=True
     sample_all=True
@@ -867,7 +869,11 @@ class BeamlinePrinter:
         misalign = row.misalign
         if(np.isnan(row.misalign).any()):
             misalign = [0., 0., 0.]
-        self.print_target(row.element, str(thickness)+"*mm", "G4_Ti", row.aperture_x, misalign)
+        if(ssem_in):
+            self.print_target(row.element, str(thickness)+"*mm", "G4_Ti", row.aperture_x, misalign)
+        else:
+            self.print_drift(row, row.element, thickness)
+            self.endl()
         name = row.element + "_ddrift"
         self.print_drift(row, name, row.length - float(row.mark) - thickness) 
         self.endl()

@@ -2,21 +2,23 @@ Bootstrap: docker
 From: rockylinux/rockylinux:9.6
 %post
     # Update the package repository and install necessary packages
+    # for an arm build 
     cat /etc/os-release
     yum -y update
     yum -y install epel-release
     yum -y install wget curl vim --allowerasing
     yum -y install sudo yum-utils
-    yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.6/devel/x86_64/os/
-#    yum-config-manager --add-repo https://dl.rockylinux.org/pub/rocky/9.6/devel/aarch64/os/
-#    yum-config-manager --add-repo http://dl.rockylinux.org/vault/rocky/9.5/devel/x86_64/os/
+    yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.6/devel/x86_64/os/  #x86 version
+#    yum-config-manager --add-repo https://dl.rockylinux.org/pub/rocky/9.6/devel/aarch64/os/ #arm version
     yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
     yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel
     yum -y install xcb-util-cursor-devel python3-devel
     yum -y install binutils libX11-devel libXpm-devel libXft-devel libXext-devel openssl-devel xrootd-client-devel xrootd-libs-devel
     yum -y install HepMC3
     yum -y install pip gperftools
-    pip install numpy pandas matplotlib xlrd pyqt6 openpyxl pyroot
+    pip install -U pip setuptools 
+    pip install pyqt6                                                   #if an arm build fails try removing this line
+    pip install numpy pandas matplotlib xlrd openpyxl pyroot
     pip install gpy ipython torch gpytorch botorch pybind11 iminuit
 
     cd /opt
@@ -56,7 +58,7 @@ From: rockylinux/rockylinux:9.6
     mkdir geant4-v10.7.4-build
     mkdir geant4-v10.7.4-install
     cd geant4-v10.7.4-build
-    cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=OFF -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=OFF -DGEANT4_USE_XM=OFF
+    cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=OFF -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=OFF -DGEANT4_USE_XM=OFF -DGEANT4_USE_SYSTEM_EXPAT=OFF
 #    cmake ../geant4-v10.7.4 -DGEANT4_INSTALL_DATA=ON -DGEANT4_USE_GDML=ON -DUSE_OPENGL_X11=ON -DGEANT4_USE_QT=ON -DGEANT4_USE_SYSTEM_CLHEP=ON -DGEANT4_USE_SYSTEM_ZLIB=OFF -DGEANT4_USE_RAYTRACER_X11=ON -DGEANT4_USE_XM=ON
     make -j8
     make install

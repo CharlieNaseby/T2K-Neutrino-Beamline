@@ -113,7 +113,7 @@ int main(int argc, char **argv){
   auto starttime = std::chrono::high_resolution_clock::now();
 
   std::string baseBeamlineFile="../survey/unoptimised.gmad";
-  std::string ssemDataFile="ssem_data/run0910217_gen.root";//"./ssem_data/run0910216_gen.root";
+  std::string ssemDataFile="ssem_data/run0910216_gen.root";//"./ssem_data/run0910216_gen.root";
 
   const int nMagnetPars = 11;
   const int nBeamPars = 10;
