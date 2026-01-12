@@ -1,0 +1,21 @@
+d1: drift, l=1000*mm;
+BH1: rbend, l=1000*mm, B=1*T, angle=0.4, tilt=0, offsetX=0.0*mm, offsetY=0.0*mm, magnetGeometryType="none", aper1=100*mm;
+d2: drift, l=1000*mm;
+
+
+l0: line=(
+    d1, 
+    BH1,
+    d2
+);
+
+use, period=l0;
+
+beam, particle="e-",
+    energy=1*MeV,
+    distrType="gauss",
+    sigmaX=10*mm;
+
+
+!option, integratorSet="geant4";
+option, nturns=1;
