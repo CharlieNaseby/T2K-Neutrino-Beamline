@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: rockylinux/rockylinux:9.6
+From: rockylinux/rockylinux:9.7
 %post
     # Update the package repository and install necessary packages
     # for an arm build 
@@ -8,8 +8,8 @@ From: rockylinux/rockylinux:9.6
     yum -y install epel-release
     yum -y install wget curl vim --allowerasing
     yum -y install sudo yum-utils
-    yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.6/devel/x86_64/os/  #x86 version
-#    yum-config-manager --add-repo https://dl.rockylinux.org/pub/rocky/9.6/devel/aarch64/os/ #arm version
+    yum-config-manager --add-repo http://dl.rockylinux.org/pub/rocky/9.7/devel/x86_64/os/  #x86 version
+#    yum-config-manager --add-repo https://dl.rockylinux.org/pub/rocky/9.7/devel/aarch64/os/ #arm version
     yum -y install gcc gcc-c++ cmake wget tar make expat-devel xauth xxhash-devel tbb-devel gsl-devel patch
     yum -y install python qt5 qt5-qtbase-devel flex bison git xerces-c-devel
     yum -y install xcb-util-cursor-devel python3-devel
