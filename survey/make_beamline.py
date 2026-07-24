@@ -1,7 +1,6 @@
 from operator import index
 import numpy as np
 import pandas as pd
-import matplotlib
 import matplotlib.pyplot as plt
 import re
 import copy as cp
@@ -169,7 +168,7 @@ def string_to_string_list(s):
         quoted_elements = [e for e in elements]
         retval.append(quoted_elements)
 
-    print("string to string list ", retval)
+#    print("string to string list ", retval)
     return retval
 
 
@@ -303,16 +302,22 @@ class survey_element:
 class NominalBeamline:
 
     def __init__(self):
-        self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
+        self.line = strip_whitespace(pd.read_csv("../fujii-san_modified_with_sad.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
         self.line['s_start'] = self.line['length'].shift().cumsum()
-
+        self.line['center_pos'] = None
 
         #apply the function to convert the survey offset strings to lists
         self.line['survey_offset'] = self.line['survey_offset'].apply(string_to_list)
         self.line['survey_name'] = self.line['survey_name'].apply(string_to_string_list)
+        self.line['mark'] = pd.to_numeric(self.line['mark'], errors='coerce')
+        self.line['polelength'] = pd.to_numeric(self.line['polelength'], errors='coerce')
+
+        self.line = self.line.set_index('element', drop=False)
+
         #if the element 'Survey_offset' is not NaN then this element has a valid survey measurement
         self.survey_elements = self.line[self.line['survey_name'].notna()]
 
+        self.calculate_spreadsheet_beamline(self.line)
 
         self.prep_elements = {"BPV1": [24863.57600486618,10359.963664168285,0.0], #info from PV1-PQ5 dwg file
                          "BPH2": [20217.26170091104,10545.028987369675,0.0],
@@ -369,7 +374,7 @@ class NominalBeamline:
                             "BFH2": [2635.1506, 41585.2143, 0.0],
                             "BFVD1": [215.2366, 41585.2088, -6.31],
                             "QFQ4": [-2534.1466, 41585.2222, -69.60],
-                            "BFVD2": [-6082.1474, 41585.2100, -173.7408],
+                            "BFVD2": [-6082.1474, 41585.2100, -173.7408], ##OLD FVD2 position!!
                             "NUTGT": [-12673.4740, 41585.2097, -570.2937]}
 
         #convert these elements to numpy arrays for easier manipulation
@@ -383,6 +388,81 @@ class NominalBeamline:
         self.align_elements()
         self.drop_redundant_elements()
 
+
+    def calculate_spreadsheet_beamline(self, line):
+        current_s = 0.
+        current_pos = np.array([0., 0., 0.])
+        current_dir = np.array([1., 0., 0.])
+
+        #we will keep track of the acumulated bend angles
+        #NOTE this only works if there are no horisontal bends after vertical bends
+        #this is true for the T2K beamline but not true in general
+        #we'll keep a vector based on first applying the acumulated horisontal bends and then
+        #applying the acumulated vertical bends in current_dir
+        acum_horisontal_bend = 0.
+        acum_vertical_bend = 0.
+        for index, element in line.iterrows():
+            if element['type'] == 'drift' or element['type'] == 'ssem' or element['type'] == 'wsem':
+                current_pos += current_dir * element['length']
+                current_s += element['length']
+            elif element['type'] == 'rbend' or element['type'] == 'sbend':
+                #first apply the upstream drift
+                drift_u = element['mark'] - element['polelength']/2.
+                current_pos += current_dir * drift_u
+                current_s += drift_u
+
+                bend_angle = element['angle']
+                bend_fudge_factor = 0.0 #3.097e-4/2.#1.42e-4 #radians, to make the spreadsheet and survey line up better
+                if(element['element'].startswith('BA')):
+                   bend_angle = bend_angle + bend_fudge_factor #apply fudge factor to arc magnets only
+                #now apply hald of the bend angle
+                if element['tilt'] > 1: #assume this is a vertical tilting magnet
+                    acum_vertical_bend += bend_angle/2.
+                else: #horisontal bend
+                    acum_horisontal_bend += bend_angle/2.
+                
+                current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
+                current_pos += current_dir * element['polelength']/2.
+                current_s += element['polelength']/2.
+                #save magnet center position
+                self.line.at[index, 'center_pos'] = cp.deepcopy(current_pos)
+
+                #rest of the magnet
+                current_pos += current_dir * element['polelength']/2.
+                current_s += element['polelength']/2.
+
+
+                #now apply the downstream drift
+                #again half of the bend angle
+                if element['tilt'] > 1: #assume this is a vertical tilting magnet
+                    acum_vertical_bend += bend_angle/2.
+                else: #horisontal bend
+                    acum_horisontal_bend += bend_angle/2.
+                
+                current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
+                drift_d = element['length'] - element['mark'] - element['polelength']/2.
+                current_pos += current_dir * drift_d
+                current_s += drift_d
+
+            elif element['type'] == 'quadrupole':
+                #essentially two drifts in a row
+                drift_u = element['mark']
+                current_pos += current_dir * drift_u
+                current_s += drift_u
+
+                #save magnet center position
+                self.line.at[index, 'center_pos'] = cp.deepcopy(current_pos)
+
+
+                #now the second drift
+                drift_d = element['length'] - element['mark']
+                current_pos += current_dir * drift_d
+                current_s += drift_d
+            elif element['type'] == 'dump':
+                self.line.at[index, 'center_pos'] = cp.deepcopy(current_pos)
+            else:
+                print(f"WARNING: unhandled element type {element['type']} in nominal beamline calculation")
+
     def align_elements(self):
         #first let's set use QPQ1 as the origin
         reference_point = cp.deepcopy(self.prep_elements["QPQ1"])
@@ -393,11 +473,11 @@ class NominalBeamline:
         angle = np.arctan2(xvec[1], xvec[0])
         R = rotmatxy3d(angle)
         for key, element in self.prep_elements.items():
-            print(key, self.prep_elements[key], "before rotation")
+            #print(key, self.prep_elements[key], "before rotation")
             self.prep_elements[key] = R.dot(self.prep_elements[key])
-            print(key, self.prep_elements[key], "after rotation")
-        #add offset of 10499mm so that 0 is at NUIN
-        offset = np.array([10499.0, 0.0, 0.0])
+            #print(key, self.prep_elements[key], "after rotation")
+        #add offset of 10450mm so that 0 is at NUIN (this agrees with SAD perfectly and the drawings to 0.8mm)
+        offset = np.array([10450.0, 0.0, 0.0])
         for element in self.prep_elements:
             self.prep_elements[element] += offset
 
@@ -426,6 +506,8 @@ class NominalBeamline:
         shift2 = self.arc_elements["BFH1"] - self.ff_elements["BFH1"]
         for element in self.ff_elements:
             self.ff_elements[element] += shift2
+        #should now have a consistent coordinate system across the sections with the entry to the neutrino beamline
+        #being along the [1, 0, 0] axis and all elements being at height=0
 
 
     def drop_redundant_elements(self):
@@ -438,21 +520,29 @@ class NominalBeamline:
         del self.arc_elements["BFH1"]
 
         #and combine these dicts into a single beamline dict
+        #this is the 3d position of the magnet centers according to the various beamline design drawings
         self.beamline = {**self.prep_elements, **self.arc_elements, **self.ff_elements}
+        del self.prep_elements
+        del self.arc_elements
+        del self.ff_elements
+        print("Final aligned beamline positions from drawings: ", self.beamline)
 
+    def rotate_drawing(self, R):
+        for element in self.beamline:
 
     def plot(self, x, y, plot=None):
         labels = ["X (mm)", "Y (mm)", "Z (mm)"]
         if(plot is None):
             plt.figure()
+        plt.plot(-999., -999., 'rs', alpha=0.5, label='Beamline Drawings')
         for element in self.prep_elements:
-            plt.plot(self.prep_elements[element][x], self.prep_elements[element][y], 'ro', alpha=0.5)
+            plt.plot(self.prep_elements[element][x], self.prep_elements[element][y], 'rs', alpha=0.5)
             plt.text(self.prep_elements[element][x], self.prep_elements[element][y], element, rotation=-45, horizontalalignment='right')
         for element in self.arc_elements:
-            plt.plot(self.arc_elements[element][x], self.arc_elements[element][y], 'ro', alpha=0.5)
+            plt.plot(self.arc_elements[element][x], self.arc_elements[element][y], 'rs', alpha=0.5)
             plt.text(self.arc_elements[element][x], self.arc_elements[element][y], element, rotation=-45, horizontalalignment='right')
         for element in self.ff_elements:
-            plt.plot(self.ff_elements[element][x], self.ff_elements[element][y], 'ro', alpha=0.5)
+            plt.plot(self.ff_elements[element][x], self.ff_elements[element][y], 'rs', alpha=0.5)
             plt.text(self.ff_elements[element][x], self.ff_elements[element][y], element, rotation=-45, horizontalalignment='right')
         plt.xlabel(labels[x])
         plt.ylabel(labels[y])
@@ -460,8 +550,27 @@ class NominalBeamline:
 #        plt.axis('equal')
         plt.grid()
         if(plot is None):
+            plt.legend()
             plt.show()
 
+    def plot_spreadsheet_beamline(self, x, y, plot=None):
+        labels = ["X (mm)", "Y (mm)", "Z (mm)"]
+        if(plot is None):
+            plt.figure()
+        plt.plot(-999., -999., 'go', alpha=0.5, label='Fujii-Sans spreadsheet')
+        for index, element in self.line.iterrows():
+            if(element['center_pos'] is None):
+                continue
+            plt.plot(element['center_pos'][x], element['center_pos'][y], 'go', alpha=0.5)
+            plt.text(element['center_pos'][x], element['center_pos'][y], element['element'], rotation=-45, horizontalalignment='right')
+
+        plt.xlabel(labels[x])
+        plt.ylabel(labels[y])
+        plt.title('Beamline Elements from Spreadsheet')
+#        plt.axis('equal')
+        plt.grid()
+        if(plot is None):
+            plt.show()
 
 class SurveyElement:
     def __init__(self, name, survey_points, offsets):
@@ -486,10 +595,10 @@ class SurveyBeamline:
 
     def load_survey(self):
         for index, element in self.elements.iterrows():
-            print(element['element'])
+#            print(element['element'])
             self.survey_data[element['element']] = []
             for point in element['survey_name'][0]:
-                print("survey point ", point)
+#                print("survey point ", point)
                 self.survey_data[element['element']].append(np.array([self.survey[self.survey['name'] == point]['x2022'].values,
                                             self.survey[self.survey['name'] == point]['y2022'].values,
                                             self.survey[self.survey['name'] == point]['h2022'].values]))
@@ -497,7 +606,7 @@ class SurveyBeamline:
             self.survey_data[element['element']] = np.array(self.survey_data[element['element']])
             self.survey_data[element['element']] = self.survey_data[element['element']].squeeze()
 
-        print(self.survey_data)
+        print("survey data read in:", self.survey_data)
         for index, row in self.survey.iterrows():
             name = row['name']
             x = row['x2022']
@@ -531,6 +640,60 @@ class SurveyBeamline:
 
         print("After initial alignment:", self.survey_data)
 
+    def precise_alignment(self):
+        #will align QPQ1 and QPQ2 to lie in the xz plane
+        #then align QPQ1 and QPQ5 to lie in the xy plane
+        #place QPQ1 at its nominal position
+        #will then rotate along the [1 0 0] vector to have QFQ3 center in the xy plane
+        QPQ1 = self.survey_centers['QPQ1']
+        QPQ2 = self.survey_centers['QPQ2']
+        thetaxy = np.arctan2((QPQ2-QPQ1)[1], (QPQ2-QPQ1)[0])
+
+        print("Precise angle to rotate:", thetaxy)
+        self.rotate_survey_xy(-thetaxy, self.survey_data)
+        self.calculate_centers()
+
+        #can now be a bit more precise, QFQ3 is much further from QPQ1 than QPQ2 so give up on QPQ2 center having no horisontal shift and no vertical shift
+        QPQ1 = self.survey_centers['QPQ1']
+        QFQ3 = self.survey_centers['QFQ3']
+
+        design_vector = normvec((self.nominal_beamline.beamline['QFQ3'] - self.nominal_beamline.beamline['QPQ1'])[0:2]) #only care about xy
+        actual_vector = normvec((QFQ3-QPQ1)[0:2])
+        print(f"Aligning QFQ3 with QPQ1, current actual direction: {actual_vector} and from the drawings this should be {design_vector}")
+
+
+        angle_diff = np.arccos(actual_vector.dot(design_vector))
+        print(f"angle between QFQ3-QPQ1 actual vs design = {angle_diff} rad")
+        self.rotate_survey_xy(-angle_diff, self.survey_data)
+        self.calculate_centers()
+
+
+        QPQ1 = self.survey_centers['QPQ1']
+        QPQ5 = self.survey_centers['QPQ5']
+
+        thetaxz = np.arctan2((QPQ5-QPQ1)[2], (QPQ5-QPQ1)[0])
+        print("Precise angle to rotate xz:", thetaxz)
+        self.rotate_survey_xz(-thetaxz, self.survey_data)
+        self.calculate_centers()
+
+
+        #now place QPQ1 at sQPQ1*[1, 0, 0]
+        QPQ1 = self.survey_centers['QPQ1']
+        survey_shift = self.nominal_beamline.beamline['QPQ1'] - QPQ1
+        self.shift_survey(survey_shift, self.survey_data)
+        self.calculate_centers()
+
+        QFQ3 = self.survey_centers['QFQ3']
+        thetayz = np.arctan2(QFQ3[2], QFQ3[1])
+        print("Precise angle to rotate yz:", thetayz)
+        self.rotate_survey_yz(-thetayz, self.survey_data)
+        self.calculate_centers()
+
+        print(f"FF direction from QFQ1 to QFQ3")
+        fujiisan_dir = self.nominal_beamline.line.set_index('element').at['QFQ3', 'center_pos']
+        print(f"According to Fujii-san spreadsheet {normvec(self.nominal_beamline.line.at['QFQ3', 'center_pos'] - self.nominal_beamline.line.loc['QFQ1', 'center_pos'])}")
+        print(f"According to beamline drawings     {normvec(self.nominal_beamline.beamline['QFQ3'] - self.nominal_beamline.beamline['QFQ1'])}")
+
 
 
     def calculate_centers(self):
@@ -542,7 +705,7 @@ class SurveyBeamline:
         #these statements are true (to some high precision) for the T2K Neutrino beamline but may not be true for others
 
         for key, magnet in self.survey_data.items():
-            print(f"Calculating center for {key}")
+#            print(f"Calculating center for {key}")
             #first we need a guess of the long-axis of the magnet
             if(magnet.shape[0] == 2): #a magnet with two survey points
                 s = magnet[1] - magnet[0]
@@ -562,12 +725,27 @@ class SurveyBeamline:
             point_offsets = np.array(self.nominal_beamline.survey_elements[self.nominal_beamline.survey_elements['element'] == key]['survey_offset'].tolist()).squeeze()
             self.survey_centers[key] = magnet[0] - point_offsets[0][0]*s - point_offsets[0][1]*lateral - point_offsets[0][2]*vertical;
 
+#        self.print_survey_vs_nominal_centers("QPQ1")
+#        self.print_survey_vs_nominal("BFVD2")
+#        self.print_survey_vs_nominal_centers("QFQ4")
+
+    def print_survey_vs_nominal_centers(self, key=None):
+        if(key is not None):
             print(f"Survey center for {key} is {self.survey_centers[key]}")
-            print(f"Nominal center for {key} is {self.nominal_beamline.beamline[key]}") 
+            print(f"Nominal center for {key} is {self.nominal_beamline.beamline[key]}")
+            print(f"Difference for {key} is {self.survey_centers[key]-self.nominal_beamline.beamline[key]}")
+        else:
+            for key in self.survey_centers:
+                print(f"Survey center for {key} is {self.survey_centers[key]}")
+                print(f"Nominal center for {key} is {self.nominal_beamline.beamline[key]}") 
+                print(f"Difference for {key} is {self.survey_centers[key]-self.nominal_beamline.beamline[key]}")
 
-
-
-
+    def print_survey_vs_nominal(self, key=None):
+        if(key is not None):
+            print(f"Survey points for {key} are {self.survey_data[key]}")
+        else:
+            for key in self.survey_data:
+                print(f"Survey points for {key} are {self.survey_data[key]}")
 
 
 
@@ -594,6 +772,20 @@ class SurveyBeamline:
             rotated_points = R.dot(points.T).T
             data[element] = rotated_points
 
+    def rotate_survey_yz(self, angle, data):
+        for element in data:
+            points = data[element]
+            c = np.cos(angle)
+            s = np.sin(angle)
+            R = np.array([[1, 0, 0],
+                          [0, c, -s],
+                          [0, s, c]])
+            rotated_points = R.dot(points.T).T
+            data[element] = rotated_points
+
+
+
+
     def shift_survey(self, shift, data):
         for element in data:
             data[element] = data[element] + shift
@@ -602,10 +794,13 @@ class SurveyBeamline:
         labels = ["X (mm)", "Y (mm)", "Z (mm)"]
         if(plot is None):
             plt.figure()
+        plt.plot(-999., -999., 'bo', alpha=0.5, label='Survey Points')
         for element in self.survey_data:
             plt.plot(self.survey_data[element][:,x], self.survey_data[element][:,y], 'bo', alpha=0.5)
-            plt.text(self.survey_data[element][:,x].mean(), self.survey_data[element][:,y].mean(), element, rotation=-45, horizontalalignment='right')
+#            plt.text(self.survey_data[element][:,x].mean(), self.survey_data[element][:,y].mean(), element, rotation=-45, horizontalalignment='right')
         try:  #if this has been calculated plot it as well
+
+            plt.plot(-999., -999., 'ro', alpha=0.8, label='Survey Center')
             for center in self.survey_centers:
                 plt.plot(self.survey_centers[center][x], self.survey_centers[center][y], 'ro', alpha=0.8)
                 plt.text(self.survey_centers[center][x], self.survey_centers[center][y], center, rotation=-45, horizontalalignment='right')
@@ -620,365 +815,6 @@ class SurveyBeamline:
             plt.show()
 
 #    def align_survey(self):
-
-
-
-class nominalBeamline:
-    svectors = []
-    sstart = []
-    slen = []
-    bline = []
-    offsets = []
-    mag_objs = []
-    def __init__(self): #a bunch of vectors extraced from the .dwg files provided by Fujii-san
-        self.line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
-        self.line['s_start'] = self.line['length'].shift().cumsum()
-        for element in self.line.itertuples():
-#            print(element)
-            if(re.match('SSEM[0-9]', element.element)):
-                print(element.element, element.s_start+float(element.mark))
-
-
-
-        self.nuin_to_bpd1 = np.array([[27711.320296225927,10246.557442498312], [8826.078822922398,10998.629426709593]])
-        self.startpoint_ps = self.nuin_to_bpd1[0,:]
-
-        self.bpd1_to_bpd2 = np.array([[8826.078822922398,10998.629426709593], [4625.740813728273,11025.057932632815]])
-        self.bpd2_to_arc = np.array([[4625.740813728273,11025.057932632815],[-26953.86986321407,10165.298827699111]])
-
-
-        self.mag_objs_ps = {"BPV1": survey_element(np.array([[24832.38910462714,9576.830981585355,0.0], [24885.262495664367,10904.532021424293,0.0]])),
-                         "BPH2": survey_element(np.array([[20234.464068271784,10976.996762330913,0.0], [20189.0617097797,9836.900439275993,0.0]])),
-                         "QPQ1": survey_element(np.array([[17308.21253825885,11632.058913716024,0.0], [17231.215549930905,9698.591442102286,0.0]])),
-                         "QPQ2": survey_element(np.array([[12997.315158351666,11444.001473098717,0.0], [12947.273757007451,10187.414380095572,0.0]])),
-                         "BPD1": survey_element(np.array([[8849.395131864345,12038.357324908586,0.0], [8802.84416590732,10018.893780319399,0.0]])),
-                         "BPD2": survey_element(np.array([[4614.8592335086605,12065.001003860916,0.0], [4635.994610472831,10045.111577135578,0.0]])),
-                         "QPQ3": survey_element(np.array([[-5990.328971827361,11463.303398540442,0.0], [-5955.518885550551,10184.702260589635,0.0]])),
-                         "BPV2": survey_element(np.array([[-10385.778916663812,11237.333989977218,0.0], [-10351.093606239794,9963.315964633332,0.0]])),
-                         "QPQ4": survey_element(np.array([[-13482.390984855087,11437.10340747186,0.0], [-13436.376745104855,9746.96512861545,0.0]])),
-                         "BPH3": survey_element(np.array([[-21036.911835919527,11136.816798865471,0.0], [-20992.823456530015,9517.416843696026,0.0]])),
-                         "QPQ5": survey_element(np.array([[-23329.778140908842,10844.180117790922,0.0], [-23287.611953749027,9295.383755414225,0.0]]))}
-
-
-        ff_height_offset = -309.2167344454938 #the height in the drawing of QFQ1 center
-        self.arc_to_fh1 = np.array([[17088.847808979302,8354.310785989503], [9691.14780897929,8364.639930467885]])
-        self.startpoint_ff = self.arc_to_fh1[0,:]
-        self.fh1_to_fh2 = np.array([[9691.14780897929,8364.639930467885], [-18598.159457284823,8364.639930467885]])
-        self.fvd1_axis = np.array([[-8196.453655041289,8364.639930467885,-306.1337343460509-ff_height_offset],[-10570.220438481108,8364.639930467885,-336.2819644230731-ff_height_offset]])
-        self.fq4_axis = np.array([[-11262.47885696281,8364.639930467885,-355.3463325089069-ff_height_offset],[-13161.86822774537,8364.639930467885,-403.51289931818155-ff_height_offset]])
-        self.fvd2_axis = np.array([[-13920.76196973481,8364.639930467885,-417.21062514883306-ff_height_offset],[-15739.152191020708,8364.639930467885,-493.74168506447313-ff_height_offset]])
-
-        print(f'nominal BFVD1 bend angle = {np.arccos(normvec(self.fq4_axis[0]-self.fq4_axis[1]).dot([1.0, 0.0, 0.0]))}')
-        print(f'nominal BFVD2 bend angle = {2.0*np.arccos(normvec(self.fvd2_axis[0]-self.fvd2_axis[1]).dot(normvec(self.fq4_axis[0]-self.fq4_axis[1])))}')
-
-
-        self.mag_objs_ff={"QFQ1": survey_element(np.array([[14491.769195548608,8807.02230689272,0.0], [14490.532107179635,7921.023170543049,0.0]])),
-                         "BFV1": survey_element(np.array([[11790.204692362477,7351.24453761384,0.0], [11791.911689156808,9185.063540965684,0.0]])),
-                         "BFH1": survey_element(np.array([[9691.14780897929,9185.063540965684,0.0], [9691.14780897929,7354.310785989502,0.0]])),
-                         "BFV2": survey_element(np.array([[3730.8478089792916,9128.096944042545,0.0], [3730.8478089792916,7651.590156712228,0.0]])),
-                         "QFQ2": survey_element(np.array([[780.8478089792907,9203.346478591457,0.0], [780.8478089792907,7615.581943857097,0.0]])),
-                         "QFQ3": survey_element(np.array([[-3969.1521910207093,9203.346478591457,0.0], [-3969.1521910207093,7615.581943857097,0.0]])),
-                         "BFH2": survey_element(np.array([[-7019.15219101996,9803.376606143274,0.0], [-7019.152191021339,7136.859410107129,0.0]])),
-#                         "BFVD1": survey_element(np.array([[-9430.288218548048,9194.639930556094, 0.0], [-9430.288218548048,7594.639930467868,0.0]])), ##CERN TODO removing these so the nominal angle is applied
-                         "QFQ4": survey_element(np.array([[-11473.32213158561-715.0650297,8320.339930467722,0.0], [-11473.32213158561-715.0650297,8389.939930467724,0.0]]))}#, #some maffs needed for x
-#                         "BFVD2": survey_element(np.array([[-15709.697351297618,7594.639930503842,0.0], [-15709.697351297618,9194.639930592066,0.0]]))}
-
-        self.mag_objs = {**self.mag_objs_ps, **self.mag_objs_ff}
-
-
-        self.nuin_to_bpd1 = self.nuin_to_bpd1 - self.startpoint_ps
-        self.bpd1_to_bpd2 = self.bpd1_to_bpd2 - self.startpoint_ps
-        self.bpd2_to_arc =  self.bpd2_to_arc -  self.startpoint_ps
-
-        self.fvd1_axis -= np.append(self.arc_to_fh1[0,:], 0.0) 
-        self.fq4_axis -= np.append(self.arc_to_fh1[0,:], 0.0) 
-        self.fvd2_axis -= np.append(self.arc_to_fh1[0,:], 0.0)
-
-        self.arc_to_fh1 = self.arc_to_fh1 - self.startpoint_ff
-        self.fh1_to_fh2 = self.fh1_to_fh2 - self.startpoint_ff
-
-        #lets get the intersections for the FF bending down section while all the vectors still have the same y component
-        #apologies for the horrible element accesses but necessary to choose the x, z axes
-        self.fh2_to_fvd1 = get_intersection_len(np.append(self.fh1_to_fh2[0,0], 0.0), np.append(self.fh1_to_fh2[1,0]-self.fh1_to_fh2[0,0], 0.0), self.fvd1_axis[0][[0,2]], (self.fvd1_axis[1]-self.fvd1_axis[0])[[0,2]])
-        print(f"fh2 to fvd1 is at length {self.fh2_to_fvd1} along fh1 to fh2 line {self.fh1_to_fh2[1]-self.fh1_to_fh2[0]}")
-        print(f"point position = {self.fh1_to_fh2[0] + self.fh2_to_fvd1*(self.fh1_to_fh2[1]-self.fh1_to_fh2[0])}")
-        print(f"for reference fh1_to_fh2 {self.fh1_to_fh2}")
-        self.fh2_to_fvd1 = np.array([np.append(self.fh1_to_fh2[0] + self.fh2_to_fvd1*(self.fh1_to_fh2[1]-self.fh1_to_fh2[0]), 0.0), self.fvd1_axis[1]])
-
-        print(f"fh2 to fvd1 is given by {self.fh2_to_fvd1}")
-        self.fvd1_to_fvd2 = get_intersection_len(self.fh2_to_fvd1[0][[0,2]], self.fh2_to_fvd1[1][[0,2]] - self.fh2_to_fvd1[0][[0,2]], self.fq4_axis[0][[0,2]], self.fq4_axis[1][[0,2]] - self.fq4_axis[0][[0,2]])
-        print(f"length along fq4_axis is {self.fvd1_to_fvd2}")
-
-        ctr = 0
-
-        self.startpoint_ps = np.append(self.startpoint_ps, 0.0)
-        for key, val in self.mag_objs_ps.items():
-            self.mag_objs[key].nominal_normvec = val.nominal_normvec-self.startpoint_ps
-            self.mag_objs[key].name = key
-            self.mag_objs[key].magnum = ctr
-            ctr += 1
-        
-        self.startpoint_ff = np.append(self.startpoint_ff, 0.0)
-        for key, val in self.mag_objs_ff.items():
-            self.mag_objs[key].nominal_normvec = val.nominal_normvec-self.startpoint_ff
-            self.mag_objs[key].name = key
-            self.mag_objs[key].magnum = ctr
-            ctr += 1
-           
-
-        #drop the 3rd component
-        self.nuin_to_bpd1 = self.nuin_to_bpd1[:, :2]
-        self.bpd1_to_bpd2 = self.bpd1_to_bpd2[:, :2]
-        self.bpd2_to_arc = self.bpd2_to_arc[:, :2]
-
-
-
-        for key, val in self.mag_objs.items():
-            self.mag_objs[key].nominal_normvec = val.nominal_normvec[:, :2]
-
-        #rotate prep section to point along (1, 0, 0)
-        initial_vec = normvec(self.nuin_to_bpd1[1])
-        rotangle = np.arctan(initial_vec[1]/initial_vec[0])-np.pi
-        self.nuin_to_bpd1 = rotmat2d(rotangle).dot(self.nuin_to_bpd1.T).T
-        self.bpd1_to_bpd2 = rotmat2d(rotangle).dot(self.bpd1_to_bpd2.T).T
-        self.bpd2_to_arc = rotmat2d(rotangle).dot(self.bpd2_to_arc.T).T
-        self.rotate_nominal(rotangle, self.mag_objs_ps)
-        
-        #rotate ff section to point along (0, 1, 0)
-        initial_vec = normvec(self.arc_to_fh1[1])
-        rotangle = np.arctan(initial_vec[1]/initial_vec[0])+0.5*np.pi
-
-        self.arc_to_fh1 = rotmat2d(rotangle).dot(self.arc_to_fh1.T).T
-        self.fh1_to_fh2 = rotmat2d(rotangle).dot(self.fh1_to_fh2.T).T
-        self.fvd1_axis = rotmatxy3d(rotangle).dot(self.fvd1_axis.T).T
-        self.fq4_axis = rotmatxy3d(rotangle).dot(self.fq4_axis.T).T
-        self.fvd2_axis = rotmatxy3d(rotangle).dot(self.fvd2_axis.T).T
-        self.rotate_nominal(rotangle, self.mag_objs_ff)
-        [print(self.mag_objs[key].nominal_normvec) for key, val in self.mag_objs_ff.items()]
-
-#        get_intersection(self.fh1_to_fh2, self.fvd1_axis)
-
-
-
-        self.svectors.append(self.nuin_to_bpd1[1] - self.nuin_to_bpd1[0])
-        self.sstart.append(self.nuin_to_bpd1[0])
-
-        self.svectors.append(self.bpd1_to_bpd2[1] - self.bpd1_to_bpd2[0])
-        self.sstart.append(self.bpd1_to_bpd2[0])
-        
-        self.svectors.append(self.bpd2_to_arc[1] - self.bpd2_to_arc[0])
-        self.sstart.append(self.bpd2_to_arc[0])
-
-        self.svectors.append(self.arc_to_fh1[1] - self.arc_to_fh1[0])
-        self.sstart.append(self.arc_to_fh1[0])
-
-        self.svectors.append(self.fh1_to_fh2[1] - self.fh1_to_fh2[0])
-        self.sstart.append(self.fh1_to_fh2[0])
-
-#        self.sstart.append(fh1_to_fh2_intersection_bfvd1)
-
-
-
-        self.get_intersections()
-        self.get_survey()
-        self.get_offsets()
-        self.match_misalignments()
-
-
-    def draw_beamline_s(self, axis):
-        vars = ['s (m)', 'Horisontal (mm)', 'Vertical (mm)']
-        nom_s = []
-        for key, val in self.mag_objs.items():
-            plt.scatter((val.s_nom+val.offsets[0])/1000., val.offsets[axis], label=val.name+' survey')
-
-            nom_s.append(val.s_nom/1000.)
-        plt.plot(nom_s, np.zeros(len(nom_s)), label='Nominal')
-        plt.xlabel(vars[0])
-        plt.xlim(0, 1.05*np.max(nom_s))
-        plt.ylabel(vars[axis])
-        plt.legend(loc='upper right')
-        plt.show()
-
-       
-
-    def draw_beamline(self, axis1, axis2):
-        labels = ['x (mm)', 'y (mm)', 'z(mm)']
-
-        nuin_to_bpd1_3d = np.hstack((self.nuin_to_bpd1, np.zeros((self.nuin_to_bpd1.shape[0], 1))))
-        bpd1_to_bpd2_3d = np.hstack((self.bpd1_to_bpd2, np.zeros((self.bpd1_to_bpd2.shape[0], 1))))
-        bpd2_to_arc_3d = np.hstack((self.bpd2_to_arc, np.zeros((self.bpd2_to_arc.shape[0], 1))))
-
-        plt.plot(nuin_to_bpd1_3d[:,axis1], nuin_to_bpd1_3d[:,axis2])
-        plt.plot(bpd1_to_bpd2_3d[:,axis1], bpd1_to_bpd2_3d[:,axis2])
-        plt.plot(bpd2_to_arc_3d[:,axis1], bpd2_to_arc_3d[:,axis2])
-        for key, val in self.mag_objs.items():
-            if(val.name == 'QFQ1'):
-                break
-            nominal_normvec_3d = np.hstack((val.nominal_normvec, np.zeros((val.nominal_normvec.shape[0], 1))))
-
-            plt.quiver(val.segment[0][axis1], val.segment[0][axis2], val.segment[1][axis1], val.segment[1][axis2], angles='xy', scale_units='xy', scale=1, width=0.004)
-            plt.plot(nominal_normvec_3d[:,axis1], nominal_normvec_3d[:,axis2], label=val.name)
-            plt.scatter(val.survey_points[:,axis1], val.survey_points[:,axis2], label=val.name)
-            plt.scatter(val.survey_center[axis1], val.survey_center[axis2], label=val.name)
-        plt.legend(loc='upper right')
-        plt.xlabel(labels[axis1], fontsize=13)
-        plt.ylabel(labels[axis2], fontsize=13)
-        plt.xticks(fontsize=13)
-        plt.yticks(fontsize=13)
-        plt.show()
-    
-    def rotate_nominal(self, theta, iterlist):
-        for key, val in iterlist.items():
-            self.mag_objs[key].rotate_nominal(theta)
-
-    def shift_nominal(self, shift, iterlist):
-        for key, val in iterlist.items():
-            self.mag_objs[key].shift_nominal(shift)
-
-    def get_intersections(self):
-        for key, val in self.mag_objs.items():
-            #first check against nuin to bpd1
-            summed_len = 0
-            for i in range(len(self.svectors)):
-                mu = get_intersection_len(self.sstart[i], self.svectors[i], val.nominal_normvec[0], val.nominal_normvec[1]-val.nominal_normvec[0])
-                if mu <= 1 and mu >=0:
-                    val.segment_start_s = summed_len
-                    val.s_nom = summed_len + mu*np.linalg.norm(self.svectors[i])
-                    val.segment_id = i
-                    val.segment = np.array([np.append(self.sstart[i], 0.0), np.append(self.svectors[i], 0.0)])
-                    val.nominal_center = self.sstart[i] + mu*self.svectors[i]
-                    val.nominal_center = np.append(val.nominal_center, 0.0)
-                    if(mu*np.linalg.norm(self.svectors[i]) < 1.0): #bending magnet (within 1mm of the change point)
-                        val.angle = np.arccos(normvec(self.svectors[i]).dot(normvec(self.svectors[i-1]))) * np.sign(normvec(self.svectors[i-1])[1] - normvec(self.svectors[i])[1]) # negative if y increases
-                    elif(mu*np.linalg.norm(self.svectors[i]) > np.linalg.norm(self.svectors[i]) - 1.0): #bending magnet (within 1mm of the change point)
-                        val.angle = np.arccos(normvec(self.svectors[i]).dot(normvec(self.svectors[i+1]))) * np.sign(normvec(self.svectors[i])[1] - normvec(self.svectors[i+1])[1]) # negative if y increases
-                    print("found intersection for ", key, " in segment ", i, " at length ", summed_len + mu*np.linalg.norm(self.svectors[i]), " with angle ", val.angle, " mu ", mu)
-                    print(val.segment)
-                    break
-                else:
-                    summed_len += np.linalg.norm(self.svectors[i])
-
-    def get_survey(self):
-        self.line_ps = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True))
-        self.line_arc = strip_whitespace(pd.read_csv("../fujii-san_arc.csv", header=0, skipinitialspace=True))
-        self.line_ff = strip_whitespace(pd.read_csv("../fujii-san_FF.csv", header=0, skipinitialspace=True))
-        self.line = pd.concat([self.line_ps, self.line_arc, self.line_ff], ignore_index=True)
-        self.survey = read_excel("03_2022_Neutrino.xlsx")
-        for key, value in self.mag_objs.items():
-            self.mag_objs[key].nominal_offset = np.array(string_to_list(self.line.loc[self.line['element'] == key, 'survey_offset'].iloc[0]), dtype=np.float64)
-            for col in ['x2022', 'y2022', 'h2022']:
-                self.mag_objs[key].survey_points.append(self.survey.loc[self.survey['name'] == key[1:]+'1', col].iloc[0])
-            for col in ['x2022', 'y2022', 'h2022']:
-                self.mag_objs[key].survey_points.append(self.survey.loc[self.survey['name'] == key[1:]+'2', col].iloc[0])
-
-            self.mag_objs[key].survey_points = np.array(self.mag_objs[key].survey_points).reshape(2, 3)
-
-    def get_offsets(self):
-
-        #need to start to align the survey data to the nominal beamline, let's take QPQ1 and QPQ2 (the most extreme quads in the first straight stretch)
-        QPQ1_estimate = self.mag_objs['QPQ1'].survey_points[0] - np.array([0., 0., self.mag_objs['QPQ1'].nominal_offset[0,2]]) #subtract just the vertical component
-        for mag in self.mag_objs.values():
-            mag.survey_points = mag.survey_points - np.array([QPQ1_estimate, QPQ1_estimate])
-
-        qpq2_estimate = self.mag_objs['QPQ2'].survey_points[0] - np.array([0., 0., self.mag_objs['QPQ2'].nominal_offset[0,2]]) #subtract just the vertical component
-        QPQ1_estimate = self.mag_objs['QPQ1'].survey_points[0] - np.array([0., 0., self.mag_objs['QPQ1'].nominal_offset[0,2]]) #subtract just the vertical component
-
-        s_estimate = qpq2_estimate - QPQ1_estimate
-        #approximate rotatation in xy, technically not necessary but makes understanding/debug so much easier
-        angle = np.pi+np.arctan(s_estimate[1]/s_estimate[0]) #we know its in the bottom left quadrant
-        for mag in self.mag_objs.values():
-            mag.rotate_survey('xy', -angle)
-            mag.calculate_survey_center()
-
-        #almost perfect at this point ~ 2-3mm precision over 50m of beamline
-        #repeat this rotation using the xz plane and using the survey centers rather than the survey points themselves
-        #use largest lever arm possible, in the vertical this is QPQ1 and QPQ5
-        angle = np.arctan((self.mag_objs['QPQ5'].survey_center[2]-self.mag_objs['QPQ1'].survey_center[2])/(self.mag_objs['QPQ5'].survey_center[0]-self.mag_objs['QPQ1'].survey_center[0]))
-        for mag in self.mag_objs.values():
-            mag.rotate_survey('xz', -angle)
-            mag.calculate_survey_center()
-        #and again for xy in y there are bending magnets BPD1,2 so can only use the line to QPQ2 for the zero direction
-        angle = np.arctan((self.mag_objs['QPQ2'].survey_center[1]-self.mag_objs['QPQ1'].survey_center[1])/(self.mag_objs['QPQ2'].survey_center[0]-self.mag_objs['QPQ1'].survey_center[0]))
-        for mag in self.mag_objs.values():
-            mag.rotate_survey('xy', -angle)
-            mag.calculate_survey_center()
-
-        #sadly BPD1 doesn't bend by the correct amount relative to the survey, while we could technically offset everything its better to just adjust BPD2 bending magnitude
-        dr = self.mag_objs['QPQ5'].survey_center - self.mag_objs['QPQ3'].survey_center 
-        survey_angle = np.arctan(dr[1]/dr[0])
-        nominal_angle = np.arctan(self.mag_objs['QPQ3'].segment[1][1] / self.mag_objs['QPQ3'].segment[1][0])
-        self.mag_objs['BPD2'].angle += nominal_angle - survey_angle
-        #now change the segment angle do not change the segment start position 
-
-        for key, val in self.mag_objs.items():
-            if(val.magnum > self.mag_objs['BPD2'].magnum and val.magnum<self.mag_objs['QFQ1'].magnum): #after BPD2 and before FF
-                self.mag_objs[key].segment[1] = np.linalg.norm(val.segment[1]) * normvec(np.array([np.cos(survey_angle), np.sin(survey_angle), 0.0]))
-                #need to recalculate nominal center
-                self.mag_objs[key].calculate_nominal_center()# = val.segment[0] + (val.s_nom - val.segment_start_s) * normvec(val.segment[1])
-
-        #even worse, we need to create a fake arc section, use the input vector connecting QFQ1 and BFH1
-        ff_input = self.mag_objs['BFH1'].survey_center - self.mag_objs['QFQ1'].survey_center
-        start_vector = self.mag_objs['QPQ2'].survey_center - self.mag_objs['QPQ1'].survey_center
-        print("survey FF input vector", ff_input)
-        print("survey PS input vector ", start_vector)
-        ff_input_anglexy = np.arctan(ff_input[1]/ff_input[0])
-        print("survey FF input angle ", ff_input_anglexy)
-
-        #rotate the nominal normvecs
-        self.rotate_nominal(0.5*np.pi-ff_input_anglexy, self.mag_objs_ff)
-        #lets use the ps nominal positions as our reference frame, need to shift and rotate ff nominals into this system
-        #already QFQ1 center is defined at 0, 0, 0 but need to rotate it to point along the line connecting QFQ1 to BFH1
-        print(f"QFQ1 survey center {self.mag_objs['QFQ1'].survey_center}")
-#        for key, val in self.mag_objs.items():
-#            if(val.magnum >= self.mag_objs['QFQ1'].magnum): #after QFQ1
-                #take QFQ1 survey position as the nominal position and add this position to all magnets after QFQ1
-#                self.mag_objs[key].segment[0] += self.mag_objs['QFQ1'].survey_center
-                #need to recalculate nominal center
-#                self.mag_objs[key].calculate_nominal_center()# = val.segment[0] + (val.s_nom - val.segment_start_s) * normvec(val.segment[1])
-       
-
-        #now need to define a zero position, use QPQ1 center from the survey and set it to the nominal position
-        qpq1_survey_center = cp.deepcopy(self.mag_objs['QPQ1'].survey_center)
-        qpq1_nominal_center = cp.deepcopy(self.mag_objs['QPQ1'].nominal_center)
-        for mag in self.mag_objs.values():
-            mag.shift_survey(qpq1_nominal_center - qpq1_survey_center)
-
-            
-        self.shift_nominal(self.mag_objs['QFQ1'].survey_center - self.mag_objs['QFQ1'].nominal_center, self.mag_objs_ff)
-        arc_qfq1_offset = (self.mag_objs['QFQ1'].s_nom - self.mag_objs['QFQ1'].segment_start_s)*normvec(self.mag_objs['QFQ1'].segment[1])
-        print(f"arc to FQ1 vector {arc_qfq1_offset}")
-        print(f"QFQ1 segment direction {self.mag_objs['QFQ1'].segment[1]}")
-        print(f"QFQ1 to BFH1 vector {self.mag_objs['BFH1'].survey_center - self.mag_objs['QFQ1'].survey_center}")
-#        for key, value in self.mag_objs_ff.items():
-#                self.mag_objs[key].shift_nominal(self.mag_objs['QFQ1'].survey_center) ##TODO needs to be shifted by the difference between QFQ1 and FFinput point
-        
-        vertical = np.array([0., 0., 1.])
-        for mag in self.mag_objs.values():
-            #now need misalignment in beamline coords
-            #along beamline
-            offset = mag.survey_center - mag.nominal_center
-            along_segment = (mag.survey_center - mag.segment[0]).dot(normvec(mag.segment[1])) 
-            offset_s = along_segment - mag.s_nom + mag.segment_start_s 
-            vertical_offset = offset.dot(vertical)
-            horisontal_vector = -normvec(np.cross(mag.segment[1], vertical))
-            horisontal_offset = horisontal_vector.dot(offset)
-
-            mag.offsets = [offset_s, horisontal_offset, vertical_offset]
-
-
-        
-    def match_misalignments(self):
-        self.line['misalign'] = np.nan
-
-        for key, value in self.mag_objs.items():
-            self.line['misalign'] = self.line.apply(lambda row: value.offsets if row['element'] == key else row['misalign'], axis=1)
-#            if(misalignments): #CERN TODO
-            self.line['angle'] = self.line.apply(lambda row: value.angle if row['element'] == key else row['angle'], axis=1)
-
-
-    def print_beamline(self, kv, filename):
-        self.printer = BeamlinePrinter(self.line, kv, filename)
-        self.printer.print()
 
 
 class BeamlinePrinter:
@@ -1428,18 +1264,27 @@ if __name__ == '__main__':
     surv = SurveyBeamline(nom)#.survey_elements['survey_name'])
     surv.initial_alignment()
     surv.calculate_centers()
-
+    surv.precise_alignment()
+#    print(nom.line['center_pos'])
+#    for index, element in nom.line.iterrows():
+#        print(f"From Fujii-san spreadsheet {element['element']} \t {element['s_start']}")
     plt.plot()
     nom.plot(0, 1, True)
+    nom.plot_spreadsheet_beamline(0, 1, True)
     surv.plot(0, 1, True)
+    plt.legend()
     plt.show()
     plt.plot()
     nom.plot(1, 2, True)
     surv.plot(1, 2, True)
+    nom.plot_spreadsheet_beamline(1, 2, True)
+    plt.legend()
     plt.show()
     plt.plot()
     nom.plot(0, 2, True)
     surv.plot(0, 2, True)
+    nom.plot_spreadsheet_beamline(0, 2, True)
+    plt.legend()
     plt.show()
 
 
