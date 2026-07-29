@@ -298,27 +298,9 @@ class survey_element:
     def calculate_nominal_center(self):
         self.nominal_center = self.segment[0] + (self.s_nom - self.segment_start_s) * normvec(self.segment[1])
 
-
-class NominalBeamline:
+class DrawingBeamline:
 
     def __init__(self):
-        self.line = strip_whitespace(pd.read_csv("../fujii-san_modified_with_sad.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
-        self.line['s_start'] = self.line['length'].shift().cumsum()
-        self.line['center_pos'] = None
-
-        #apply the function to convert the survey offset strings to lists
-        self.line['survey_offset'] = self.line['survey_offset'].apply(string_to_list)
-        self.line['survey_name'] = self.line['survey_name'].apply(string_to_string_list)
-        self.line['mark'] = pd.to_numeric(self.line['mark'], errors='coerce')
-        self.line['polelength'] = pd.to_numeric(self.line['polelength'], errors='coerce')
-
-        self.line = self.line.set_index('element', drop=False)
-
-        #if the element 'Survey_offset' is not NaN then this element has a valid survey measurement
-        self.survey_elements = self.line[self.line['survey_name'].notna()]
-
-        self.calculate_spreadsheet_beamline(self.line)
-
         self.prep_elements = {"BPV1": [24863.57600486618,10359.963664168285,0.0], #info from PV1-PQ5 dwg file
                          "BPH2": [20217.26170091104,10545.028987369675,0.0],
                          "QPQ1": [17269.596796088466,10662.380978673755,0.0],
@@ -389,7 +371,122 @@ class NominalBeamline:
         self.drop_redundant_elements()
 
 
-    def calculate_spreadsheet_beamline(self, line):
+    def align_elements(self):
+        #first let's set use QPQ1 as the origin
+        reference_point = cp.deepcopy(self.prep_elements["QPQ1"])
+        for key, element in self.prep_elements.items():
+            element -= reference_point
+        #now rotate so that the beam is along the x axis (looks more like the drawings that way)
+        xvec = self.prep_elements["QPQ2"] - self.prep_elements["QPQ1"]
+        angle = np.arctan2(xvec[1], xvec[0])
+        R = rotmatxy3d(angle)
+        for key, element in self.prep_elements.items():
+            #print(key, self.prep_elements[key], "before rotation")
+            self.prep_elements[key] = R.dot(self.prep_elements[key])
+            #print(key, self.prep_elements[key], "after rotation")
+        #add offset of 10450mm so that 0 is at NUIN (this agrees with SAD perfectly and the drawings to 0.8mm)
+        offset = np.array([10450.0, 0.0, 0.0])
+        for element in self.prep_elements:
+            self.prep_elements[element] += offset
+
+        #now align the vector connecting BPH2 and BAD1 to be the same between the prep and arc elements
+        prep_vec = self.prep_elements["BAD1"] - self.prep_elements["BPH2"]
+        arc_vec = self.arc_elements["BAD1"] - self.arc_elements["BPH2"]
+        angle2 = np.arctan2(arc_vec[1], arc_vec[0]) - np.arctan2(prep_vec[1], prep_vec[0])
+        R2 = rotmatxy3d(angle2)
+        for element in self.arc_elements:
+            self.arc_elements[element] = R2.dot(self.arc_elements[element])
+
+        #now align the position of BPH2 between the two sets
+        shift = self.prep_elements["BPH2"] - self.arc_elements["BPH2"]
+        for element in self.arc_elements:
+            self.arc_elements[element] += shift
+
+        #now align the vector connecting BFH1 and QFQ3 to be the same between the arc and ff elements
+        arc_vec2 = self.arc_elements["QFQ3"] - self.arc_elements["BFH1"]
+        ff_vec = self.ff_elements["QFQ3"] - self.ff_elements["BFH1"]
+        angle3 = np.arctan2(ff_vec[1], ff_vec[0]) - np.arctan2(arc_vec2[1], arc_vec2[0])
+        R3 = rotmatxy3d(angle3)
+        for element in self.ff_elements:
+            self.ff_elements[element] = R3.dot(self.ff_elements[element])
+
+        #now align the position of BFH1 between the two sets
+        shift2 = self.arc_elements["BFH1"] - self.ff_elements["BFH1"]
+        for element in self.ff_elements:
+            self.ff_elements[element] += shift2
+        #should now have a consistent coordinate system across the sections with the entry to the neutrino beamline
+        #being along the [1, 0, 0] axis and all elements being at height=0
+
+
+    def drop_redundant_elements(self):
+        #in theory we now have a single coherent coordinate system for all elements
+        #so lets drop the repeated elements
+        del self.prep_elements["BAD1"]
+        del self.prep_elements["BAF1"]
+        del self.arc_elements["BPH2"]
+        del self.arc_elements["QFQ3"]
+        del self.arc_elements["BFH1"]
+
+        #and combine these dicts into a single beamline dict
+        #this is the 3d position of the magnet centers according to the various beamline design drawings
+        self.beamline = {**self.prep_elements, **self.arc_elements, **self.ff_elements}
+        #remove the different sections to avoid confusion, from now on, beamline is the only thing that matters
+        del self.prep_elements
+        del self.arc_elements
+        del self.ff_elements
+        print("Final aligned beamline positions from drawings: ", self.beamline)
+
+
+    def plot_drawing_beamline(self, x, y, plot=None):
+        labels = ["X (mm)", "Y (mm)", "Z (mm)"]
+        if(plot is None):
+            plt.figure()
+        plt.plot(-999., -999., 'rs', alpha=0.5, label='Beamline Drawings')
+        if(self.beamline):
+            for element in self.beamline.keys():
+                plt.plot(self.beamline[element][x], self.beamline[element][y], 'rs', alpha=0.5)
+                plt.text(self.beamline[element][x], self.beamline[element][y], element, rotation=-45, horizontalalignment='right')
+        else:
+            for element in self.prep_elements:
+                plt.plot(self.prep_elements[element][x], self.prep_elements[element][y], 'rs', alpha=0.5)
+                plt.text(self.prep_elements[element][x], self.prep_elements[element][y], element, rotation=-45, horizontalalignment='right')
+            for element in self.arc_elements:
+                plt.plot(self.arc_elements[element][x], self.arc_elements[element][y], 'rs', alpha=0.5)
+                plt.text(self.arc_elements[element][x], self.arc_elements[element][y], element, rotation=-45, horizontalalignment='right')
+            for element in self.ff_elements:
+                plt.plot(self.ff_elements[element][x], self.ff_elements[element][y], 'rs', alpha=0.5)
+                plt.text(self.ff_elements[element][x], self.ff_elements[element][y], element, rotation=-45, horizontalalignment='right')
+        plt.xlabel(labels[x])
+        plt.ylabel(labels[y])
+        plt.title('Aligned Beamline Elements')
+#        plt.axis('equal')
+        plt.grid()
+        if(plot is None):
+            plt.legend()
+            plt.show()
+
+class SpreadsheetBeamline:
+
+    def __init__(self):
+        self.line = strip_whitespace(pd.read_csv("../fujii-san_modified_with_sad.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
+        self.line['s_start'] = self.line['length'].shift().cumsum()
+        self.line['center_pos'] = None
+
+        #apply the function to convert the survey offset strings to lists
+        self.line['survey_offset'] = self.line['survey_offset'].apply(string_to_list)
+        self.line['survey_name'] = self.line['survey_name'].apply(string_to_string_list)
+        self.line['mark'] = pd.to_numeric(self.line['mark'], errors='coerce')
+        self.line['polelength'] = pd.to_numeric(self.line['polelength'], errors='coerce')
+
+        self.line = self.line.set_index('element', drop=False)
+
+        #if the element 'Survey_offset' is not NaN then this element has a valid survey measurement
+        self.survey_elements = self.line[self.line['survey_name'].notna()]
+
+        self.calculate_spreadsheet_beamline()
+
+
+    def calculate_spreadsheet_beamline(self):
         current_s = 0.
         current_pos = np.array([0., 0., 0.])
         current_dir = np.array([1., 0., 0.])
@@ -401,7 +498,7 @@ class NominalBeamline:
         #applying the acumulated vertical bends in current_dir
         acum_horisontal_bend = 0.
         acum_vertical_bend = 0.
-        for index, element in line.iterrows():
+        for index, element in self.line.iterrows():
             if element['type'] == 'drift' or element['type'] == 'ssem' or element['type'] == 'wsem':
                 current_pos += current_dir * element['length']
                 current_s += element['length']
@@ -463,95 +560,17 @@ class NominalBeamline:
             else:
                 print(f"WARNING: unhandled element type {element['type']} in nominal beamline calculation")
 
-    def align_elements(self):
-        #first let's set use QPQ1 as the origin
-        reference_point = cp.deepcopy(self.prep_elements["QPQ1"])
-        for key, element in self.prep_elements.items():
-            element -= reference_point
-        #now rotate so that the beam is along the x axis (looks more like the drawings that way)
-        xvec = self.prep_elements["QPQ2"] - self.prep_elements["QPQ1"]
-        angle = np.arctan2(xvec[1], xvec[0])
-        R = rotmatxy3d(angle)
-        for key, element in self.prep_elements.items():
-            #print(key, self.prep_elements[key], "before rotation")
-            self.prep_elements[key] = R.dot(self.prep_elements[key])
-            #print(key, self.prep_elements[key], "after rotation")
-        #add offset of 10450mm so that 0 is at NUIN (this agrees with SAD perfectly and the drawings to 0.8mm)
-        offset = np.array([10450.0, 0.0, 0.0])
-        for element in self.prep_elements:
-            self.prep_elements[element] += offset
+    def translate_spreadsheet_beamline(self, shift):
+        for indx, element in self.line.iterrows():
+            if element['center_pos'] is not None:
+                element['center_pos'] += shift
 
-        #now align the vector connecting BPH2 and BAD1 to be the same between the prep and arc elements
-        prep_vec = self.prep_elements["BAD1"] - self.prep_elements["BPH2"]
-        arc_vec = self.arc_elements["BAD1"] - self.arc_elements["BPH2"]
-        angle2 = np.arctan2(arc_vec[1], arc_vec[0]) - np.arctan2(prep_vec[1], prep_vec[0])
-        R2 = rotmatxy3d(angle2)
-        for element in self.arc_elements:
-            self.arc_elements[element] = R2.dot(self.arc_elements[element])
-
-        #now align the position of BPH2 between the two sets
-        shift = self.prep_elements["BPH2"] - self.arc_elements["BPH2"]
-        for element in self.arc_elements:
-            self.arc_elements[element] += shift
-
-        #now align the vector connecting BFH1 and QFQ3 to be the same between the arc and ff elements
-        arc_vec2 = self.arc_elements["QFQ3"] - self.arc_elements["BFH1"]
-        ff_vec = self.ff_elements["QFQ3"] - self.ff_elements["BFH1"]
-        angle3 = np.arctan2(ff_vec[1], ff_vec[0]) - np.arctan2(arc_vec2[1], arc_vec2[0])
-        R3 = rotmatxy3d(angle3)
-        for element in self.ff_elements:
-            self.ff_elements[element] = R3.dot(self.ff_elements[element])
-
-        #now align the position of BFH1 between the two sets
-        shift2 = self.arc_elements["BFH1"] - self.ff_elements["BFH1"]
-        for element in self.ff_elements:
-            self.ff_elements[element] += shift2
-        #should now have a consistent coordinate system across the sections with the entry to the neutrino beamline
-        #being along the [1, 0, 0] axis and all elements being at height=0
-
-
-    def drop_redundant_elements(self):
-        #in theory we now have a single coherent coordinate system for all elements
-        #so lets drop the repeated elements
-        del self.prep_elements["BAD1"]
-        del self.prep_elements["BAF1"]
-        del self.arc_elements["BPH2"]
-        del self.arc_elements["QFQ3"]
-        del self.arc_elements["BFH1"]
-
-        #and combine these dicts into a single beamline dict
-        #this is the 3d position of the magnet centers according to the various beamline design drawings
-        self.beamline = {**self.prep_elements, **self.arc_elements, **self.ff_elements}
-        del self.prep_elements
-        del self.arc_elements
-        del self.ff_elements
-        print("Final aligned beamline positions from drawings: ", self.beamline)
-
-    def rotate_drawing(self, R):
-        for element in self.beamline:
-
-    def plot(self, x, y, plot=None):
-        labels = ["X (mm)", "Y (mm)", "Z (mm)"]
-        if(plot is None):
-            plt.figure()
-        plt.plot(-999., -999., 'rs', alpha=0.5, label='Beamline Drawings')
-        for element in self.prep_elements:
-            plt.plot(self.prep_elements[element][x], self.prep_elements[element][y], 'rs', alpha=0.5)
-            plt.text(self.prep_elements[element][x], self.prep_elements[element][y], element, rotation=-45, horizontalalignment='right')
-        for element in self.arc_elements:
-            plt.plot(self.arc_elements[element][x], self.arc_elements[element][y], 'rs', alpha=0.5)
-            plt.text(self.arc_elements[element][x], self.arc_elements[element][y], element, rotation=-45, horizontalalignment='right')
-        for element in self.ff_elements:
-            plt.plot(self.ff_elements[element][x], self.ff_elements[element][y], 'rs', alpha=0.5)
-            plt.text(self.ff_elements[element][x], self.ff_elements[element][y], element, rotation=-45, horizontalalignment='right')
-        plt.xlabel(labels[x])
-        plt.ylabel(labels[y])
-        plt.title('Aligned Beamline Elements')
-#        plt.axis('equal')
-        plt.grid()
-        if(plot is None):
-            plt.legend()
-            plt.show()
+    def rotate_spreadsheet_beamline(self, position, R):
+        self.translate_spreadsheet_beamline(-position) #shift origin to 'position'
+        for idx, element in self.line.iterrows():
+            if element['center_pos'] is not None:
+                element['center_pos'] = R.dot(element['center_pos'])
+        self.translate_spreadsheet_beamline(position) #shift back to original origin
 
     def plot_spreadsheet_beamline(self, x, y, plot=None):
         labels = ["X (mm)", "Y (mm)", "Z (mm)"]
@@ -572,25 +591,16 @@ class NominalBeamline:
         if(plot is None):
             plt.show()
 
-class SurveyElement:
-    def __init__(self, name, survey_points, offsets):
-        self.name = name
-        self.survey_points = survey_points 
-        self.offsets = offsets
-
-    def get_survey_center(self):
-        survey_vec = self.survey_points[1] - self.survey_points[0]
-
-
 
 class SurveyBeamline:
     survey_data = {}
     survey_centers = {}
 
-    def __init__(self, nominal_beamline):
+    def __init__(self, drawing_beamline, spreadsheet_beamline):
         self.survey = read_excel("03_2022_Neutrino.xlsx")
-        self.nominal_beamline = nominal_beamline
-        self.elements = cp.deepcopy(nominal_beamline.survey_elements)
+        self.drawing_beamline = drawing_beamline
+        self.spreadsheet_beamline = spreadsheet_beamline
+        self.elements = cp.deepcopy(spreadsheet_beamline.survey_elements)
         self.load_survey()
 
     def load_survey(self):
@@ -617,11 +627,11 @@ class SurveyBeamline:
         #a rough alignment of the survey points with the nominal beamline (can only be rough since we next need to calculate magnet centers)
 
         PV1 = self.survey_data['BPV1']
-        PV1_vertical_offset = np.array(self.nominal_beamline.survey_elements[self.nominal_beamline.survey_elements['element'] == 'BPV1']['survey_offset'].tolist()).squeeze()
+        PV1_vertical_offset = np.array(self.spreadsheet_beamline.survey_elements[self.spreadsheet_beamline.survey_elements['element'] == 'BPV1']['survey_offset'].tolist()).squeeze()
         PV1_center = PV1.mean(axis=0) -  PV1_vertical_offset[0][2] * np.array([0.0, 0.0, 1.0])
 
         PH2 = self.survey_data['BPH2']
-        PH2_vertical_offset = np.array(self.nominal_beamline.survey_elements[self.nominal_beamline.survey_elements['element'] == 'BPH2']['survey_offset'].tolist()).squeeze()
+        PH2_vertical_offset = np.array(self.spreadsheet_beamline.survey_elements[self.spreadsheet_beamline.survey_elements['element'] == 'BPH2']['survey_offset'].tolist()).squeeze()
         PH2_center = PH2.mean(axis=0) -  PH2_vertical_offset[0][2] * np.array([0.0, 0.0, 1.0])
 
         #first rotate the whole survey so that the line between centers is horisontal and along the x axis
@@ -633,7 +643,7 @@ class SurveyBeamline:
         self.rotate_survey_xy(-thetaxy, self.survey_data)
         
         #find expected position of BPV1
-        expected_PV1 = self.nominal_beamline.beamline['BPV1']
+        expected_PV1 = self.drawing_beamline.beamline['BPV1']
         PV1_center = self.survey_data['BPV1'].mean(axis=0) -  PV1_vertical_offset[0][2] * np.array([0.0, 0.0, 1.0])
         shift = expected_PV1 - PV1_center
         self.shift_survey(shift, self.survey_data)
@@ -657,13 +667,15 @@ class SurveyBeamline:
         QPQ1 = self.survey_centers['QPQ1']
         QFQ3 = self.survey_centers['QFQ3']
 
-        design_vector = normvec((self.nominal_beamline.beamline['QFQ3'] - self.nominal_beamline.beamline['QPQ1'])[0:2]) #only care about xy
+        spreadsheet_vector = normvec((self.spreadsheet_beamline.line.loc['QFQ3', 'center_pos'] - self.spreadsheet_beamline.line.loc['QFQ3', 'center_pos'])[0:2])
+        design_vector = normvec((self.drawing_beamline.beamline['QFQ3'] - self.drawing_beamline.beamline['QPQ1'])[0:2]) #only care about xy
         actual_vector = normvec((QFQ3-QPQ1)[0:2])
         print(f"Aligning QFQ3 with QPQ1, current actual direction: {actual_vector} and from the drawings this should be {design_vector}")
-
-
         angle_diff = np.arccos(actual_vector.dot(design_vector))
         print(f"angle between QFQ3-QPQ1 actual vs design = {angle_diff} rad")
+        spreadheet_design_angle_diff = np.arccos(spreadsheet_vector.dot(design_vector))
+        R = rotmatxy3d(-spreadheet_design_angle_diff)
+        self.spreadsheet_beamline.rotate_spreadsheet_beamline(cp.deepcopy(self.spreadsheet_beamline.line.loc['QFQ1', 'center_pos']), R)
         self.rotate_survey_xy(-angle_diff, self.survey_data)
         self.calculate_centers()
 
@@ -679,7 +691,7 @@ class SurveyBeamline:
 
         #now place QPQ1 at sQPQ1*[1, 0, 0]
         QPQ1 = self.survey_centers['QPQ1']
-        survey_shift = self.nominal_beamline.beamline['QPQ1'] - QPQ1
+        survey_shift = self.drawing_beamline.beamline['QPQ1'] - QPQ1
         self.shift_survey(survey_shift, self.survey_data)
         self.calculate_centers()
 
@@ -690,9 +702,14 @@ class SurveyBeamline:
         self.calculate_centers()
 
         print(f"FF direction from QFQ1 to QFQ3")
-        fujiisan_dir = self.nominal_beamline.line.set_index('element').at['QFQ3', 'center_pos']
-        print(f"According to Fujii-san spreadsheet {normvec(self.nominal_beamline.line.at['QFQ3', 'center_pos'] - self.nominal_beamline.line.loc['QFQ1', 'center_pos'])}")
-        print(f"According to beamline drawings     {normvec(self.nominal_beamline.beamline['QFQ3'] - self.nominal_beamline.beamline['QFQ1'])}")
+        fujiisan_dir = self.spreadsheet_beamline.line.set_index('element').at['QFQ3', 'center_pos']
+        fujiisan_ff_dir = normvec(self.spreadsheet_beamline.line.at['QFQ3', 'center_pos'] - self.spreadsheet_beamline.line.loc['QFQ1', 'center_pos'])
+        drawing_ff_dir = normvec(self.drawing_beamline.beamline['QFQ3'] - self.drawing_beamline.beamline['QFQ1'])
+        print(f"According to Fujii-san spreadsheet {fujiisan_ff_dir}")
+        print(f"According to beamline drawings     {drawing_ff_dir}")
+        print(f"According to Fujii-san spreadsheet {np.arctan(fujiisan_ff_dir[1] / fujiisan_ff_dir[0])}")
+        print(f"According to beamline drawings     {np.arctan(drawing_ff_dir[1] / drawing_ff_dir[0])}")
+
 
 
 
@@ -722,25 +739,25 @@ class SurveyBeamline:
 
             vertical = -np.cross(s, lateral) #it is possible that the magnet has pitch but we assume no roll so vertical is defined by cross product of s and lateral
             vertical /= np.linalg.norm(vertical)
-            point_offsets = np.array(self.nominal_beamline.survey_elements[self.nominal_beamline.survey_elements['element'] == key]['survey_offset'].tolist()).squeeze()
+            point_offsets = np.array(self.spreadsheet_beamline.survey_elements[self.spreadsheet_beamline.survey_elements['element'] == key]['survey_offset'].tolist()).squeeze()
             self.survey_centers[key] = magnet[0] - point_offsets[0][0]*s - point_offsets[0][1]*lateral - point_offsets[0][2]*vertical;
 
-#        self.print_survey_vs_nominal_centers("QPQ1")
-#        self.print_survey_vs_nominal("BFVD2")
-#        self.print_survey_vs_nominal_centers("QFQ4")
+#        self.print_survey_vs_drawing_centers("QPQ1")
+#        self.print_survey("BFVD2")
+#        self.print_survey_vs_drawing_centers("QFQ4")
 
-    def print_survey_vs_nominal_centers(self, key=None):
+    def print_survey_vs_drawing_centers(self, key=None):
         if(key is not None):
             print(f"Survey center for {key} is {self.survey_centers[key]}")
-            print(f"Nominal center for {key} is {self.nominal_beamline.beamline[key]}")
-            print(f"Difference for {key} is {self.survey_centers[key]-self.nominal_beamline.beamline[key]}")
+            print(f"Nominal center for {key} is {self.drawing_beamline.beamline[key]}")
+            print(f"Difference for {key} is {self.survey_centers[key]-self.drawing_beamline.beamline[key]}")
         else:
             for key in self.survey_centers:
                 print(f"Survey center for {key} is {self.survey_centers[key]}")
-                print(f"Nominal center for {key} is {self.nominal_beamline.beamline[key]}") 
-                print(f"Difference for {key} is {self.survey_centers[key]-self.nominal_beamline.beamline[key]}")
+                print(f"Nominal center for {key} is {self.drawing_beamline.beamline[key]}") 
+                print(f"Difference for {key} is {self.survey_centers[key]-self.drawing_beamline.beamline[key]}")
 
-    def print_survey_vs_nominal(self, key=None):
+    def print_survey(self, key=None):
         if(key is not None):
             print(f"Survey points for {key} are {self.survey_data[key]}")
         else:
@@ -784,13 +801,11 @@ class SurveyBeamline:
             data[element] = rotated_points
 
 
-
-
     def shift_survey(self, shift, data):
         for element in data:
             data[element] = data[element] + shift
     
-    def plot(self, x, y, plot=None):
+    def plot_survey(self, x, y, plot=None):
         labels = ["X (mm)", "Y (mm)", "Z (mm)"]
         if(plot is None):
             plt.figure()
@@ -1259,9 +1274,10 @@ tunnelSoilThickness = 2*m;\n\n''')
 if __name__ == '__main__':
 
 
-    nom = NominalBeamline()
+    drawing = DrawingBeamline()
+    spreadsheet = SpreadsheetBeamline()
 #just pass the keys for the magnets we want to include in the survey
-    surv = SurveyBeamline(nom)#.survey_elements['survey_name'])
+    surv = SurveyBeamline(drawing, spreadsheet)#.survey_elements['survey_name'])
     surv.initial_alignment()
     surv.calculate_centers()
     surv.precise_alignment()
@@ -1269,21 +1285,21 @@ if __name__ == '__main__':
 #    for index, element in nom.line.iterrows():
 #        print(f"From Fujii-san spreadsheet {element['element']} \t {element['s_start']}")
     plt.plot()
-    nom.plot(0, 1, True)
-    nom.plot_spreadsheet_beamline(0, 1, True)
-    surv.plot(0, 1, True)
+    drawing.plot_drawing_beamline(0, 1, True)
+    spreadsheet.plot_spreadsheet_beamline(0, 1, True)
+    surv.plot_survey(0, 1, True)
     plt.legend()
     plt.show()
     plt.plot()
-    nom.plot(1, 2, True)
-    surv.plot(1, 2, True)
-    nom.plot_spreadsheet_beamline(1, 2, True)
+    drawing.plot_drawing_beamline(1, 2, True)
+    spreadsheet.plot_spreadsheet_beamline(1, 2, True)
+    surv.plot_survey(1, 2, True)
     plt.legend()
     plt.show()
     plt.plot()
-    nom.plot(0, 2, True)
-    surv.plot(0, 2, True)
-    nom.plot_spreadsheet_beamline(0, 2, True)
+    drawing.plot_drawing_beamline(0, 2, True)
+    spreadsheet.plot_spreadsheet_beamline(0, 2, True)
+    surv.plot_survey(0, 2, True)
     plt.legend()
     plt.show()
 
