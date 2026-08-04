@@ -36,6 +36,23 @@ ssem_in=False
 #print_vacuum=True
 #bias_physics=True
 
+print_tunnel=False
+print_physics=False
+sample_all=True
+sample_ssem=False
+sample_entry=False
+beam_from_file = False
+beam_halo = False
+enable_blms = False
+geometry = False
+misalignments = False
+print_vacuum=False
+bias_physics=False
+use_previous_best_fit = False
+merge_drifts=False
+
+
+
 #fit configuration
 if(False):
     print_tunnel=False
@@ -71,7 +88,7 @@ if(False):
     merge_drifts=False
 
 ##beam loss configuration
-if(True):
+if(False):
     print_tunnel=False
     print_physics=True
     sample_all=True
@@ -171,8 +188,6 @@ def string_to_string_list(s):
 #    print("string to string list ", retval)
     return retval
 
-
-
 def read_excel(filename):
     surv = pd.ExcelFile(filename)
     surv = surv.parse('基準点成果表 (側壁fit) ', skiprows=3)
@@ -184,123 +199,34 @@ def read_excel(filename):
     return surv
 
 
-class survey_element:
-    def __init__(self, nom_normvec):
-        self.nominal_normvec = cp.deepcopy(nom_normvec)
-        self.s_nom = 0.
-        self.segment = []
-        self.segment_id = -1.
-        self.nominal_center = []
-        self.survey_points = []
-        self.survey_center = []
-        self.survey_diff = []
-        self.nominal_offset = []
-        self.name = []
-        self.magnum = -1
-        self.segment_start_s = []
-        self.angle_diff = 0.
-        self.angle = 0.
-
-    def rotate_survey(self, axis, theta):
-        c = np.cos(theta)
-        s = np.sin(theta)
-        if(axis == 'xy'):
-            R = np.array([[c, -s, 0.],[s, c, 0.], [0., 0., 1.]])
-        elif(axis == 'xz'):
-            R = np.array([[c, 0, -s], [0, 1, 0], [s, 0, c]])
-        else:
-            raise Exception('axis not valid')
-        if(not is_empty(self.survey_points)):
-            self.survey_points = R.dot(self.survey_points.T).T
-        if(not is_empty(self.survey_center)):
-            self.survey_center = R.dot(self.survey_center.T).T
-
-    def rotate_nominal(self, theta):
-        self.nominal_normvec = rotmat2d(theta).dot(self.nominal_normvec.T).T
-        if isinstance(self.segment, np.ndarray): #don't do anything if segment hasnt been set
-            
-            print(f"rotating segment as well {self.segment}")
-            self.segment = rotmatxy3d(theta).dot(self.segment.T).T
-            self.calculate_nominal_center()
-            print(f"rotated segment to {self.segment}")
-
-
-    def shift_survey(self, change):
-        self.survey_center += change
-        self.survey_points += change
-
-    def shift_nominal(self, change):
-        print(f"adding {change} to {self.name}")
-        self.nominal_normvec += change[:2] #CERN TODO only able to shift nominal normvec in the plane
-        self.nominal_center += change
-        self.segment[0] += change
-
-    def binary_search(self, func, R, horisontal, l, r):
-        precision = 1e-10
-        val = 99999
-        left = [l, func(l, R, horisontal)]
-        right = [r, func(r, R, horisontal)]
-        niter = 0
-        while(np.abs(val) > precision and niter < 1000):
-            niter += 1
-            testpoint = (left[0]+right[0])/2.
-            val = func(testpoint, R, horisontal)
-            if(val<0):
-                if(left[1]<0):
-                    left = [testpoint, val]
-                else:
-                    right = [testpoint, val]
-            elif(val>0):
-                if(left[1]>0):
-                    left = [testpoint, val]
-                else:
-                    right = [testpoint, val]
-        if(np.abs(right[1]) < np.abs(left[1])):
-            return right[0]
-        else:
-            return left[0]
-
-    def calculate_survey_center(self):
-
-        survey_point_diff = cp.deepcopy(self.survey_points[1] - self.survey_points[0])
-        nominal_surv_point_diff = cp.deepcopy(-self.nominal_offset[1] + self.nominal_offset[0]) #these numbers are center to point vector so sort of backwards from the survey
-
-        R = get_rotation_matrix(nominal_surv_point_diff, survey_point_diff) #rotation to take the points from the idealised space to the survey space
-
-        p1c = R.dot(-self.nominal_offset[0]) #direction to go from survey point 1 to the center
-        #there is an extra DOF, rotation about the line connecting the two survey points traces out a cone of valid p1c vectors
-        #how far along the magnet direction does the p1c line go?
-        len_along_magdir = p1c.dot(normvec(-survey_point_diff))
-        circle_radius = np.linalg.norm(np.cross(p1c, normvec(survey_point_diff)))
-
-        #can now define a circle around survey_point_diff at position len_along_magdir with radius circle_radius
-        R2 = get_rotation_matrix(np.array([0.0, 0.0, 1.0]), survey_point_diff)
-        angles = np.linspace(0, 2*np.pi, 100)
-        xycircle = np.array([np.cos(angles), np.sin(angles), np.zeros(angles.size)])
-        rotated_circle = R2.dot(xycircle)
-        vertical = np.array([0.0, 0.0, 1.0])
-        horisontal = normvec(np.cross(vertical, normvec(survey_point_diff)))
-        circle = lambda angle, R2, horisontal: horisontal.dot(R2.dot(np.array([np.cos(angle), np.sin(angle), 0.0])))
-
-        best_angle = self.binary_search(circle, R2, horisontal, -np.pi/2., np.pi/2.)
-        #get resulting center point
-        self.survey_center = self.survey_points[0] + len_along_magdir*normvec(survey_point_diff) + circle_radius*R2.dot(np.array([np.cos(best_angle), np.sin(best_angle), 0.0]))
-        #alternate method as a cross-check
-        center = cp.deepcopy(self.survey_points[0])
-        center -= self.nominal_offset[0][0]*normvec(survey_point_diff) #move along vector connecting survey points by amount nominal diff
-        center -= self.nominal_offset[0][1]*horisontal
-        center -= self.nominal_offset[0][2]*vertical
-
-        if(np.linalg.norm(center - self.survey_center) > 2e-1): ##if the two methods differ by more than 0.2mm (tested to be below threshold normally)
-            print(f'WARNING centers calculated through two methods differ above threshold for {self.name}, {center} vs {self.survey_center}')
-            print(f'Difference is {center-self.survey_center} be concerned if the second or third component is the driver of the difference')
-
-    def calculate_nominal_center(self):
-        self.nominal_center = self.segment[0] + (self.s_nom - self.segment_start_s) * normvec(self.segment[1])
-
 class DrawingBeamline:
 
     def __init__(self):
+
+        self.neutrino_elements  = {"BPV1": [600445.8542, 661508.4667, 0.0], #from Neutrino.20210608.nishida.dwg using the centers of the blue crosshairs
+                                   "BPH2": [595809.7446, 661149.3152, 0.0],
+                                   "QPQ1": [592868.5575, 660921.4667, 0.0],
+                                   "QPQ2": [588581.4019, 660589.3481, 0.0],
+                                   "BPD1": [584446.2440, 660250.1661, 0.0],
+                                   "BPD2": [580272.1553, 659786.2377, 0.0],
+                                   "QPQ3": [569778.2487, 658282.8420, 0.0],
+                                   "BPV2": [565423.8316, 657651.1374, 0.0],
+                                   "QPQ4": [562365.8431, 657207.5084, 0.0],
+                                   "BPH3": [554884.1627, 656122.1248, 0.0],
+                                   "QPQ5": [552607.9900, 655791.9158, 0.0],
+                                   "BAD1": [545999.7266, 654802.0648, 0.0],
+                                   "BAD6": [498651.3247, 633423.4405, 0.0],
+                                   "QFQ1": [459488.4326, 551102.2680, 0.0],
+                                   "BFV1": [459441.3292, 548401.9382, 0.0],
+                                   "BFH1": [459404.7534, 546302.3325, 0.0],
+                                   "BFV2": [459300.8919, 540343.1619, 0.0],
+                                   "QFQ2": [459249.4660, 537393.6121, 0.0],
+                                   "QFQ3": [459178.1699, 532644.1315, 0.0],
+                                   "BFH2": [459113.5602, 529594.7944, 0.0],
+                                   "BFVD1": [459071.3901, 527175.2420, 0.0],
+                                   "QFQ4": [459023.4792, 524426.2999, 0.0]}
+
+
         self.prep_elements = {"BPV1": [24863.57600486618,10359.963664168285,0.0], #info from PV1-PQ5 dwg file
                          "BPH2": [20217.26170091104,10545.028987369675,0.0],
                          "QPQ1": [17269.596796088466,10662.380978673755,0.0],
@@ -360,6 +286,8 @@ class DrawingBeamline:
                             "NUTGT": [-12673.4740, 41585.2097, -570.2937]}
 
         #convert these elements to numpy arrays for easier manipulation
+        for element in self.neutrino_elements:
+            self.neutrino_elements[element] = np.array(self.neutrino_elements[element])
         for element in self.prep_elements:
             self.prep_elements[element] = np.array(self.prep_elements[element])
         for element in self.arc_elements:
@@ -418,6 +346,21 @@ class DrawingBeamline:
         #being along the [1, 0, 0] axis and all elements being at height=0
 
 
+
+        #CERN temporary look at a different drawing to see if the alignment is consistent
+        vec = self.neutrino_elements["QPQ2"] - self.neutrino_elements["QPQ1"]
+        angle = np.arctan2(vec[1], vec[0])
+        R4 = rotmatxy3d(angle)
+        for element in self.neutrino_elements:
+            self.neutrino_elements[element] = R4.dot(self.neutrino_elements[element])
+        #align QPQ1
+        shift = self.neutrino_elements["QPQ1"] - np.array([10450.0, 0.0, 0.0])
+        for element in self.neutrino_elements:
+            self.neutrino_elements[element] -= shift
+
+        print(f"alternative drawing beamline positions: {self.neutrino_elements}")
+
+
     def drop_redundant_elements(self):
         #in theory we now have a single coherent coordinate system for all elements
         #so lets drop the repeated elements
@@ -456,6 +399,10 @@ class DrawingBeamline:
             for element in self.ff_elements:
                 plt.plot(self.ff_elements[element][x], self.ff_elements[element][y], 'rs', alpha=0.5)
                 plt.text(self.ff_elements[element][x], self.ff_elements[element][y], element, rotation=-45, horizontalalignment='right')
+        for element in self.neutrino_elements:
+            plt.plot(self.neutrino_elements[element][x], self.neutrino_elements[element][y], 'bs', alpha=0.5)
+            plt.text(self.neutrino_elements[element][x], self.neutrino_elements[element][y], element, rotation=-45, horizontalalignment='right')
+        
         plt.xlabel(labels[x])
         plt.ylabel(labels[y])
         plt.title('Aligned Beamline Elements')
@@ -467,23 +414,31 @@ class DrawingBeamline:
 
 class SpreadsheetBeamline:
 
-    def __init__(self):
-        self.line = strip_whitespace(pd.read_csv("../fujii-san_modified_with_sad.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
+    def __init__(self, file):
+        self.line = strip_whitespace(pd.read_csv(file, header=0, skipinitialspace=True)) #the csv containing beampipe properties
         self.line['s_start'] = self.line['length'].shift().cumsum()
         self.line['center_pos'] = None
 
         #apply the function to convert the survey offset strings to lists
         self.line['survey_offset'] = self.line['survey_offset'].apply(string_to_list)
+        self.line['offset'] = self.line['offset'].apply(string_to_list)
         self.line['survey_name'] = self.line['survey_name'].apply(string_to_string_list)
         self.line['mark'] = pd.to_numeric(self.line['mark'], errors='coerce')
         self.line['polelength'] = pd.to_numeric(self.line['polelength'], errors='coerce')
-
+        self.line['beamline_dir'] = None
         self.line = self.line.set_index('element', drop=False)
 
         #if the element 'Survey_offset' is not NaN then this element has a valid survey measurement
         self.survey_elements = self.line[self.line['survey_name'].notna()]
 
         self.calculate_spreadsheet_beamline()
+
+    def get_bellows(self, l, offset, angle):
+        alpha = 2.0*np.arcsin(offset/l)
+        angle = angle / 2.0
+        bend1 = angle - alpha
+        bend2 = angle + alpha
+        return bend1, bend2
 
 
     def calculate_spreadsheet_beamline(self):
@@ -502,6 +457,45 @@ class SpreadsheetBeamline:
             if element['type'] == 'drift' or element['type'] == 'ssem' or element['type'] == 'wsem':
                 current_pos += current_dir * element['length']
                 current_s += element['length']
+                self.line.at[index, 'beamline_dir'] = cp.deepcopy(current_dir)
+
+            elif element['type'] == 'bellows':
+                #these allow us to align bending magnets with the survey data, essentially make the combination of a 
+                #'c' and 's' shaped duct, 'c' for half the bending angle of the magnet and 's' for the misalignment of 
+                #the magnet center in to the survey. It is composed of two rbend elements that together encompass
+                #the bend angle desired and the positional shift relative to the previous bit of beamline 
+                #it really is like the bellows, allowing for flexibility in angle and position between elements
+
+                #first calculate the 'c' part, half of half of the bend angle of the magnet since we're using two rbends for the bellows
+                #every magnet has a bellows before and after (pretty much) so assign half to each bellows (this is done in the spreadsheet)
+
+                bend1, bend2 = self.get_bellows(element['length'], element['offset'][0], element['angle'])
+
+
+#                angle = element['angle'] / 2.0
+#                #only works in x atm breaks the acumulation method of bend angles
+#                alpha = 2.0*np.arcsin(element['offset'][0]/element['length']) #the angle of the 's' part of the bellows, based on the offset and length
+#                bend1 = angle - alpha
+#                bend2 = angle + alpha
+
+                acum_horisontal_bend += bend1/2.0
+                current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
+                current_pos += current_dir * element['length']/4.0
+                current_pos += current_dir * element['length']/4.0
+
+                acum_horisontal_bend += bend1/2.0
+                current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
+
+                acum_horisontal_bend += bend2/2.0
+                current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
+                current_pos += current_dir * element['length']/4.0
+                current_pos += current_dir * element['length']/4.0
+
+                acum_horisontal_bend += bend2/2.0
+                current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
+                self.line.at[index, 'beamline_dir'] = cp.deepcopy(current_dir)
+                current_s += element['length']
+
             elif element['type'] == 'rbend' or element['type'] == 'sbend':
                 #first apply the upstream drift
                 drift_u = element['mark'] - element['polelength']/2.
@@ -509,10 +503,12 @@ class SpreadsheetBeamline:
                 current_s += drift_u
 
                 bend_angle = element['angle']
-                bend_fudge_factor = 0.0 #3.097e-4/2.#1.42e-4 #radians, to make the spreadsheet and survey line up better
-                if(element['element'].startswith('BA')):
+                bend_fudge_factor = -0.0e-5 #3.097e-4/2.#1.42e-4 #radians, to make the spreadsheet and survey line up better
+                if(element['element'].startswith('BAF')):
                    bend_angle = bend_angle + bend_fudge_factor #apply fudge factor to arc magnets only
-                #now apply hald of the bend angle
+                if(element['element'].startswith('BAD')):
+                   bend_angle = bend_angle - bend_fudge_factor #apply fudge factor to arc magnets only
+                #now apply half of the bend angle
                 if element['tilt'] > 1: #assume this is a vertical tilting magnet
                     acum_vertical_bend += bend_angle/2.
                 else: #horisontal bend
@@ -520,6 +516,9 @@ class SpreadsheetBeamline:
                 
                 current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
                 current_pos += current_dir * element['polelength']/2.
+
+                self.line.at[index, 'beamline_dir'] = cp.deepcopy(current_dir)
+
                 current_s += element['polelength']/2.
                 #save magnet center position
                 self.line.at[index, 'center_pos'] = cp.deepcopy(current_pos)
@@ -538,6 +537,10 @@ class SpreadsheetBeamline:
                 
                 current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
                 drift_d = element['length'] - element['mark'] - element['polelength']/2.
+
+                drift_fudge_factor = 0.0
+                if(element['element'].startswith('BA')):
+                   drift_d += drift_fudge_factor #apply fudge factor to arc magnets only
                 current_pos += current_dir * drift_d
                 current_s += drift_d
 
@@ -547,6 +550,7 @@ class SpreadsheetBeamline:
                 current_pos += current_dir * drift_u
                 current_s += drift_u
 
+                self.line.at[index, 'beamline_dir'] = cp.deepcopy(current_dir)
                 #save magnet center position
                 self.line.at[index, 'center_pos'] = cp.deepcopy(current_pos)
 
@@ -557,6 +561,7 @@ class SpreadsheetBeamline:
                 current_s += drift_d
             elif element['type'] == 'dump':
                 self.line.at[index, 'center_pos'] = cp.deepcopy(current_pos)
+                self.line.at[index, 'beamline_dir'] = cp.deepcopy(current_dir)
             else:
                 print(f"WARNING: unhandled element type {element['type']} in nominal beamline calculation")
 
@@ -582,6 +587,7 @@ class SpreadsheetBeamline:
                 continue
             plt.plot(element['center_pos'][x], element['center_pos'][y], 'go', alpha=0.5)
             plt.text(element['center_pos'][x], element['center_pos'][y], element['element'], rotation=-45, horizontalalignment='right')
+            plt.arrow(element['center_pos'][x], element['center_pos'][y], 100*element['beamline_dir'][x], 100*element['beamline_dir'][y], head_width=2, head_length=10, fc='g', ec='g', alpha=0.5)
 
         plt.xlabel(labels[x])
         plt.ylabel(labels[y])
@@ -652,40 +658,63 @@ class SurveyBeamline:
 
     def precise_alignment(self):
         #will align QPQ1 and QPQ2 to lie in the xz plane
-        #then align QPQ1 and QPQ5 to lie in the xy plane
+        #then align QPQ1 and QPQ2 to lie in the xy plane
+        #the vector QPQ2-QPQ1 is now aligned along [1, 0, 0]
+        #extra DOF rotation around z axis
+        #rotate yz plane so QFQ3 lies in the xy plane
         #place QPQ1 at its nominal position
         #will then rotate along the [1 0 0] vector to have QFQ3 center in the xy plane
         QPQ1 = self.survey_centers['QPQ1']
         QPQ2 = self.survey_centers['QPQ2']
         thetaxy = np.arctan2((QPQ2-QPQ1)[1], (QPQ2-QPQ1)[0])
-
         print("Precise angle to rotate:", thetaxy)
         self.rotate_survey_xy(-thetaxy, self.survey_data)
         self.calculate_centers()
 
-        #can now be a bit more precise, QFQ3 is much further from QPQ1 than QPQ2 so give up on QPQ2 center having no horisontal shift and no vertical shift
-        QPQ1 = self.survey_centers['QPQ1']
-        QFQ3 = self.survey_centers['QFQ3']
-
-        spreadsheet_vector = normvec((self.spreadsheet_beamline.line.loc['QFQ3', 'center_pos'] - self.spreadsheet_beamline.line.loc['QFQ3', 'center_pos'])[0:2])
-        design_vector = normvec((self.drawing_beamline.beamline['QFQ3'] - self.drawing_beamline.beamline['QPQ1'])[0:2]) #only care about xy
-        actual_vector = normvec((QFQ3-QPQ1)[0:2])
-        print(f"Aligning QFQ3 with QPQ1, current actual direction: {actual_vector} and from the drawings this should be {design_vector}")
-        angle_diff = np.arccos(actual_vector.dot(design_vector))
-        print(f"angle between QFQ3-QPQ1 actual vs design = {angle_diff} rad")
-        spreadheet_design_angle_diff = np.arccos(spreadsheet_vector.dot(design_vector))
-        R = rotmatxy3d(-spreadheet_design_angle_diff)
-        self.spreadsheet_beamline.rotate_spreadsheet_beamline(cp.deepcopy(self.spreadsheet_beamline.line.loc['QFQ1', 'center_pos']), R)
-        self.rotate_survey_xy(-angle_diff, self.survey_data)
-        self.calculate_centers()
 
 
         QPQ1 = self.survey_centers['QPQ1']
         QPQ5 = self.survey_centers['QPQ5']
-
         thetaxz = np.arctan2((QPQ5-QPQ1)[2], (QPQ5-QPQ1)[0])
-        print("Precise angle to rotate xz:", thetaxz)
+
+        print("Precise angle to rotate:", thetaxz)
         self.rotate_survey_xz(-thetaxz, self.survey_data)
+        self.calculate_centers()
+
+       
+
+
+        #can now be a bit more precise, QFQ3 is much further from QPQ1 than QPQ2 so give up on QPQ2 center having no horisontal shift and no vertical shift
+#        QPQ1 = self.survey_centers['QPQ1']
+#        QFQ3 = self.survey_centers['QFQ3']
+#
+#        spreadsheet_vector = normvec((self.spreadsheet_beamline.line.loc['QFQ3', 'center_pos'] - self.spreadsheet_beamline.line.loc['QFQ3', 'center_pos'])[0:2])
+#        design_vector = normvec((self.drawing_beamline.beamline['QFQ3'] - self.drawing_beamline.beamline['QPQ1'])[0:2]) #only care about xy
+#        actual_vector = normvec((QFQ3-QPQ1)[0:2])
+#        print(f"Aligning QFQ3 with QPQ1, current actual direction: {actual_vector} and from the drawings this should be {design_vector}")
+#        angle_diff = np.arccos(actual_vector.dot(design_vector))
+#        print(f"angle between QFQ3-QPQ1 actual vs design = {angle_diff} rad")
+#        spreadheet_design_angle_diff = np.arccos(spreadsheet_vector.dot(design_vector))
+#        R = rotmatxy3d(-spreadheet_design_angle_diff)
+#        self.spreadsheet_beamline.rotate_spreadsheet_beamline(cp.deepcopy(self.spreadsheet_beamline.line.loc['QFQ1', 'center_pos']), R)
+#        self.rotate_survey_xy(-angle_diff, self.survey_data)
+#        self.calculate_centers()
+
+
+        QPQ1 = self.survey_centers['QPQ1']
+        QFQ3 = self.survey_centers['QFQ3']
+
+        thetayz = np.arctan2((QFQ3-QPQ1)[2], (QFQ3-QPQ1)[1])
+        print("Precise angle to rotate yz:", thetayz)
+        self.rotate_survey_yz(-thetayz, self.survey_data)
+        self.calculate_centers()
+
+
+        QPQ1 = self.survey_centers['QPQ1']
+        QPQ2 = self.survey_centers['QPQ2']
+        thetaxy = np.arctan2((QPQ2-QPQ1)[1], (QPQ2-QPQ1)[0])
+        print("Precise angle to rotate:", thetaxy)
+        self.rotate_survey_xy(-thetaxy, self.survey_data)
         self.calculate_centers()
 
 
@@ -694,24 +723,6 @@ class SurveyBeamline:
         survey_shift = self.drawing_beamline.beamline['QPQ1'] - QPQ1
         self.shift_survey(survey_shift, self.survey_data)
         self.calculate_centers()
-
-        QFQ3 = self.survey_centers['QFQ3']
-        thetayz = np.arctan2(QFQ3[2], QFQ3[1])
-        print("Precise angle to rotate yz:", thetayz)
-        self.rotate_survey_yz(-thetayz, self.survey_data)
-        self.calculate_centers()
-
-        print(f"FF direction from QFQ1 to QFQ3")
-        fujiisan_dir = self.spreadsheet_beamline.line.set_index('element').at['QFQ3', 'center_pos']
-        fujiisan_ff_dir = normvec(self.spreadsheet_beamline.line.at['QFQ3', 'center_pos'] - self.spreadsheet_beamline.line.loc['QFQ1', 'center_pos'])
-        drawing_ff_dir = normvec(self.drawing_beamline.beamline['QFQ3'] - self.drawing_beamline.beamline['QFQ1'])
-        print(f"According to Fujii-san spreadsheet {fujiisan_ff_dir}")
-        print(f"According to beamline drawings     {drawing_ff_dir}")
-        print(f"According to Fujii-san spreadsheet {np.arctan(fujiisan_ff_dir[1] / fujiisan_ff_dir[0])}")
-        print(f"According to beamline drawings     {np.arctan(drawing_ff_dir[1] / drawing_ff_dir[0])}")
-
-
-
 
     def calculate_centers(self):
         #this evaluates the magnet center position based on the survey points and nominal offsets
@@ -746,6 +757,13 @@ class SurveyBeamline:
 #        self.print_survey("BFVD2")
 #        self.print_survey_vs_drawing_centers("QFQ4")
 
+    def print_survey(self, key=None):
+        if(key is not None):
+            print(f"Survey points for {key} are {self.survey_data[key]}")
+        else:
+            for key in self.survey_data:
+                print(f"Survey points for {key} are {self.survey_data[key]}")
+
     def print_survey_vs_drawing_centers(self, key=None):
         if(key is not None):
             print(f"Survey center for {key} is {self.survey_centers[key]}")
@@ -757,14 +775,25 @@ class SurveyBeamline:
                 print(f"Nominal center for {key} is {self.drawing_beamline.beamline[key]}") 
                 print(f"Difference for {key} is {self.survey_centers[key]-self.drawing_beamline.beamline[key]}")
 
-    def print_survey(self, key=None):
+    def print_survey_vs_spreadsheet_centers(self, key=None):
         if(key is not None):
-            print(f"Survey points for {key} are {self.survey_data[key]}")
+            print(f"Survey center for {key} is {self.survey_centers[key]}")
+            print(f"Spreadsheet center for {key} is {self.spreadsheet_beamline.line.loc[key, 'center_pos']}")
+            print(f"Difference for {key} is {self.survey_centers[key]-self.spreadsheet_beamline.line.loc[key, 'center_pos']}")
         else:
-            for key in self.survey_data:
-                print(f"Survey points for {key} are {self.survey_data[key]}")
-
-
+            for key in self.survey_centers:
+                difference = self.survey_centers[key]-self.spreadsheet_beamline.line.loc[key, 'center_pos']
+                displacement_s = normvec(self.spreadsheet_beamline.line.loc[key, 'beamline_dir']).dot(difference)
+                displacement_vertical = difference[2]
+                displacement_lateral = difference[0:2] - displacement_s * normvec(self.spreadsheet_beamline.line.loc[key, 'beamline_dir'][0:2])
+                displacement_lateral = np.linalg.norm(displacement_lateral)
+#                print(f"Survey center for {key} is {self.survey_centers[key]}")
+#                print(f"Spreadsheet center for {key} is {self.spreadsheet_beamline.line.loc[key, 'center_pos']}") 
+#                print(f"Difference for {key} is {difference}")
+#                print(f"Beamline direction {self.spreadsheet_beamline.line.loc[key, 'beamline_dir']}")
+                print(f"{key} Displacement along beamline direction: {displacement_s} mm")
+                print(f"{key} Displacement along vertical direction: {displacement_vertical} mm")
+                print(f"{key} Displacement along lateral direction: {displacement_lateral} mm \n")
 
     def rotate_survey_xz(self, angle, data):
         for element in data:
@@ -833,15 +862,16 @@ class SurveyBeamline:
 
 
 class BeamlinePrinter:
-    def __init__(self, line, kv, filename, primaries_only=False):
-        self.beamline = line
+
+    file = None
+    def __init__(self, beamline, kv, primaries_only=False):
+        self.beamline = beamline
         self.kvals = kv
-        self.file = open(filename, "w")
         self.s = 0
         self.blmID = 1
         self.primaries_only=primaries_only
         self.line = []
-        self.terminal_element = 'd1'
+        self.terminal_element = 't2k_target'
 
     ######################################################
     #beam properties
@@ -974,19 +1004,19 @@ class BeamlinePrinter:
       self.file.write(f'''\n\nbeam, particle="proton",
       distrType="gausstwiss",
 
-      X0={kvals["X0"]}*m,
-      Xp0={kvals["Xp0"]},
-      emitx={kvals["emitx"]}*m*rad,
-      betx={kvals["betx"]}*m,
-      alfx={kvals["alfx"]},
+      X0={self.kvals["X0"]}*m,
+      Xp0={self.kvals["Xp0"]},
+      emitx={self.kvals["emitx"]}*m*rad,
+      betx={self.kvals["betx"]}*m,
+      alfx={self.kvals["alfx"]},
       dispx=0.423734*m,
       dispxp=0.0719639,
 
-      Y0={kvals["Y0"]}*m,
-      Yp0={kvals["Yp0"]},
-      emity={kvals["emity"]}*m*rad,
-      bety={kvals["bety"]}*m,
-      alfy={kvals["alfy"]},
+      Y0={self.kvals["Y0"]}*m,
+      Yp0={self.kvals["Yp0"]},
+      emity={self.kvals["emity"]}*m*rad,
+      bety={self.kvals["bety"]}*m,
+      alfy={self.kvals["alfy"]},
       dispy=0.0*m,
       dispyp=0.,
 
@@ -1017,6 +1047,21 @@ class BeamlinePrinter:
         self.file.write(name + ': drift, l=' + str(driftlen)+ '*mm')
         self.print_aperture(row)
         self.print_xsec_bias('')
+
+    def print_bellows(self, row, angle1, angle2):
+        name = row.element + "_ubellows"
+        self.line.append(name)
+        self.file.write(name + ': rbend, l=' + str(row.length/2.0) + '*mm, angle=' + str(angle1) + ', B=0.001*T, magnetGeometryType="none"')
+        self.print_aperture(row)
+        self.print_xsec_bias('')
+        self.endl()
+
+        name = row.element + "_dbellows"
+        self.line.append(name)
+        self.file.write(name + ': rbend, l=' + str(row.length/2.0) + '*mm, angle=' + str(angle2) + ', B=-0.001*T, magnetGeometryType="none"')
+        self.print_aperture(row)
+        self.print_xsec_bias('')
+        self.endl()
 
     def print_bend_magnet(self, row):
         self.line.append(row.element)
@@ -1051,9 +1096,11 @@ class BeamlinePrinter:
         name = row.element + "_udrift"
         self.print_drift(row, name, row.mark)
         self.endl()
-        misalign = row.misalign
-        if(np.isnan(row.misalign).any()):
-            misalign = [0., 0., 0.]
+        #CERN TODO
+        misalign = [0., 0., 0.]
+#        misalign = row.misalign
+#        if(np.isnan(row.misalign).any()):
+#            misalign = [0., 0., 0.]
         if(ssem_in):
             self.print_target(row.element, str(thickness)+"*mm", "G4_Ti", row.aperture_x, misalign)
         else:
@@ -1152,13 +1199,14 @@ tunnelSoilThickness = 2*m;\n\n''')
     #main function to decide which functions to call based on element type
     ######################################################
 
-    def print(self):
+    def print(self, filename):
+        self.file = open(filename, "w")
         self.file.write('chrg: scorer, type="cellcharge";\n')
         self.file.write('eDep: scorer, type="depositeddose";\n')
         previously_drift = False
         prev_row = []
         driftlen = 0.0
-        for row in self.beamline.itertuples():
+        for row in self.beamline.spreadsheet_beamline.line.itertuples():
             if(row.type != 'drift' and previously_drift and merge_drifts):
                 #we have reached a non-drift element, so flush the drift components to the file
                 self.print_drift(prev_row, prev_row.element, driftlen)
@@ -1204,6 +1252,9 @@ tunnelSoilThickness = 2*m;\n\n''')
 #            elif(row.type == 'fieldmap3dsbend'):
 #                self.print_fieldmap(row, 'drift')
 
+            elif(row.type == 'bellows'):
+                bend1, bend2 = self.beamline.spreadsheet_beamline.get_bellows(row.length, row.offset[0], row.angle)
+                self.print_bellows(row, bend1, bend2)
             elif(row.type == 'ssem'):
                 self.print_ssem(row, 15e-3)
             elif(row.type == 'wsem'):
@@ -1255,6 +1306,7 @@ tunnelSoilThickness = 2*m;\n\n''')
             self.print_tunnel()
         if(print_physics):
             self.print_physics('g4FTFP_BERT')
+        self.file.write('option, integratorSet="bdsimtwo";')
         self.file.write('option, nturns=1;\n')
         if(sample_all):
             self.file.write('sample, all;\n')
@@ -1275,12 +1327,50 @@ if __name__ == '__main__':
 
 
     drawing = DrawingBeamline()
-    spreadsheet = SpreadsheetBeamline()
+    spreadsheet = SpreadsheetBeamline("../fujii-san_hand_tuned.csv")
 #just pass the keys for the magnets we want to include in the survey
-    surv = SurveyBeamline(drawing, spreadsheet)#.survey_elements['survey_name'])
+    surv = SurveyBeamline(drawing, spreadsheet)
     surv.initial_alignment()
     surv.calculate_centers()
     surv.precise_alignment()
+
+    surv.print_survey_vs_spreadsheet_centers()
+
+    fujiisan_ps_dir = normvec(spreadsheet.line.at['QPQ2', 'center_pos'] - spreadsheet.line.loc['QPQ1', 'center_pos'])
+    drawing_ps_dir = normvec(drawing.beamline['QPQ2'] - drawing.beamline['QPQ1'])
+    survey_ps_dir = normvec(surv.survey_centers['QPQ2'] - surv.survey_centers['QPQ1'])
+
+    fujiisan_ps_after_bpd2 = normvec(spreadsheet.line.at['QPQ5', 'center_pos'] - spreadsheet.line.loc['QPQ3', 'center_pos'])
+    survey_ps_after_bpd2 = normvec(surv.survey_centers['QPQ5'] - surv.survey_centers['QPQ3'])
+
+    fujiisan_after_arc = normvec(spreadsheet.line.at['BFV1', 'center_pos'] - spreadsheet.line.loc['QFQ1', 'center_pos'])
+    survey_after_arc = normvec(surv.survey_centers['BFV1'] - surv.survey_centers['QFQ1'])
+
+
+    fujiisan_ff_dir = normvec(spreadsheet.line.at['QFQ3', 'center_pos'] - spreadsheet.line.loc['QFQ2', 'center_pos'])
+    drawing_ff_dir = normvec(drawing.beamline['QFQ3'] - drawing.beamline['QFQ2'])
+    survey_ff_dir = normvec(surv.survey_centers['QFQ3'] - surv.survey_centers['QFQ2'])
+
+    print(f"FF According to Fujii-san spreadsheet {fujiisan_ff_dir}")
+    print(f"FF According to beamline drawings     {drawing_ff_dir}")
+    print(f"FF According to survey                {survey_ff_dir}")
+    print(f"FF According to Fujii-san spreadsheet {np.arctan(fujiisan_ff_dir[1] / fujiisan_ff_dir[0])}")
+    print(f"FF According to beamline drawings     {np.arctan(drawing_ff_dir[1] / drawing_ff_dir[0])}")
+    print(f"FF According to survey                {np.arctan(survey_ff_dir[1] / survey_ff_dir[0])}")
+
+    print(f"Bend from PS to after BPD2 Fujii-san spreadsheet {np.arccos(fujiisan_ps_after_bpd2.dot(fujiisan_ps_dir))}")
+    print(f"Bend from PS to after BPD2 survey                {np.arccos(survey_ps_after_bpd2.dot(survey_ps_dir))}")
+
+    print(f"Bend from PS to after arc Fujii-san spreadsheet {np.arccos(fujiisan_after_arc.dot(fujiisan_ps_dir))}")
+    print(f"Bend from PS to after arc survey                {np.arccos(survey_after_arc.dot(survey_ps_dir))}")
+
+
+    print(f"Total x bend Fujii-san spreadsheet {np.arccos(fujiisan_ff_dir.dot(fujiisan_ps_dir))}")
+    print(f"Total x bend beamline drawings     {np.arccos(drawing_ff_dir.dot(drawing_ps_dir))}")
+    print(f"Total x bend survey                {np.arccos(survey_ff_dir.dot(survey_ps_dir))}")
+
+
+
 #    print(nom.line['center_pos'])
 #    for index, element in nom.line.iterrows():
 #        print(f"From Fujii-san spreadsheet {element['element']} \t {element['s_start']}")
@@ -1288,6 +1378,7 @@ if __name__ == '__main__':
     drawing.plot_drawing_beamline(0, 1, True)
     spreadsheet.plot_spreadsheet_beamline(0, 1, True)
     surv.plot_survey(0, 1, True)
+#    plt.axis('equal')
     plt.legend()
     plt.show()
     plt.plot()
@@ -1303,8 +1394,6 @@ if __name__ == '__main__':
     plt.legend()
     plt.show()
 
-
-    exit(1)
 
 
     #run 910216
@@ -1340,7 +1429,34 @@ if __name__ == '__main__':
     magset["QPQ5"] = vec_magset[11]
 
 
-    magset["arc_dipole"] = 0.1  ##dummy values for a fake magnet
+    magset["BAD1"] = 0.1 #dummy values for a fake magnet
+    magset["BAF1"] = 0.1
+    magset["BAD2"] = 0.1
+    magset["BAF2"] = 0.1
+    magset["BAD3"] = 0.1
+    magset["BAF3"] = 0.1
+    magset["BAD4"] = 0.1
+    magset["BAF4"] = 0.1
+    magset["BAD5"] = 0.1
+    magset["BAF5"] = 0.1
+    magset["BAD6"] = 0.1
+    magset["BAF6"] = 0.1
+    magset["BAD7"] = 0.1
+    magset["BAF7"] = 0.1
+    magset["BAD8"] = 0.1
+    magset["BAF8"] = 0.1
+    magset["BAD9"] = 0.1
+    magset["BAF9"] = 0.1
+    magset["BAD10"] = 0.1
+    magset["BAF10"] = 0.1
+    magset["BAD11"] = 0.1
+    magset["BAF11"] = 0.1
+    magset["BAD12"] = 0.1
+    magset["BAF12"] = 0.1
+    magset["BAD13"] = 0.1
+    magset["BAF13"] = 0.1
+    magset["BAD14"] = 0.1
+    magset["BAF14"] = 0.1
 
     magset["QFQ1"] = 0.1 
     magset["BFV1"] = 0.1 
@@ -1372,15 +1488,18 @@ if __name__ == '__main__':
 
     else:
         for magnet in magset:
+            if(magnet.startswith("BAF") or magnet.startswith("BAD")):
+                kvals[magnet] = 0.01
+                continue
             mag_df = magnet_response[magnet_response['element'] == magnet]
             kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
             zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
             if magnet[0] == 'B': #bending magnets
-                kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
+                kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*spreadsheet.line.loc[spreadsheet.line['element'] == magnet].iloc[0]['polelength'])
             else:
 
                 print(f"{magnet} with field {(kvals[magnet]-zero_field)}")
-                kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*nom.line.loc[nom.line['element'] == magnet].iloc[0]['polelength'])
+                kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*spreadsheet.line.loc[spreadsheet.line['element'] == magnet].iloc[0]['polelength'])
             if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
                 kvals[magnet] = 1e-3
     print(kvals)
@@ -1390,11 +1509,13 @@ if __name__ == '__main__':
 #    nom.draw_beamline(0, 2)
 #    nom.draw_beamline(1, 2)
 
+    printer = BeamlinePrinter(surv, kvals)
+
     #exit(0)
     if(use_previous_best_fit):
-        nom.print_beamline(kvals, "optimised.gmad")
+        printer.print("test_optimised.gmad")
     else:
-        nom.print_beamline(kvals, "unoptimised.gmad")
+        printer.print("test_unoptimised.gmad")
    
 
 
