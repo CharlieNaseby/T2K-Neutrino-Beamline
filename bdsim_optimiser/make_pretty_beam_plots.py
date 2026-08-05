@@ -2,6 +2,7 @@ import ROOT
 import sys
 import pandas as pd
 
+ROOT.gROOT.SetBatch(True)
 
 def strip_whitespace(df):
     df.columns = df.columns.str.strip()
@@ -126,7 +127,7 @@ def draw(line, chisq, name, title, runnum, graph, data=None):
 
 if __name__ == "__main__":
 
-    line = strip_whitespace(pd.read_csv("../fujii-san.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
+    line = strip_whitespace(pd.read_csv("../fujii-san_hand_tuned.csv", header=0, skipinitialspace=True)) #the csv containing beampipe properties
     line['length'] = line['length'].astype(float)
     #replace 'NA' in 'mark' column with 0
     line['mark'] = line['mark'].replace('NA', 0)
@@ -137,8 +138,6 @@ if __name__ == "__main__":
     line['polelength'] = line['polelength']*0.001  #convert from mm to m
     line['s_start'] = line['length'].shift().cumsum()
     beamline_length = line['length'].sum()
-
-
 
 
     if(len(sys.argv) != 2):

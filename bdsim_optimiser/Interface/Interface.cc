@@ -471,7 +471,8 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
     size_t labend = std::string::npos;
     for(auto name : matchStrings){
       labstart = line.find(name);
-      if(labstart != std::string::npos){
+      size_t bellows = line.find("bellows");
+      if(labstart != std::string::npos && bellows == std::string::npos){ //if we found a match and its not a bellows
         labend = labstart + name.length();
         break;
       }
@@ -498,7 +499,7 @@ void Interface::ParseInputFile(std::string baseBeamlineFile){
   if(nPars != beamline.size()-1){
     std::cerr<<"Number of parameters set is not equal to the number in the gmad file supplied "<<__FILE__<<":"<<__LINE__<<std::endl;
     std::cerr<<"Expected "<<nPars<<" but file has "<<beamline.size()-1<<std::endl;
-    throw  ;
+    throw;
   }
 }
 

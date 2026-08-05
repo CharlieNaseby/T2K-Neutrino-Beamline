@@ -9,12 +9,14 @@ import ast
 import ROOT
 from array import array 
 #sys.path.append('../')
-#import create_beamline
 #matplotlib.use('qtagg')
 pd.set_option('display.max_rows', 500000)
 #pd.set_option('display.max_columns', 500000)
 false=False
 true=True
+
+#if you want to see a plot of the positions of the magnets compared to the survey
+plot_beamline=False
 
 #known constants
 
@@ -22,39 +24,12 @@ proton_momentum = 30.924 # momentum for a 30GeV KE proton
 vacuum_pressure = 1e-4 #vacuum pressure in bar
 ssem_in=False
 
-
-#print_tunnel=False
-#print_physics=True
-#sample_all=True
-#sample_ssem=False
-#sample_entry=False
-#beam_from_file = False
-#beam_halo = False
-#enable_blms = False
-#geometry = True
-#misalignments = False
-#print_vacuum=True
-#bias_physics=True
-
-print_tunnel=False
-print_physics=False
-sample_all=True
-sample_ssem=False
-sample_entry=False
-beam_from_file = False
-beam_halo = False
-enable_blms = False
-geometry = False
-misalignments = False
-print_vacuum=False
-bias_physics=False
-use_previous_best_fit = False
-merge_drifts=False
-
-
+#the last element in the beamline you want to include, will place a dump immediately after this
+#for the whole beamline set to t2k_target
+terminal_element = 'bellows_super'
 
 #fit configuration
-if(False):
+if(True):
     print_tunnel=False
     print_physics=False
     sample_all=False
@@ -70,7 +45,7 @@ if(False):
     print_vacuum=False
     merge_drifts=True
 
-##beam orbit plot configuration
+#beam orbit plot configuration
 if(False):
     print_tunnel=False
     print_physics=False
@@ -87,7 +62,7 @@ if(False):
     print_vacuum=False
     merge_drifts=False
 
-##beam loss configuration
+#beam loss configuration
 if(False):
     print_tunnel=False
     print_physics=True
@@ -187,6 +162,14 @@ def string_to_string_list(s):
 
 #    print("string to string list ", retval)
     return retval
+
+def string_to_bool(s):
+    if(s == 'True' or s == 'true'):
+        return True
+    if(s == 'False' or s == 'false'):
+        return False
+    raise ValueError(f"Invalid string for boolean conversion: {s}")
+
 
 def read_excel(filename):
     surv = pd.ExcelFile(filename)
@@ -346,8 +329,7 @@ class DrawingBeamline:
         #being along the [1, 0, 0] axis and all elements being at height=0
 
 
-
-        #CERN temporary look at a different drawing to see if the alignment is consistent
+        #now for the other version of the drawings
         vec = self.neutrino_elements["QPQ2"] - self.neutrino_elements["QPQ1"]
         angle = np.arctan2(vec[1], vec[0])
         R4 = rotmatxy3d(angle)
@@ -384,7 +366,8 @@ class DrawingBeamline:
         labels = ["X (mm)", "Y (mm)", "Z (mm)"]
         if(plot is None):
             plt.figure()
-        plt.plot(-999., -999., 'rs', alpha=0.5, label='Beamline Drawings')
+        plt.plot(-999., -999., 'rs', alpha=0.5, label='Beamline Drawings (wrong)')
+        plt.plot(-999., -999., 'bs', alpha=0.5, label='Beamline Drawings (more correct? but incomplete)')
         if(self.beamline):
             for element in self.beamline.keys():
                 plt.plot(self.beamline[element][x], self.beamline[element][y], 'rs', alpha=0.5)
@@ -418,11 +401,13 @@ class SpreadsheetBeamline:
         self.line = strip_whitespace(pd.read_csv(file, header=0, skipinitialspace=True)) #the csv containing beampipe properties
         self.line['s_start'] = self.line['length'].shift().cumsum()
         self.line['center_pos'] = None
+        self.line['misalign'] = None
 
         #apply the function to convert the survey offset strings to lists
         self.line['survey_offset'] = self.line['survey_offset'].apply(string_to_list)
         self.line['offset'] = self.line['offset'].apply(string_to_list)
         self.line['survey_name'] = self.line['survey_name'].apply(string_to_string_list)
+        self.line['geometry'] = self.line['geometry'].apply(string_to_bool)
         self.line['mark'] = pd.to_numeric(self.line['mark'], errors='coerce')
         self.line['polelength'] = pd.to_numeric(self.line['polelength'], errors='coerce')
         self.line['beamline_dir'] = None
@@ -470,28 +455,38 @@ class SpreadsheetBeamline:
                 #every magnet has a bellows before and after (pretty much) so assign half to each bellows (this is done in the spreadsheet)
 
                 bend1, bend2 = self.get_bellows(element['length'], element['offset'][0], element['angle'])
+                if(element['tilt'] > 1): #assume this is a vertical tilting bellows (should only be BFVD1 and BFVD2)
+                    acum_vertical_bend += bend1/2.0
+                else: #horisontal bend
+                    acum_horisontal_bend += bend1/2.0
 
-
-#                angle = element['angle'] / 2.0
-#                #only works in x atm breaks the acumulation method of bend angles
-#                alpha = 2.0*np.arcsin(element['offset'][0]/element['length']) #the angle of the 's' part of the bellows, based on the offset and length
-#                bend1 = angle - alpha
-#                bend2 = angle + alpha
-
-                acum_horisontal_bend += bend1/2.0
                 current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
                 current_pos += current_dir * element['length']/4.0
                 current_pos += current_dir * element['length']/4.0
 
-                acum_horisontal_bend += bend1/2.0
+                if(element['tilt'] > 1): #assume this is a vertical tilting bellows (should only be BFVD1 and BFVD2)
+                    acum_vertical_bend += bend1/2.0
+                else: #horisontal bend
+                    acum_horisontal_bend += bend1/2.0
+
+
                 current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
 
-                acum_horisontal_bend += bend2/2.0
+                if(element['tilt'] > 1): #assume this is a vertical tilting bellows (should only be BFVD1 and BFVD2)
+                    acum_vertical_bend += bend2/2.0
+                else: #horisontal bend
+                    acum_horisontal_bend += bend2/2.0
+
+
                 current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
                 current_pos += current_dir * element['length']/4.0
                 current_pos += current_dir * element['length']/4.0
 
-                acum_horisontal_bend += bend2/2.0
+                if(element['tilt'] > 1): #assume this is a vertical tilting bellows (should only be BFVD1 and BFVD2)
+                    acum_vertical_bend += bend2/2.0
+                else: #horisontal bend
+                    acum_horisontal_bend += bend2/2.0
+
                 current_dir = np.array([np.cos(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_horisontal_bend)*np.cos(acum_vertical_bend), -np.sin(acum_vertical_bend)])
                 self.line.at[index, 'beamline_dir'] = cp.deepcopy(current_dir)
                 current_s += element['length']
@@ -664,6 +659,7 @@ class SurveyBeamline:
         #rotate yz plane so QFQ3 lies in the xy plane
         #place QPQ1 at its nominal position
         #will then rotate along the [1 0 0] vector to have QFQ3 center in the xy plane
+        self.calculate_centers()
         QPQ1 = self.survey_centers['QPQ1']
         QPQ2 = self.survey_centers['QPQ2']
         thetaxy = np.arctan2((QPQ2-QPQ1)[1], (QPQ2-QPQ1)[0])
@@ -762,7 +758,7 @@ class SurveyBeamline:
             print(f"Survey points for {key} are {self.survey_data[key]}")
         else:
             for key in self.survey_data:
-                print(f"Survey points for {key} are {self.survey_data[key]}")
+                self.print_survey(key)
 
     def print_survey_vs_drawing_centers(self, key=None):
         if(key is not None):
@@ -771,29 +767,28 @@ class SurveyBeamline:
             print(f"Difference for {key} is {self.survey_centers[key]-self.drawing_beamline.beamline[key]}")
         else:
             for key in self.survey_centers:
-                print(f"Survey center for {key} is {self.survey_centers[key]}")
-                print(f"Nominal center for {key} is {self.drawing_beamline.beamline[key]}") 
-                print(f"Difference for {key} is {self.survey_centers[key]-self.drawing_beamline.beamline[key]}")
+                self.print_survey_vs_drawing_centers(key)
 
-    def print_survey_vs_spreadsheet_centers(self, key=None):
-        if(key is not None):
-            print(f"Survey center for {key} is {self.survey_centers[key]}")
-            print(f"Spreadsheet center for {key} is {self.spreadsheet_beamline.line.loc[key, 'center_pos']}")
-            print(f"Difference for {key} is {self.survey_centers[key]-self.spreadsheet_beamline.line.loc[key, 'center_pos']}")
-        else:
+    def calculate_spreadsheet_misalignments(self):
             for key in self.survey_centers:
                 difference = self.survey_centers[key]-self.spreadsheet_beamline.line.loc[key, 'center_pos']
                 displacement_s = normvec(self.spreadsheet_beamline.line.loc[key, 'beamline_dir']).dot(difference)
                 displacement_vertical = difference[2]
                 displacement_lateral = difference[0:2] - displacement_s * normvec(self.spreadsheet_beamline.line.loc[key, 'beamline_dir'][0:2])
                 displacement_lateral = np.linalg.norm(displacement_lateral)
-#                print(f"Survey center for {key} is {self.survey_centers[key]}")
-#                print(f"Spreadsheet center for {key} is {self.spreadsheet_beamline.line.loc[key, 'center_pos']}") 
-#                print(f"Difference for {key} is {difference}")
-#                print(f"Beamline direction {self.spreadsheet_beamline.line.loc[key, 'beamline_dir']}")
-                print(f"{key} Displacement along beamline direction: {displacement_s} mm")
-                print(f"{key} Displacement along vertical direction: {displacement_vertical} mm")
-                print(f"{key} Displacement along lateral direction: {displacement_lateral} mm \n")
+                self.spreadsheet_beamline.line.at[key, 'misalign'] = cp.deepcopy(np.array([displacement_s, displacement_lateral, displacement_vertical]))
+
+    def print_survey_vs_spreadsheet_centers(self, key=None):
+        if(key is not None):
+            print(f"Survey center for {key} is {self.survey_centers[key]}")
+            print(f"Spreadsheet center for {key} is {self.spreadsheet_beamline.line.loc[key, 'center_pos']}")
+            print(f"Difference for {key} is {self.survey_centers[key]-self.spreadsheet_beamline.line.loc[key, 'center_pos']}")
+            print(f"Misalignment for {key} is [s, horisontal, vertical]: {self.spreadsheet_beamline.line.loc[key, 'misalign']}")
+        else:
+            for key in self.survey_centers:
+                self.print_survey_vs_spreadsheet_centers(key)
+                print("")
+
 
     def rotate_survey_xz(self, angle, data):
         for element in data:
@@ -858,8 +853,6 @@ class SurveyBeamline:
         if(plot is None):
             plt.show()
 
-#    def align_survey(self):
-
 
 class BeamlinePrinter:
 
@@ -871,7 +864,7 @@ class BeamlinePrinter:
         self.blmID = 1
         self.primaries_only=primaries_only
         self.line = []
-        self.terminal_element = 't2k_target'
+        self.terminal_element = terminal_element
 
     ######################################################
     #beam properties
@@ -1042,23 +1035,23 @@ class BeamlinePrinter:
             else:
                 self.file.write(', aper1=' + str(0.5*row.aperture_x) + '*mm, aper2=' + str(0.5*row.aperture_y) + '*mm')
 
-    def print_drift(self, row, name, driftlen):
+    def print_drift(self, row, name, driftlen, misalign=[0., 0., 0.]):
         self.line.append(name)
-        self.file.write(name + ': drift, l=' + str(driftlen)+ '*mm')
+        self.file.write(name + ': drift, l=' + str(driftlen)+ '*mm, offsetX='+str(misalign[1])+'*mm, offsetY='+str(misalign[2])+'*mm')
         self.print_aperture(row)
         self.print_xsec_bias('')
 
     def print_bellows(self, row, angle1, angle2):
         name = row.element + "_ubellows"
         self.line.append(name)
-        self.file.write(name + ': rbend, l=' + str(row.length/2.0) + '*mm, angle=' + str(angle1) + ', B=0.001*T, magnetGeometryType="none"')
+        self.file.write(name + ': rbend, l=' + str(row.length/2.0) + '*mm, angle=' + str(angle1) + ', tilt=' + str(row.tilt) + ', B=0.001*T, magnetGeometryType="none"')
         self.print_aperture(row)
         self.print_xsec_bias('')
         self.endl()
 
         name = row.element + "_dbellows"
         self.line.append(name)
-        self.file.write(name + ': rbend, l=' + str(row.length/2.0) + '*mm, angle=' + str(angle2) + ', B=-0.001*T, magnetGeometryType="none"')
+        self.file.write(name + ': rbend, l=' + str(row.length/2.0) + '*mm, angle=' + str(angle2) + ', tilt=' + str(row.tilt) + ', B=-0.001*T, magnetGeometryType="none"')
         self.print_aperture(row)
         self.print_xsec_bias('')
         self.endl()
@@ -1066,9 +1059,9 @@ class BeamlinePrinter:
     def print_bend_magnet(self, row):
         self.line.append(row.element)
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
-        if(misalignments):
+        if(misalignments and row.angle == 0.0): #bend magnets with actual deflection are handled by the bellows method since BDSIM would collide geometries
             self.file.write(', offsetX='+str(row.misalign[1])+'*mm, offsetY='+str(row.misalign[2])+'*mm')
-        if(not geometry or row.geometry=='none'):
+        if(not geometry or row.geometry==False):
             self.file.write(', magnetGeometryType="none"')
         vertical = False
         if(np.abs(row.tilt-np.pi/2.0) <0.01):
@@ -1082,7 +1075,7 @@ class BeamlinePrinter:
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(self.kvals[row.element]))
         if(misalignments):
             self.file.write(', offsetX='+str(row.misalign[1])+'*mm, offsetY='+str(row.misalign[2])+'*mm')
-        if(not geometry or row.geometry == 'none'):
+        if(not geometry or row.geometry == False):
             self.file.write(', magnetGeometryType="none"')
         vertical = False
         if(np.abs(row.tilt-np.pi/2.0) <0.01):
@@ -1173,7 +1166,7 @@ tunnelSoilThickness = 2*m;\n\n''')
         self.line.append(row.element)
         self.print_field(row, ndim)
         self.file.write(row.element+': '+magtype+', fieldVacuum="'+row.element+'field", l='+str(row.length)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt))
-        if(not geometry or row.geometry == 'none'):
+        if(not geometry or row.geometry == False):
             self.file.write(', magnetGeometryType="none"')
         self.print_aperture(row)
         self.print_xsec_bias('')
@@ -1212,11 +1205,11 @@ tunnelSoilThickness = 2*m;\n\n''')
                 self.print_drift(prev_row, prev_row.element, driftlen)
                 self.endl()
                 driftlen = 0.0
-
+            previously_drift = False
             if(row.type in ['rbend', 'sbend', 'quadrupole']):
                 self.file.write('\n') #give some breathing room
                 if(misalignments):
-                    self.print_drift(row, row.element+'_driftu', float(row.mark)-row.polelength/2.+row.misalign[0])
+                    self.print_drift(row, row.element+'_driftu', float(row.mark)-row.polelength/2.+row.misalign[0], row.misalign)
                 else:
                     self.print_drift(row, row.element+'_driftu', float(row.mark)-row.polelength/2.)
 
@@ -1226,7 +1219,7 @@ tunnelSoilThickness = 2*m;\n\n''')
                 else:
                     self.print_bend_magnet(row)
                 if(misalignments):
-                    self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.)-row.misalign[0])
+                    self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.)-row.misalign[0], row.misalign)
                 else:
                     self.print_drift(row, row.element+'_driftd', row.length - (float(row.mark)+row.polelength/2.))
 
@@ -1245,13 +1238,6 @@ tunnelSoilThickness = 2*m;\n\n''')
                             print("found match "+magtype)
                             self.print_fieldmap(row, magtype, ndim)
 
-#            elif(row.type == 'fieldmap3dquad'):
-#                self.print_fieldmap(row, 'drift') #TODO left these three here in case we want to add geometry dependant on magtype
-#            elif(row.type == 'fieldmap3drbend'):
-#                self.print_fieldmap(row, 'drift')
-#            elif(row.type == 'fieldmap3dsbend'):
-#                self.print_fieldmap(row, 'drift')
-
             elif(row.type == 'bellows'):
                 bend1, bend2 = self.beamline.spreadsheet_beamline.get_bellows(row.length, row.offset[0], row.angle)
                 self.print_bellows(row, bend1, bend2)
@@ -1262,12 +1248,12 @@ tunnelSoilThickness = 2*m;\n\n''')
             elif(row.type == 'dump'):
                 self.print_dump(row)
             else: #otherwise, i.e. drift or collimator
+                previously_drift = True
                 if(not merge_drifts):
                     self.print_drift(row, row.element, row.length)
                     self.endl()
                 else:
                     driftlen += row.length
-
 
             prev_row = row
             if(row.type == 'drift'):
@@ -1279,6 +1265,8 @@ tunnelSoilThickness = 2*m;\n\n''')
             self.file.write("! s=" + str(self.s) + "\n")
 
             if(row.element == self.terminal_element): #if we only want the first section of the beam 
+                dump = row._replace(element="d1", length=1000)
+                self.print_dump(dump)
                 break
 
         #print the beamline elements in a line
@@ -1306,7 +1294,7 @@ tunnelSoilThickness = 2*m;\n\n''')
             self.print_tunnel()
         if(print_physics):
             self.print_physics('g4FTFP_BERT')
-        self.file.write('option, integratorSet="bdsimtwo";')
+        self.file.write('option, integratorSet="bdsimtwo";\n')
         self.file.write('option, nturns=1;\n')
         if(sample_all):
             self.file.write('sample, all;\n')
@@ -1331,8 +1319,8 @@ if __name__ == '__main__':
 #just pass the keys for the magnets we want to include in the survey
     surv = SurveyBeamline(drawing, spreadsheet)
     surv.initial_alignment()
-    surv.calculate_centers()
     surv.precise_alignment()
+    surv.calculate_spreadsheet_misalignments()
 
     surv.print_survey_vs_spreadsheet_centers()
 
@@ -1370,29 +1358,26 @@ if __name__ == '__main__':
     print(f"Total x bend survey                {np.arccos(survey_ff_dir.dot(survey_ps_dir))}")
 
 
-
-#    print(nom.line['center_pos'])
-#    for index, element in nom.line.iterrows():
-#        print(f"From Fujii-san spreadsheet {element['element']} \t {element['s_start']}")
-    plt.plot()
-    drawing.plot_drawing_beamline(0, 1, True)
-    spreadsheet.plot_spreadsheet_beamline(0, 1, True)
-    surv.plot_survey(0, 1, True)
-#    plt.axis('equal')
-    plt.legend()
-    plt.show()
-    plt.plot()
-    drawing.plot_drawing_beamline(1, 2, True)
-    spreadsheet.plot_spreadsheet_beamline(1, 2, True)
-    surv.plot_survey(1, 2, True)
-    plt.legend()
-    plt.show()
-    plt.plot()
-    drawing.plot_drawing_beamline(0, 2, True)
-    spreadsheet.plot_spreadsheet_beamline(0, 2, True)
-    surv.plot_survey(0, 2, True)
-    plt.legend()
-    plt.show()
+    if(plot_beamline):
+        plt.plot()
+        drawing.plot_drawing_beamline(0, 1, True)
+        spreadsheet.plot_spreadsheet_beamline(0, 1, True)
+        surv.plot_survey(0, 1, True)
+    #    plt.axis('equal')
+        plt.legend()
+        plt.show()
+        plt.plot()
+        drawing.plot_drawing_beamline(1, 2, True)
+        spreadsheet.plot_spreadsheet_beamline(1, 2, True)
+        surv.plot_survey(1, 2, True)
+        plt.legend()
+        plt.show()
+        plt.plot()
+        drawing.plot_drawing_beamline(0, 2, True)
+        spreadsheet.plot_spreadsheet_beamline(0, 2, True)
+        surv.plot_survey(0, 2, True)
+        plt.legend()
+        plt.show()
 
 
 
@@ -1472,7 +1457,10 @@ if __name__ == '__main__':
     
     if(use_previous_best_fit):
         #use a previous fit as the parameters
-        file = ROOT.TFile("../bdsim_optimiser/fit_results.root", "READ")
+        if(len(sys.argv) > 1):
+            file = ROOT.TFile(sys.argv[1], "READ")
+        else:
+            file = ROOT.TFile("../bdsim_optimiser/fit_results.root", "READ")
         tree = file.Get("parameters")
         name = ROOT.TString()
         physical_value = array("d", [0])
@@ -1488,7 +1476,7 @@ if __name__ == '__main__':
 
     else:
         for magnet in magset:
-            if(magnet.startswith("BAF") or magnet.startswith("BAD")):
+            if(magnet.startswith("BAF") or magnet.startswith("BAD")): #temporary need to find where arc magnet responses are in SAD
                 kvals[magnet] = 0.01
                 continue
             mag_df = magnet_response[magnet_response['element'] == magnet]
@@ -1503,23 +1491,12 @@ if __name__ == '__main__':
             if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
                 kvals[magnet] = 1e-3
     print(kvals)
-#    nom.draw_beamline_s(1)
-#    nom.draw_beamline_s(2)
-#    nom.draw_beamline(0, 1)
-#    nom.draw_beamline(0, 2)
-#    nom.draw_beamline(1, 2)
 
     printer = BeamlinePrinter(surv, kvals)
 
     #exit(0)
     if(use_previous_best_fit):
-        printer.print("test_optimised.gmad")
+        printer.print("optimised.gmad")
     else:
-        printer.print("test_unoptimised.gmad")
+        printer.print("unoptimised.gmad")
    
-
-
-#    nom.draw_beamline_s(1)
-#    nom.draw_beamline_s(2)
-#    nom.draw_beamline(0, 1)
-#    nom.draw_beamline(0, 2)
