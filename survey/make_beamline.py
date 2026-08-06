@@ -26,7 +26,7 @@ ssem_in=False
 
 #the last element in the beamline you want to include, will place a dump immediately after this
 #for the whole beamline set to t2k_target
-terminal_element = 'bellows_super'
+terminal_element = 't2k_target'
 
 #fit configuration
 if(True):
@@ -1058,7 +1058,11 @@ class BeamlinePrinter:
 
     def print_bend_magnet(self, row):
         self.line.append(row.element)
-        self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
+        if(type(self.kvals[row.element]) == list): #combined function bend + quad
+            self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element][0])+'*T, k1='+str(self.kvals[row.element][1]))
+        else: #standard bend
+            self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, angle='+str(row.angle)+', tilt='+str(row.tilt)+', B='+str(self.kvals[row.element])+'*T')
+
         if(misalignments and row.angle == 0.0): #bend magnets with actual deflection are handled by the bellows method since BDSIM would collide geometries
             self.file.write(', offsetX='+str(row.misalign[1])+'*mm, offsetY='+str(row.misalign[2])+'*mm')
         if(not geometry or row.geometry==False):
@@ -1382,18 +1386,51 @@ if __name__ == '__main__':
 
 
     #run 910216
-    vec_magset = [0 ,
-    -15 ,
-    520 ,
-    0 ,
-    485 ,
-    1140 ,
-    1191 ,
-    408 ,
-    15 ,
-    354 ,
-    -13 ,
-    423 ]
+#    vec_magset = [0 ,
+#    -15 ,
+#    520 ,
+#    0 ,
+#    485 ,
+#    1140 ,
+#    1191 ,
+#    408 ,
+#    15 ,
+#    354 ,
+#    -13 ,
+#    423 ]
+
+    vec_magset = [0,
+      -15,
+      520,
+        0,
+      485,
+     1140,
+     1191,
+      408,
+       15,
+      354,
+      -13,
+      423,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+454.70001,
+    -54.5,
+-125.6999,
+51.200000,
+411.79998,
+456.79998,
+-0.200000,
+1161.5999,
+315.29998,
+   1543.5,
+        0,
+        0]
+
     
     
     magnet_response = strip_whitespace(pd.read_csv("../kicurve.csv", header=0, skipinitialspace=True))
@@ -1412,6 +1449,19 @@ if __name__ == '__main__':
     magset["QPQ4"] = vec_magset[9]
     magset["BPH3"] = vec_magset[10]
     magset["QPQ5"] = vec_magset[11]
+
+
+    magset["QFQ1"] = vec_magset[19]
+    magset["BFV1"] = vec_magset[20]
+    magset["BFH1"] = vec_magset[21]
+    magset["BFV2"] = vec_magset[22]
+    magset["QFQ2"] = vec_magset[23]
+    magset["QFQ3"] = vec_magset[24]
+    magset["BFH2"] = vec_magset[25]
+    magset["BFVD1"] = vec_magset[26]
+    magset["QFQ4"] = vec_magset[27]
+    magset["BFVD2"] = vec_magset[28]
+
 
 
     magset["BAD1"] = 0.1 #dummy values for a fake magnet
@@ -1443,19 +1493,39 @@ if __name__ == '__main__':
     magset["BAD14"] = 0.1
     magset["BAF14"] = 0.1
 
-    magset["QFQ1"] = 0.1 
-    magset["BFV1"] = 0.1 
-    magset["BFH1"] = 0.1 
-    magset["BFV2"] = 0.1 
-    magset["QFQ2"] = 0.1 
-    magset["QFQ3"] = 0.1 
-    magset["BFH2"] = 0.1 
-    magset["BFVD1"] = 0.1 
-    magset["QFQ4"] = 0.1 
-    magset["BFVD2"] = 0.1 
+#    magset["QFQ1"] = 0.1 
+#    magset["BFV1"] = 0.1 
+#    magset["BFH1"] = 0.1 
+#    magset["BFV2"] = 0.1 
+#    magset["QFQ2"] = 0.1 
+#    magset["QFQ3"] = 0.1 
+#    magset["BFH2"] = 0.1 
+#    magset["BFVD1"] = 0.1 
+#    magset["QFQ4"] = 0.1 
+#    magset["BFVD2"] = 0.1 
     kvals = {}
-    
+
+    for magnet in magset:
+        if(magnet.startswith("BAF")): #the bending magnets are always set to the same current so can just dfirectly set these here
+            #(they need to be set the same each time otherwise the beam will miss the final focus section)
+            kvals[magnet] = [-1.61562067, -0.3617/(0.001*spreadsheet.line.at[magnet, 'polelength'])] #B field then K1
+            continue
+        if(magnet.startswith("BAD")): #the bending angle is slightly different for the focus and defocus, try setting them the the correct B field for their angle
+            kvals[magnet] = [-1.528319775, 0.3617/(0.001*spreadsheet.line.at[magnet, 'polelength'])] #B field then K1
+            continue
+        mag_df = magnet_response[magnet_response['element'] == magnet]
+        kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
+        zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
+        if magnet[0] == 'B': #bending magnets
+            kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*spreadsheet.line.at[magnet, 'polelength'])
+        else:
+            print(f"{magnet} with field {(kvals[magnet]-zero_field)}")
+            kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*spreadsheet.line.at[magnet, 'polelength'])
+        if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
+            kvals[magnet] = 1e-3
+
     if(use_previous_best_fit):
+        #overwrite the strengths we fit (allows for partial fitting of the beamline but still including the results in the whole beamline)
         #use a previous fit as the parameters
         if(len(sys.argv) > 1):
             file = ROOT.TFile(sys.argv[1], "READ")
@@ -1474,22 +1544,9 @@ if __name__ == '__main__':
 
         file.Close()
 
-    else:
-        for magnet in magset:
-            if(magnet.startswith("BAF") or magnet.startswith("BAD")): #temporary need to find where arc magnet responses are in SAD
-                kvals[magnet] = 0.01
-                continue
-            mag_df = magnet_response[magnet_response['element'] == magnet]
-            kvals[magnet] = np.interp(magset[magnet], mag_df['current'], mag_df['kval'])
-            zero_field = np.interp(0, mag_df['current'], mag_df['kval'])
-            if magnet[0] == 'B': #bending magnets
-                kvals[magnet] = -(kvals[magnet]-zero_field) * (proton_momentum/0.2998)  / (0.001*spreadsheet.line.loc[spreadsheet.line['element'] == magnet].iloc[0]['polelength'])
-            else:
 
-                print(f"{magnet} with field {(kvals[magnet]-zero_field)}")
-                kvals[magnet] = (kvals[magnet]-zero_field) / (0.001*spreadsheet.line.loc[spreadsheet.line['element'] == magnet].iloc[0]['polelength'])
-            if abs(kvals[magnet]) < 1e-3: #if the strength is zero bdsim will treat it as a drift so force it to be non-zero, if its too small the integrator will fall over however
-                kvals[magnet] = 1e-3
+
+
     print(kvals)
 
     printer = BeamlinePrinter(surv, kvals)
