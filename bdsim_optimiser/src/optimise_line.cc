@@ -1,4 +1,5 @@
 #include "Interface.h"
+#include "Parameter.h"
 #include "TClassTable.h"
 #include <chrono>
 #include "Math/Minimizer.h"
@@ -7,28 +8,35 @@
 #include "TMatrixD.h"
 #include "TVectorD.h"
 
-double performFit(ROOT::Math::Minimizer *min, Interface *inter, int nPars, double *pars, std::initializer_list<std::vector<int> > fixedVars, int fitMode){
+//it is sometimes helpful to access via index or name so keep a synchronised vector and map of parameters
+auto parameterMap = std::make_shared<std::unordered_map<std::string, std::shared_ptr<Parameter>>>();
+auto parameterVec = std::make_shared<std::vector<std::shared_ptr<Parameter>>>();
+
+
+double performFit(ROOT::Math::Minimizer *min, Interface *inter, std::initializer_list<std::vector<std::string>> freeGroups, int fitMode){
   inter->SetChisqMode(fitMode);
   min->SetStrategy(3);
   min->SetMaxFunctionCalls(10000);
   min->SetTolerance(1000);
 
-//  for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], pars[i], 0.1);
-   for(int i=0; i<nPars; i++) min->SetVariable(i, inter->parNames[i], inter->PhysicalToFit(i, pars[i]), 0.1);
+  for(auto &par : *parameterVec) par->setState("fixed");
+  for(auto &group : freeGroups){
+    for(auto &name : group){
+      parameterMap->at(name)->setState("free");
+    }
+  }
 
+  for(size_t i=0; i<parameterVec->size(); i++){
+    auto &par = (*parameterVec)[i];
+    min->SetVariable(i, par->name, inter->PhysicalToFit(par->name, par->getPhysicalValue()), 0.1);
+    if(par->getState() == "fixed") min->FixVariable(i);
+  }
 
-  for(auto fixedvec : fixedVars)
-    for(auto fixed : fixedvec) 
-      min->FixVariable(fixed);
-  
   min->SetPrintLevel(2);
 
-  min->FixVariable(0); //BPV1 is set to 0 current
-  min->FixVariable(9); //BPH3 and QPQ5 do not have and SSEMs afterwards in the sim so would have no data constraint
-  min->FixVariable(10);
   min->Minimize();
   min->PrintResults();
-  for(int i=0; i<nPars; i++) pars[i] = inter->FitToPhysical(i, min->X()[i]);
+  inter->SetInternalPars(min->X()); //the result is now saved in the parameterVec
   return min->MinValue();
 }
 
@@ -64,20 +72,21 @@ void saveResult(ROOT::Math::Minimizer *min, Interface *inter, int nPars, const c
   posFcn[0] = fcnmin;
   posFcn[1] = inter->CalcPrior(inter->GetParMap(min->X()));
 
-  for(int i=0; i<nPars; i++){
-    nom[i] = inter->nominalPars[inter->parNames[i]];
-    pre[i] = inter->preFit[i];
-    pos[i] = inter->FitToPhysical(i, bestFit[i]);
-    posError[i] = inter->FitToPhysical(i, errors[i]);
+  for(int i=0; i<parameterVec->size(); i++){
+    nom[i] = parameterVec->at(i)->nominalValue;
+    pre[i] = parameterVec->at(i)->prefitValue;
+    pos[i] = parameterVec->at(i)->getPhysicalValue();
+
+    posError[i] = inter->FitToPhysical(parameterVec->at(i)->name, errors[i]);
     posFitBasis[i] = bestFit[i];
     posErrorFitBasis[i] = errors[i];
 
     param_num = i;
     parameter_fit = bestFit[i];
-    parameter_physical = inter->FitToPhysical(i, bestFit[i]);
+    parameter_physical = inter->FitToPhysical(parameterVec->at(i)->name, bestFit[i]);
     error_fit = errors[i];
-    error_physical = inter->FitToPhysical(i, errors[i]);
-    name = TString(inter->parNames[i]);
+    error_physical = inter->FitToPhysical(parameterVec->at(i)->name, errors[i]);
+    name = TString(parameterVec->at(i)->name);
     paramtree->Fill();
   }
 
@@ -115,73 +124,152 @@ int main(int argc, char **argv){
   std::string baseBeamlineFile="../survey/unoptimised.gmad";
   std::string ssemDataFile="ssem_data/run0920332_gen.root";//"./ssem_data/run0910216_gen.root";
 
-  const int nMagnetPars = 11;
-  const int nBeamPars = 10;
-  const int nPars = nMagnetPars + nBeamPars;
 
-  Interface inter(ssemDataFile, baseBeamlineFile, nPars, nMagnetPars, nBeamPars);
+  auto allParameterVec = std::vector<std::shared_ptr<Parameter>>();
+  //BPV1 has zero current so set it to fixed, but should add some freedom due to residual magnetisation in future
+  //if we set them fixed here they will be permanently fixed no matter what we do in performFit
+  allParameterVec.push_back(std::make_shared<Parameter>("BPV1", "fixed", "vBend", "preparation", 0));
+  allParameterVec.push_back(std::make_shared<Parameter>("BPH2", "free", "hBend", "preparation", 1));
+  allParameterVec.push_back(std::make_shared<Parameter>("QPQ1", "free", "quad", "preparation", 2));
+  allParameterVec.push_back(std::make_shared<Parameter>("QPQ2", "free", "quad", "preparation", 4));
+  allParameterVec.push_back(std::make_shared<Parameter>("BPD1", "free", "hBend", "preparation", 5));
+  allParameterVec.push_back(std::make_shared<Parameter>("BPD2", "free", "hBend", "preparation", 6));
+  allParameterVec.push_back(std::make_shared<Parameter>("QPQ3", "free", "quad", "preparation", 7));
+  allParameterVec.push_back(std::make_shared<Parameter>("BPV2", "free", "vBend", "preparation", 8));
+  allParameterVec.push_back(std::make_shared<Parameter>("QPQ4", "free", "quad", "preparation", 9));
+  allParameterVec.push_back(std::make_shared<Parameter>("BPH3", "free", "hBend", "preparation", 10));
+  allParameterVec.push_back(std::make_shared<Parameter>("QPQ5", "free", "quad", "preparation", 11));
+
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD1",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF1",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD2",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF2",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD3",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF3",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD4",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF4",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD5",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF5",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD6",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF6",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD7",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF7",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD8",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF8",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD9",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF9",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD10", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF10", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD11", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF11", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD12", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF12", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD13", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF13", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAD14", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("BAF14", "free", "arcBend", "arc"));
+
+  allParameterVec.push_back(std::make_shared<Parameter>("QFQ1",  "free", "quad", "finalFocus", 19));
+  allParameterVec.push_back(std::make_shared<Parameter>("BFV1",  "free", "vBend", "finalFocus", 20));
+  allParameterVec.push_back(std::make_shared<Parameter>("BFH1",  "free", "hBend", "finalFocus", 21));
+  allParameterVec.push_back(std::make_shared<Parameter>("BFV2",  "free", "vBend", "finalFocus", 22));
+  allParameterVec.push_back(std::make_shared<Parameter>("QFQ2",  "free", "quad", "finalFocus", 23));
+  allParameterVec.push_back(std::make_shared<Parameter>("QFQ3",  "free", "quad", "finalFocus", 24));
+  allParameterVec.push_back(std::make_shared<Parameter>("BFH2",  "free", "hBend", "finalFocus", 25));
+  allParameterVec.push_back(std::make_shared<Parameter>("BFVD1", "free", "vBend", "finalFocus", 26));
+  allParameterVec.push_back(std::make_shared<Parameter>("QFQ4",  "free", "quad", "finalFocus", 27));
+  allParameterVec.push_back(std::make_shared<Parameter>("BFVD2", "free", "vBend", "finalFocus", 28));
+
+  allParameterVec.push_back(std::make_shared<Parameter>("X0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("Xp0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("emitx", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("betx", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("alfx", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("Y0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("Yp0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("emity", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("bety", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("alfy", "free", "beamTwiss"));
+
+
+  //now filter the parameters to only those we want to use in this optimisation (only necessary if you have a subset of the beamline)
+  for(auto &par : allParameterVec){
+    if(par->section == "preparation" || par->type.find("beam") != std::string::npos){ //just preparation section for testing
+      parameterVec->push_back(par);
+      (*parameterMap)[par->name] = par;
+    }
+  }
+
+  int nPars = parameterVec->size();
+
+  //can apply some filtering to parameters if we want but can do this at fit time, doesn't care about parameters that are unused
+
+  Interface inter(ssemDataFile, baseBeamlineFile, parameterMap, parameterVec);
   inter.bds->SetFileWriting(false); //dont want to save a file for every simulation run, realllly slows things down
 
-  double pars[nPars];
 
   //options for the initial magnet field strengths, all false means use ssem data file and estimates of magnet strengths
   char *usePrevBestFit = nullptr; //"./may_2025_hk_fits/misalignments_no_noise_tight_tolerance.root";
   bool useFieldMaps = false; //currently unsupported
-  bool useFudgeFactor = false;
   bool useInputFile = false;
 
 
-  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useFudgeFactor, useInputFile, pars, 0.0); //last arg is noise
+  inter.SetInitialValues(usePrevBestFit, useFieldMaps, useInputFile, 0.0); //last arg is noise
 
   //set prior constraints
   //negative values are a fractional uncertainty on the nominal value
   //positive values are an absolute uncertainty in the same units as the parameter
 
 //  inter.priorErrors["BPV1"] = 0.00001; //nominal current is 0 maybe there should actually be no freedom here..
-  inter.priorErrors["BPH2"] = -0.07;
-  inter.priorErrors["QPQ1"] = -0.07;
-  inter.priorErrors["QPQ2"] = -0.07;
-  inter.priorErrors["BPD1"] = -0.07;
-  inter.priorErrors["BPD2"] = -0.07;
-  inter.priorErrors["QPQ3"] = -0.07;
-  inter.priorErrors["BPV2"] = -0.07;
-  inter.priorErrors["QPQ4"] = -0.07;
-//  inter.priorErrors["BPH3"] = -0.05;
-//  inter.priorErrors["QPQ5"] = -0.05;
+  (*parameterMap)["BPH2"]->priorError = -0.07;
+  (*parameterMap)["QPQ1"]->priorError = -0.07;
+  (*parameterMap)["QPQ2"]->priorError = -0.07;
+  (*parameterMap)["BPD1"]->priorError = -0.07;
+  (*parameterMap)["BPD2"]->priorError = -0.07;
+  (*parameterMap)["QPQ3"]->priorError = -0.07;
+  (*parameterMap)["BPV2"]->priorError = -0.07;
+  (*parameterMap)["QPQ4"]->priorError = -0.07;
+  (*parameterMap)["BPH3"]->priorError = -0.07;
+  (*parameterMap)["QPQ5"]->priorError = -0.07;
 
   //really lose constraints on beam parameters, but does really help with them not exploding 
-  inter.priorErrors["X0"] = 2;
-  inter.priorErrors["emitx"] = -0.2;
-  inter.priorErrors["betx"] = 10;
-  inter.priorErrors["alfx"] = 5;
+  (*parameterMap)["X0"]->priorError = 2;
+  (*parameterMap)["emitx"]->priorError = -0.2;
+  (*parameterMap)["betx"]->priorError = 10;
+  (*parameterMap)["alfx"]->priorError = 5;
 
-  inter.priorErrors["Y0"] = 2;
-  inter.priorErrors["emity"] = -0.2;
-  inter.priorErrors["bety"] = 10;
-  inter.priorErrors["alfy"] = 5;
+  (*parameterMap)["Y0"]->priorError = 2;
+  (*parameterMap)["emity"]->priorError = -0.2;
+  (*parameterMap)["bety"]->priorError = 10;
+  (*parameterMap)["alfy"]->priorError = 5;
 
-  //pars is now set to the expected prefit values of the magnets based on the bools above
-  inter.SetInternalPars(pars);
-  //inter.SetNominalPars(pars);
-
-  for(int i=0; i<nPars; i++) std::cout<<inter.parNames[i]<<"\t"<<pars[i]<<std::endl;
 
   inter.SetChisqMode(1+2+4+8);
  
 //just see how long a single iteration takes
- 
-  auto iterstarttime = std::chrono::high_resolution_clock::now();
+//  auto iterstarttime = std::chrono::high_resolution_clock::now();
 //  inter.fcn(pars);
-  auto iterendtime = std::chrono::high_resolution_clock::now();
-  auto itertime = std::chrono::duration_cast<std::chrono::microseconds>(iterendtime-iterstarttime).count();
-  std::cout<<"Took "<<itertime*1e-6<<"s to run a single iteration"<<std::endl;
+//  auto iterendtime = std::chrono::high_resolution_clock::now();
+//  auto itertime = std::chrono::duration_cast<std::chrono::microseconds>(iterendtime-iterstarttime).count();
+//  std::cout<<"Took "<<itertime*1e-6<<"s to run a single iteration"<<std::endl;
 
 //now for fitting
 
-  std::vector<int> bMagVars = {0, 1, 4, 5, 7, 9};
-  std::vector<int> qMagVars = {2, 3, 6, 8, 10};
-  std::vector<int> beamTwissVars = {13, 14, 15, 18, 19, 20};
-  std::vector<int> beamPosVars = {11, 12, 16, 17};
+  std::map<std::string, std::vector<std::string>> freeGroups;
+  freeGroups["all"] = {};
+  freeGroups["B_PS"] = {};
+  freeGroups["Q_PS"] = {};
+  freeGroups["beamPosition"] = {};
+  freeGroups["beamTwiss"] = {};
+
+  for(auto &par : *parameterVec){
+    freeGroups["all"].push_back(par->name);
+    if((par->type == "hBend" || par->type == "vBend") && par->section == "preparation") freeGroups["B_PS"].push_back(par->name);
+    if(par->type == "quad" && par->section == "preparation") freeGroups["Q_PS"].push_back(par->name);
+    if(par->type == "beamPosition") freeGroups["beamPosition"].push_back(par->name);
+    if(par->type == "beamTwiss") freeGroups["beamTwiss"].push_back(par->name);
+  }
+
 
   auto wrappedFcn = [&inter](const double* pars) {
       return inter.fcn_wrapper(pars);
@@ -191,48 +279,43 @@ int main(int argc, char **argv){
   ROOT::Math::Minimizer *min = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
 
   min->SetFunction(f);
-  min->SetVariableLowerLimit(13, 0); //emitx
-  min->SetVariableLowerLimit(14, 0); //betax
-  min->SetVariableLowerLimit(18, 0); //emity
-  min->SetVariableLowerLimit(19, 0); //betay
 
-  for(unsigned int i=0; i<inter.parNames.size(); i++) std::cout<< i<<"  " << inter.parNames[i] <<std::endl;
 //  TFile *result = new TFile("result.root", "RECREATE");
 //  TH1D *hist;
 //  for(int i=0; i<nPars; i++){
-//    std::string name = "param_";
-//    name += inter.parNames[i];
-//    if(pars[i]>=0) hist = new TH1D(name.c_str(), name.c_str(), 11, pars[i]*0.5, pars[i]*1.5);
-//    else hist = new TH1D(name.c_str(), name.c_str(), 11, pars[i]*1.5, pars[i]*0.5);
+//    std::string name = parameterVec->at(i)->name;
+//    double val = parameterVec->at(i)->getFitValue();
+//    if(val>=0) hist = new TH1D(name.c_str(), name.c_str(), 11, val*0.5, val*1.5);
+//    else hist = new TH1D(name.c_str(), name.c_str(), 11, val*1.5, val*0.5);
 //
-//    inter.ParamScan(i, hist);
+//    inter.ParamScan(parameterVec->at(i)->name, hist);
 //
 //    result->cd();
 //    hist->Write(name.c_str());
 //  }
 //  result->Close();
-
+//  exit(1);
 
   std::cout << "about to call perform fit with B magnets and beam position only"<<std::endl;
-  performFit(min, &inter, nPars, pars, {qMagVars, beamTwissVars}, 1+2);
+  performFit(min, &inter, {freeGroups["B_PS"], freeGroups["beamPosition"]}, 1+2);
   std::cout << "about to call perform fit with Q magnets and beam twiss parameters only"<<std::endl;
-  performFit(min, &inter, nPars, pars, {bMagVars, beamPosVars}, 4+8);
+  performFit(min, &inter, {freeGroups["Q_PS"], freeGroups["beamTwiss"]}, 4+8);
   std::cout << "about to call perform fit with beam only"<<std::endl;
-  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+  performFit(min, &inter, {freeGroups["B_PS"], freeGroups["Q_PS"]}, 1+2+4+8);
  
   saveResult(min, &inter, nPars, "fit_results_after_first_split_optimisation.root");
 
   std::cout << "about to call perform fit with B magnets only take 2"<<std::endl;
-  performFit(min, &inter, nPars, pars, {qMagVars, beamTwissVars}, 1+2);
+  performFit(min, &inter, {freeGroups["B_PS"], freeGroups["beamPosition"]}, 1+2);
   std::cout << "about to call perform fit with Q magnets only take 2"<<std::endl;
-  performFit(min, &inter, nPars, pars, {bMagVars, beamPosVars}, 4+8);
+  performFit(min, &inter, {freeGroups["Q_PS"], freeGroups["beamTwiss"]}, 4+8);
   std::cout << "about to call perform fit with beam only take 2"<<std::endl;
-  performFit(min, &inter, nPars, pars, {bMagVars, qMagVars}, 1+2+4+8);
+  performFit(min, &inter, {freeGroups["B_PS"], freeGroups["Q_PS"]}, 1+2+4+8);
  
   saveResult(min, &inter, nPars, "fit_results_after_second_split_optimisation.root");
 
   std::cout << "about to call perform fit with all parameters free (this may take a while)"<<std::endl;
-  performFit(min, &inter, nPars, pars, {}, 1+2+4+8);
+  performFit(min, &inter, {freeGroups["all"]}, 1+2+4+8);
 
 
   saveResult(min, &inter, nPars, "fit_results.root");

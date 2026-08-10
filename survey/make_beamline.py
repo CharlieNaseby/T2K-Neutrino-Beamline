@@ -26,10 +26,10 @@ ssem_in=False
 
 #the last element in the beamline you want to include, will place a dump immediately after this
 #for the whole beamline set to t2k_target
-terminal_element = 't2k_target'
+terminal_element = 'bellows_super'
 
 #fit configuration
-if(True):
+if(False):
     print_tunnel=False
     print_physics=False
     sample_all=False
@@ -63,7 +63,7 @@ if(False):
     merge_drifts=False
 
 #beam loss configuration
-if(False):
+if(True):
     print_tunnel=False
     print_physics=True
     sample_all=True
@@ -1180,7 +1180,8 @@ tunnelSoilThickness = 2*m;\n\n''')
         dx = string_to_list(row.blm_offset_x)
         dy = string_to_list(row.blm_offset_y)
         ds = [str(float(entry)+row.polelength/2.0) for entry in string_to_list(row.blm_offset_s)]  #TODO THIS ONLY WORKS FOR PURE QUAD/DIPOLE FIELDMAP WILL BREAK THIS
-        orientation = string_to_string_list(row.blm_orientation)
+        orientation = string_to_string_list(row.blm_orientation)[0]
+
         for i in range(len(dx)):
             self.print_blm(row.element, dx[i], dy[i], ds[i], orientation[i])
 
@@ -1269,8 +1270,9 @@ tunnelSoilThickness = 2*m;\n\n''')
             self.file.write("! s=" + str(self.s) + "\n")
 
             if(row.element == self.terminal_element): #if we only want the first section of the beam 
-                dump = row._replace(element="d1", length=1000)
-                self.print_dump(dump)
+                if(row.type != "dump"):
+                    dump = row._replace(element="d1", length=1000)
+                    self.print_dump(dump)
                 break
 
         #print the beamline elements in a line
