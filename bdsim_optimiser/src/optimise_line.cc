@@ -124,8 +124,22 @@ int main(int argc, char **argv){
   std::string baseBeamlineFile="../survey/unoptimised.gmad";
   std::string ssemDataFile="ssem_data/run0920332_gen.root";//"./ssem_data/run0910216_gen.root";
 
+  std::vector<int> ssemMask = std::vector<int>(NSSEM, 1); //whether we want to include each SSEM in the fit, 1 = include, 0 = exclude
+
 
   auto allParameterVec = std::vector<std::shared_ptr<Parameter>>();
+  //for our convenience we will put beam first, since number of magnet parameters may vary depending on fit
+  allParameterVec.push_back(std::make_shared<Parameter>("X0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("Xp0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("emitx", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("betx", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("alfx", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("Y0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("Yp0", "free", "beamPosition"));
+  allParameterVec.push_back(std::make_shared<Parameter>("emity", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("bety", "free", "beamTwiss"));
+  allParameterVec.push_back(std::make_shared<Parameter>("alfy", "free", "beamTwiss"));
+
   //BPV1 has zero current so set it to fixed, but should add some freedom due to residual magnetisation in future
   //if we set them fixed here they will be permanently fixed no matter what we do in performFit
   allParameterVec.push_back(std::make_shared<Parameter>("BPV1", "fixed", "vBend", "preparation", 0));
@@ -180,16 +194,7 @@ int main(int argc, char **argv){
   allParameterVec.push_back(std::make_shared<Parameter>("QFQ4",  "free", "quad", "finalFocus", 27));
   allParameterVec.push_back(std::make_shared<Parameter>("BFVD2", "free", "vBend", "finalFocus", 28));
 
-  allParameterVec.push_back(std::make_shared<Parameter>("X0", "free", "beamPosition"));
-  allParameterVec.push_back(std::make_shared<Parameter>("Xp0", "free", "beamPosition"));
-  allParameterVec.push_back(std::make_shared<Parameter>("emitx", "free", "beamTwiss"));
-  allParameterVec.push_back(std::make_shared<Parameter>("betx", "free", "beamTwiss"));
-  allParameterVec.push_back(std::make_shared<Parameter>("alfx", "free", "beamTwiss"));
-  allParameterVec.push_back(std::make_shared<Parameter>("Y0", "free", "beamPosition"));
-  allParameterVec.push_back(std::make_shared<Parameter>("Yp0", "free", "beamPosition"));
-  allParameterVec.push_back(std::make_shared<Parameter>("emity", "free", "beamTwiss"));
-  allParameterVec.push_back(std::make_shared<Parameter>("bety", "free", "beamTwiss"));
-  allParameterVec.push_back(std::make_shared<Parameter>("alfy", "free", "beamTwiss"));
+
 
 
   //now filter the parameters to only those we want to use in this optimisation (only necessary if you have a subset of the beamline)
@@ -245,7 +250,7 @@ int main(int argc, char **argv){
 
 
   inter.SetChisqMode(1+2+4+8);
- 
+  inter.SetSSEMMask(ssemMask);
 //just see how long a single iteration takes
 //  auto iterstarttime = std::chrono::high_resolution_clock::now();
 //  inter.fcn(pars);
@@ -257,10 +262,10 @@ int main(int argc, char **argv){
 
   std::map<std::string, std::vector<std::string>> freeGroups;
   freeGroups["all"] = {};
-  freeGroups["B_PS"] = {};
-  freeGroups["Q_PS"] = {};
-  freeGroups["beamPosition"] = {};
-  freeGroups["beamTwiss"] = {};
+  freeGroups["B_PS"] = {}; //bending magnets in preparation section
+  freeGroups["Q_PS"] = {}; //quadrupoles in preparation section
+  freeGroups["beamPosition"] = {};  //beam position and initial direction, obviously strongly impacted by bending magnets
+  freeGroups["beamTwiss"] = {};  //beam twiss parameters, impacted primarily by quadrupoles
 
   for(auto &par : *parameterVec){
     freeGroups["all"].push_back(par->name);
@@ -270,7 +275,7 @@ int main(int argc, char **argv){
     if(par->type == "beamTwiss") freeGroups["beamTwiss"].push_back(par->name);
   }
 
-
+  //root needs this slightly weird lambda to allow for state changes inside inter to be reflected in the minimiser?
   auto wrappedFcn = [&inter](const double* pars) {
       return inter.fcn_wrapper(pars);
   };

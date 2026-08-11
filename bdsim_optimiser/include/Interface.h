@@ -67,6 +67,7 @@ public:
   std::vector<std::string> beamNames;
   std::vector<std::string> parNames;
   CNBDSIM *bds;
+  std::vector<int> ssemMask;
 
   int testval = 0;
   unsigned int fitMode=1+2+4+8;  //by default fit width and position
@@ -107,6 +108,7 @@ public:
   double CalcPrior(std::map<std::string, double> pars);
   void TestBdsim();
   void SetChisqMode(int mode){fitMode=mode;};
+  void SetSSEMMask(std::vector<int> mask){ssemMask = mask;};
   std::vector<double> GetFcnHistory(){return fcnHistory;};
   std::vector<double> GetMAEHistory(){return MAEHistory;};
 

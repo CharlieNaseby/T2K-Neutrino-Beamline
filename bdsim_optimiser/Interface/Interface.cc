@@ -175,58 +175,59 @@ void Interface::SetData(std::vector<double> x, std::vector<double> y, std::vecto
   }
 }
 
+
+//  std::map<std::string, double> beamPars;
+//  beamPars["X0"]=-0.5e-3; //units of m
+//  beamPars["Xp0"]=3.5e-5;
+//  beamPars["emitx"]=0.0610768e-6; //m rad
+//  beamPars["betx"]=37.098; //m
+//  beamPars["alfx"]=-2.4187;
+//  beamPars["dispx"]=0.42373,
+//  beamPars["dispxp"]=0.07196,
+//  beamPars["Y0"]=-0.2e-3;
+//  beamPars["Yp0"]=7.8e-5;
+//  beamPars["emity"]=0.05976e-6;
+//  beamPars["bety"]=5.45;
+//  beamPars["alfy"]=0.178;
+//  beamPars["dispy"]=0.;
+//  beamPars["dispyp"]=0.0;
+//
+//
+//  std::map<std::string, double> kScaling;
+//  //derived from the "KIcurve sad file, scaling of K1 or K0 value in units of 100A
+//  kScaling["BPV1"] = -0.08760146181454302;
+//  kScaling["BPH2"] = -0.06372506685790527;
+//  kScaling["QPQ1"] = 0.010747477;
+//  kScaling["QPQ2"] = -0.012669113;
+//  kScaling["BPD1"] = -0.0926275917278186;
+//  kScaling["BPD2"] = -0.08940591194129406;
+//  kScaling["QPQ3"] = 0.01593171666666667;
+//  kScaling["BPV2"] = -0.12238521642828552;
+//  kScaling["QPQ4"] = -0.01539898;
+//  kScaling["BPH3"] = -0.11826754864042695;
+//  kScaling["QPQ5"] = 0.01768722;
+//
+//
+//  //values based on the fieldmap fields at 100A
+//  //note that for quads these strengths are 1/(B*rho) * dB/dx
+//  //for 30 GeV KE protons gamma*m_p*c^2 = 30.938 GeV
+//  //so B*rho = 30.938*beta/proton charge
+//  //=30.938 * 0.9995/0.30286   elementary charge in natural units from alpha=1/137
+//  //(1/103.101)*dB/dx
+//  kScaling["BPV1"] = -0.09456593004136546;
+//
+//  kScaling["QPQ1"] = 0.010517526;
+//  kScaling["QPQ2"] = -0.01261134;
+//  kScaling["BPD1"] = -0.09289046446110355;
+//  kScaling["BPD2"] = -0.09289046446110355;
+//  kScaling["QPQ3"] = 0.01574514;
+//  kScaling["BPV2"] = -0.12654858254158613;
+//  kScaling["QPQ4"] = -0.01471238222852117;
+//  kScaling["BPH3"] = -0.12432151082458207;
+//  kScaling["QPQ5"] = 0.019445574477550798;
+
+
 void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool useInputFile, double noise){
-
-  std::map<std::string, double> beamPars;
-  beamPars["X0"]=-0.5e-3; //units of m
-  beamPars["Xp0"]=3.5e-5;
-  beamPars["emitx"]=0.0610768e-6; //m rad
-  beamPars["betx"]=37.098; //m
-  beamPars["alfx"]=-2.4187;
-  beamPars["dispx"]=0.42373,
-  beamPars["dispxp"]=0.07196,
-  beamPars["Y0"]=-0.2e-3;
-  beamPars["Yp0"]=7.8e-5;
-  beamPars["emity"]=0.05976e-6;
-  beamPars["bety"]=5.45;
-  beamPars["alfy"]=0.178;
-  beamPars["dispy"]=0.;
-  beamPars["dispyp"]=0.0;
-
-
-  std::map<std::string, double> kScaling;
-  //derived from the "KIcurve sad file, scaling of K1 or K0 value in units of 100A
-  kScaling["BPV1"] = -0.08760146181454302;
-  kScaling["BPH2"] = -0.06372506685790527;
-  kScaling["QPQ1"] = 0.010747477;
-  kScaling["QPQ2"] = -0.012669113;
-  kScaling["BPD1"] = -0.0926275917278186;
-  kScaling["BPD2"] = -0.08940591194129406;
-  kScaling["QPQ3"] = 0.01593171666666667;
-  kScaling["BPV2"] = -0.12238521642828552;
-  kScaling["QPQ4"] = -0.01539898;
-  kScaling["BPH3"] = -0.11826754864042695;
-  kScaling["QPQ5"] = 0.01768722;
-
-
-  //values based on the fieldmap fields at 100A
-  //note that for quads these strengths are 1/(B*rho) * dB/dx
-  //for 30 GeV KE protons gamma*m_p*c^2 = 30.938 GeV
-  //so B*rho = 30.938*beta/proton charge
-  //=30.938 * 0.9995/0.30286   elementary charge in natural units from alpha=1/137
-  //(1/103.101)*dB/dx
-  kScaling["BPV1"] = -0.09456593004136546;
-
-  kScaling["QPQ1"] = 0.010517526;
-  kScaling["QPQ2"] = -0.01261134;
-  kScaling["BPD1"] = -0.09289046446110355;
-  kScaling["BPD2"] = -0.09289046446110355;
-  kScaling["QPQ3"] = 0.01574514;
-  kScaling["BPV2"] = -0.12654858254158613;
-  kScaling["QPQ4"] = -0.01471238222852117;
-  kScaling["BPH3"] = -0.12432151082458207;
-  kScaling["QPQ5"] = 0.019445574477550798;
-
 
   for(auto &val : magCurrent){
     if(abs(val) < 1e-1)
@@ -246,7 +247,7 @@ void Interface::SetInitialValues(char *usePrevBestFit, bool useFieldMaps, bool u
   }
 
   if(usePrevBestFit){
-    std::cout << "Using previous fit result contained in file previous_fit.root" << std::endl;
+    std::cout << "Using previous fit result contained in file " << usePrevBestFit << std::endl;
     TFile inf(usePrevBestFit, "READ");
     TVectorT<double> filePostFit = *(TVectorT<double>*)inf.Get("postFit");
     TVectorT<double> filePreFit = *(TVectorT<double>*)inf.Get("preFit");
@@ -544,6 +545,7 @@ double Interface::CalcChisq(const double *pars){
 
   for(unsigned int i=0; i<dat.size(); i++){
     std::array<double, 4> simulation = allSSEMSimulation[i];
+    if(ssemMask[i] == 0) continue; //if this ssem is masked out then don't include it in the chisq
 //    std::cout<<"SSEM"<<i+1<<" beam sim postion = \t"<<simulation[0]<<", \t"<<simulation[1]<<" data \t"<<dat[i][0]<<", \t"<<dat[i][1]<<std::endl;
 //    std::cout<<"SSEM"<<i+1<<" beam sim width   = \t"<<simulation[2]<<", \t"<<simulation[3]<<" data \t"<<dat[i][2]<<", \t"<<dat[i][3]<<std::endl;
     chisqx += (dat[i][0]-simulation[0])*(dat[i][0]-simulation[0])/(0.2*0.2);  //CERN 0.2mm uncert on ssem position x

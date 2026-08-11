@@ -18,18 +18,23 @@ true=True
 #if you want to see a plot of the positions of the magnets compared to the survey
 plot_beamline=False
 
-#known constants
-
-proton_momentum = 30.924 # momentum for a 30GeV KE proton 
-vacuum_pressure = 1e-4 #vacuum pressure in bar
-ssem_in=False
-
 #the last element in the beamline you want to include, will place a dump immediately after this
 #for the whole beamline set to t2k_target
 terminal_element = 'bellows_super'
 
+#known constants
+proton_momentum = 30.924 # momentum for a 30GeV KE proton 
+vacuum_pressure = 1e-9 #vacuum pressure in bar
+
+ssem_in=True
+
+fit_configuration = False
+beam_orbit = False
+beam_loss = True
+primaries = False
+
 #fit configuration
-if(False):
+if(fit_configuration):
     print_tunnel=False
     print_physics=False
     sample_all=False
@@ -46,7 +51,7 @@ if(False):
     merge_drifts=True
 
 #beam orbit plot configuration
-if(False):
+if(beam_orbit):
     print_tunnel=False
     print_physics=False
     sample_all=True
@@ -63,7 +68,7 @@ if(False):
     merge_drifts=False
 
 #beam loss configuration
-if(True):
+if(beam_loss):
     print_tunnel=False
     print_physics=True
     sample_all=True
@@ -80,7 +85,7 @@ if(True):
     merge_drifts=False
 
 #generate primaries configuration
-if(False):
+if(primaries):
     sample_entry = True
     sample_ssem = False
     sample_all = False
@@ -1401,6 +1406,7 @@ if __name__ == '__main__':
 #    -13 ,
 #    423 ]
 
+    #run 920332
     vec_magset = [0,
       -15,
       520,
