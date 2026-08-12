@@ -425,30 +425,50 @@ int CNBDSIM::Initialise()
   return 0;
 }
 
-double CNBDSIM::GetParameterValue(std::string key){
-    if(key == "X0") return parser->GetBeam().X0;
-    else if(key == "Xp0") return parser->GetBeam().Xp0;
-    else if(key == "emitx") return parser->GetBeam().emitx;
-    else if(key == "betx") return parser->GetBeam().betx;
-    else if(key == "alfx") return parser->GetBeam().alfx;
-    else if(key == "Y0") return parser->GetBeam().Y0;
-    else if(key == "Yp0") return parser->GetBeam().Yp0;
-    else if(key == "emity") return parser->GetBeam().emity;
-    else if(key == "bety") return parser->GetBeam().bety;
-    else if(key == "alfy") return parser->GetBeam().alfy;
-    else{
-      for(unsigned int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
-        auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
-        std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
-        if(name.find(key) != std::string::npos){
-          if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole")))
+double CNBDSIM::GetParameterValue(std::shared_ptr<Parameter> par){
+
+  std::string key = par->name;
+  if(par->type == "arcQuad"){
+    key = "B"+par->name.substr(1);
+  }
+
+  if(key == "X0") return parser->GetBeam().X0;
+  else if(key == "Xp0") return parser->GetBeam().Xp0;
+  else if(key == "emitx") return parser->GetBeam().emitx;
+  else if(key == "betx") return parser->GetBeam().betx;
+  else if(key == "alfx") return parser->GetBeam().alfx;
+  else if(key == "Y0") return parser->GetBeam().Y0;
+  else if(key == "Yp0") return parser->GetBeam().Yp0;
+  else if(key == "emity") return parser->GetBeam().emity;
+  else if(key == "bety") return parser->GetBeam().bety;
+  else if(key == "alfy") return parser->GetBeam().alfy;
+  else{
+    for(unsigned int i=0; i<BDSAcceleratorModel::Instance()->fields.size(); i++){ //loops over all fields 
+      auto *fieldInfo =  BDSAcceleratorModel::Instance()->fields[i]->GetInfo();
+      std::string name = BDSFieldBuilder::Instance()->lvs[i][0]->GetName();
+      if(name.find(key) != std::string::npos){
+        if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("quadrupole"))){
+          return (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"];
+        }
+        else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipole"))){
+          return 1000.0*(*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"];
+        }
+        else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipolequadrupole"))){
+          if(par->type == "arcQuad"){ //quadrupole parameter
             return (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"];
-          else 
+          }
+          else{ //bending parameter
             return 1000.0*(*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"];
+          }
+        }
+        else{
+          G4cerr << "Found magnet with name "<< name << " not of type dipole or quadrupole, type: " << fieldInfo->FieldType() << " exiting" << G4endl;
+          throw std::runtime_error("Unknown magnet type");
         }
       }
     }
-    return -999;
+  }
+  return -999;
 }
 
 void CNBDSIM::SetFileWriting(bool write){
@@ -474,6 +494,19 @@ void CNBDSIM::BeamOn(int nGenerate, std::map<std::string, double> pars)
           value *= 0.001;  //Convert from T to kT?
 //          G4cout << "Setting dipole "<<key<<" to "<< value << " from "<< (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] << G4endl;
           (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] = value;
+        }
+        else if(fieldInfo->FieldType() == BDS::DetermineFieldType(G4String("dipolequadrupole"))){
+          if(name.find("BA") != std::string::npos){ //bending parameter
+            value *= 0.001;  //Convert from T to kT?
+            (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["field"] = value;
+          }
+          else if(name.find("QA") != std::string::npos){ //quadrupole parameter
+            (*BDSFieldBuilder::Instance()->infos[i]->MagnetStrength())["k1"] = value;
+          }
+          else{
+            G4cerr << "Found parameter with name "<< name << " of type dipolequadrupole but not sure which parameter to set, exiting" << G4endl;
+            throw;
+          }
         }
         else{
           G4cerr << "Found magnet with name "<< name << " not of type dipole or quadrupole, type: " << fieldInfo->FieldType() << " exiting" << G4endl;

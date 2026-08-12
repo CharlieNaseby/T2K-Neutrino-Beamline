@@ -155,33 +155,74 @@ int main(int argc, char **argv){
   allParameterVec.push_back(std::make_shared<Parameter>("QPQ5", "free", "quad", "preparation", 11));
 
   allParameterVec.push_back(std::make_shared<Parameter>("BAD1",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD1",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF1",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF1",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD2",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD2",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF2",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF2",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD3",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD3",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF3",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF3",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD4",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD4",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF4",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF4",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD5",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD5",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF5",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF5",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD6",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD6",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF6",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF6",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD7",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD7",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF7",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF7",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD8",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD8",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF8",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF8",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD9",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD9",  "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF9",  "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF9",  "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD10", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD10", "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF10", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF10", "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD11", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD11", "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF11", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF11", "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD12", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD12", "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF12", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF12", "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD13", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD13", "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF13", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF13", "free", "arcQuad", "arc"));
+
   allParameterVec.push_back(std::make_shared<Parameter>("BAD14", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAD14", "free", "arcQuad", "arc"));
   allParameterVec.push_back(std::make_shared<Parameter>("BAF14", "free", "arcBend", "arc"));
+  allParameterVec.push_back(std::make_shared<Parameter>("QAF14", "free", "arcQuad", "arc"));
 
   allParameterVec.push_back(std::make_shared<Parameter>("QFQ1",  "free", "quad", "finalFocus", 19));
   allParameterVec.push_back(std::make_shared<Parameter>("BFV1",  "free", "vBend", "finalFocus", 20));
@@ -203,8 +244,11 @@ int main(int argc, char **argv){
       parameterVec->push_back(par);
       (*parameterMap)[par->name] = par;
     }
+    if(par->name == "BAD1" || par->name == "QAD1"){ //a single arc magnet
+      parameterVec->push_back(par);
+      (*parameterMap)[par->name] = par;
+    }
   }
-
   int nPars = parameterVec->size();
 
   //can apply some filtering to parameters if we want but can do this at fit time, doesn't care about parameters that are unused
@@ -220,22 +264,18 @@ int main(int argc, char **argv){
 
 
   inter.SetInitialValues(usePrevBestFit, useFieldMaps, useInputFile, 0.0); //last arg is noise
-
+  std::cout<<(*parameterMap)["BAD1"]->nominalValue<<std::endl;
+  std::cout<<(*parameterMap)["QAD1"]->nominalValue<<std::endl;
   //set prior constraints
   //negative values are a fractional uncertainty on the nominal value
   //positive values are an absolute uncertainty in the same units as the parameter
 
 //  inter.priorErrors["BPV1"] = 0.00001; //nominal current is 0 maybe there should actually be no freedom here..
-  (*parameterMap)["BPH2"]->priorError = -0.07;
-  (*parameterMap)["QPQ1"]->priorError = -0.07;
-  (*parameterMap)["QPQ2"]->priorError = -0.07;
-  (*parameterMap)["BPD1"]->priorError = -0.07;
-  (*parameterMap)["BPD2"]->priorError = -0.07;
-  (*parameterMap)["QPQ3"]->priorError = -0.07;
-  (*parameterMap)["BPV2"]->priorError = -0.07;
-  (*parameterMap)["QPQ4"]->priorError = -0.07;
-  (*parameterMap)["BPH3"]->priorError = -0.07;
-  (*parameterMap)["QPQ5"]->priorError = -0.07;
+
+  for(auto &par : *parameterVec){
+    if(par->type == "hBend" || par->type == "vBend" || par->type == "arcBend") par->priorError = -0.07; //7% uncertainty on bending magnets
+    if(par->type == "quad" || par->type == "arcQuad") par->priorError = -0.07; //7% uncertainty on quadrupoles
+  }
 
   //really lose constraints on beam parameters, but does really help with them not exploding 
   (*parameterMap)["X0"]->priorError = 2;
@@ -326,7 +366,7 @@ int main(int argc, char **argv){
   saveResult(min, &inter, nPars, "fit_results.root");
   if(argc > 1) saveResult(min, &inter, nPars, argv[1]);
 
-  inter.GenerateInputFile(min->X());
+//  inter.GenerateInputFile(min->X());
 
   auto endtime = std::chrono::high_resolution_clock::now();
   auto time = std::chrono::duration_cast<std::chrono::microseconds>(endtime-starttime).count();

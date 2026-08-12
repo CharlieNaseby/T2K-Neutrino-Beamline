@@ -39,6 +39,8 @@ class BDSAcceleratorComponentRegistry;
 #include <array>
 #include <numeric>
 #include <map>
+#include <memory>
+#include "Parameter.h"
 
 
 /** 
@@ -67,7 +69,7 @@ public:
   /// Initialise everything given these arguments.
   int Initialise(int argc, char** argv, bool usualPrintOut=true);
 
-  double GetParameterValue(std::string key);
+  double GetParameterValue(std::shared_ptr<Parameter> par);
 
   /// Construct and initialise BDSIM.
   CNBDSIM(int argc, char** argv, bool usualPrintOut=true);

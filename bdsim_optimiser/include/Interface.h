@@ -53,7 +53,7 @@ public:
   std::vector<std::array<double, 4> > dat;
   std::vector<double> s;
   std::vector<double> fcnHistory, MAEHistory;
-  std::vector<std::string> beamline;
+//  std::vector<std::string> beamline;
   int nPars, nMagnetPars, nBeamPars;
   std::vector<double> internalPars;
   std::map<std::string, double> nominalPars;
@@ -64,7 +64,6 @@ public:
   std::vector<double> preFit;
   std::map<std::string, int> magMap;
   std::vector<std::string> magNames;
-  std::vector<std::string> beamNames;
   std::vector<std::string> parNames;
   CNBDSIM *bds;
   std::vector<int> ssemMask;
@@ -94,7 +93,7 @@ public:
   double fcn(const double *pars);
 //  double MAE(const double *pars);
 //  double MAE(std::vector<double> pars);
-  void GenerateInputFile(const double *pars);
+//  void GenerateInputFile(const double *pars);
   void ParseInputFile(std::string baseBeamlineFile);
   std::vector<std::array<double, 4> > GetBeamProperties();
 //  std::vector<double> FitToPhysical(std::vector<double> fitval);
