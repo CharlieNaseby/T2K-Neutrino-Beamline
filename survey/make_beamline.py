@@ -20,7 +20,7 @@ plot_beamline=False
 
 #the last element in the beamline you want to include, will place a dump immediately after this
 #for the whole beamline set to t2k_target
-terminal_element = 'bellows_super'
+terminal_element = 'arc_driftu'
 
 #known constants
 proton_momentum = 30.924 # momentum for a 30GeV KE proton 
@@ -28,9 +28,9 @@ vacuum_pressure = 1e-9 #vacuum pressure in bar
 
 ssem_in=True
 
-fit_configuration = False
+fit_configuration = True
 beam_orbit = False
-beam_loss = True
+beam_loss = False
 primaries = False
 
 #fit configuration
@@ -410,12 +410,14 @@ class SpreadsheetBeamline:
 
         #apply the function to convert the survey offset strings to lists
         self.line['survey_offset'] = self.line['survey_offset'].apply(string_to_list)
+        self.line['blm_offset'] = self.line['blm_offset'].apply(string_to_list)
         self.line['offset'] = self.line['offset'].apply(string_to_list)
         self.line['survey_name'] = self.line['survey_name'].apply(string_to_string_list)
         self.line['geometry'] = self.line['geometry'].apply(string_to_bool)
         self.line['mark'] = pd.to_numeric(self.line['mark'], errors='coerce')
         self.line['polelength'] = pd.to_numeric(self.line['polelength'], errors='coerce')
         self.line['beamline_dir'] = None
+        self.line['yoke_size'] = self.line['yoke_size'].apply(string_to_list)
         self.line = self.line.set_index('element', drop=False)
 
         #if the element 'Survey_offset' is not NaN then this element has a valid survey measurement
@@ -1070,11 +1072,24 @@ class BeamlinePrinter:
 
         if(misalignments and row.angle == 0.0): #bend magnets with actual deflection are handled by the bellows method since BDSIM would collide geometries
             self.file.write(', offsetX='+str(row.misalign[1])+'*mm, offsetY='+str(row.misalign[2])+'*mm')
-        if(not geometry or row.geometry==False):
-            self.file.write(', magnetGeometryType="none"')
+
+
         vertical = False
         if(np.abs(row.tilt-np.pi/2.0) <0.01):
             vertical=True
+
+        if(not geometry or row.geometry==False):
+            self.file.write(', magnetGeometryType="none"')
+        else:
+            #format is yoke full horizontal width, yoke full vertical height regardless of if the magnet is a vbend or hbend
+            if vertical:
+                width = row.yoke_size[1]
+                height = row.yoke_size[0]
+            else:
+                width = row.yoke_size[0]
+                height = row.yoke_size[1]
+            self.file.write(', magnetGeometryType="polessquare", hStyle=1, horizontalWidth='+str(width)+'*mm, vhRatio='+str(height/width))
+
         self.print_aperture(row, vertical)
         self.print_xsec_bias('')
         self.endl()
@@ -1084,11 +1099,18 @@ class BeamlinePrinter:
         self.file.write(row.element+': '+row.type+', l='+str(row.polelength)+'*mm, tilt='+str(row.tilt)+', k1='+str(self.kvals[row.element]))
         if(misalignments):
             self.file.write(', offsetX='+str(row.misalign[1])+'*mm, offsetY='+str(row.misalign[2])+'*mm')
-        if(not geometry or row.geometry == False):
-            self.file.write(', magnetGeometryType="none"')
+        width = row.yoke_size[0]
+        height = row.yoke_size[1]
         vertical = False
         if(np.abs(row.tilt-np.pi/2.0) <0.01):
             vertical=True
+            width = row.yoke_size[1]
+            height = row.yoke_size[0]
+ 
+        if(not geometry or row.geometry == False):
+            self.file.write(', magnetGeometryType="none"')
+        else:
+            self.file.write(', magnetGeometryType="polessquare", hStyle=1, horizontalWidth='+str(width)+'*mm, vhRatio='+str(height/width))
         self.print_aperture(row, vertical)
         self.print_xsec_bias('')
         self.endl()
@@ -1118,7 +1140,7 @@ class BeamlinePrinter:
             self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm, offsetX="+str(misalign[1])+"*mm, offsetY="+str(misalign[2])+"*mm")
         else:
             self.file.write(name+": target, l="+str(length)+", material=\""+material+"\", horizontalWidth="+str(hWidth)+"*mm")
-        self.print_xsec_bias('')
+        self.print_xsec_bias('material')
         self.endl()
 
     def print_dump(self, row):
@@ -1182,11 +1204,11 @@ tunnelSoilThickness = 2*m;\n\n''')
         self.endl()
 
     def print_blms(self, row):
-        dx = string_to_list(row.blm_offset_x)
-        dy = string_to_list(row.blm_offset_y)
-        ds = [str(float(entry)+row.polelength/2.0) for entry in string_to_list(row.blm_offset_s)]  #TODO THIS ONLY WORKS FOR PURE QUAD/DIPOLE FIELDMAP WILL BREAK THIS
+        diff = np.array(row.blm_offset)
+        dx = diff[:,0]
+        dy = diff[:,1]
+        ds = diff[:,2] + row.polelength/2.0  #TODO THIS ONLY WORKS FOR PURE QUAD/DIPOLE FIELDMAP WILL BREAK THIS
         orientation = string_to_string_list(row.blm_orientation)[0]
-
         for i in range(len(dx)):
             self.print_blm(row.element, dx[i], dy[i], ds[i], orientation[i])
 
